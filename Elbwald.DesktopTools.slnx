@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/Elbwald.DesktopTools.App/Elbwald.DesktopTools.App.csproj" />
+  <Project Path="src/Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
+  <Project Path="src/Elbwald.DesktopTools.Core/Elbwald.DesktopTools.Core.csproj" />
+  <Project Path="src/Elbwald.DesktopTools.UI/Elbwald.DesktopTools.UI.csproj" />
+  <Project Path="src/Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj" />
+</Solution>

@@ -1,0 +1,10 @@
+{
+  "id": "elbwald.testmodule",
+  "name": "Test Module",
+  "description": "Testmodul für automatisierte ModuleLoader-Tests.",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minimumHostVersion": "0.0.1",
+  "assembly": "Elbwald.DesktopTools.TestModule.dll",
+  "enabled": true
+}

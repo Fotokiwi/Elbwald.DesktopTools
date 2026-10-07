@@ -1,0 +1,21 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="Elbwald.DesktopTools.PhotoSort.Views.PhotoSortView">
+
+    <Grid Margin="32">
+        <StackPanel Spacing="12">
+
+            <TextBlock
+                FontSize="28"
+                FontWeight="SemiBold"
+                Text="Photo Sort" />
+
+            <TextBlock
+                FontSize="16"
+                Text="Fotos analysieren, organisieren und sicher sortieren." />
+
+        </StackPanel>
+    </Grid>
+
+</UserControl>

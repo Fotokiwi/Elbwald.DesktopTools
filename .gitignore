@@ -1,0 +1,31 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# Visual Studio / user-specific files
+.vs/
+*.user
+*.suo
+
+# Test / coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Logs / temporary files
+*.log
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Optional local environment/config
+.env
+.env.*

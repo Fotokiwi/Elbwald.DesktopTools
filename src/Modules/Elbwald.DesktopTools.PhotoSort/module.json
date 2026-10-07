@@ -1,0 +1,10 @@
+{
+  "id": "elbwald.photosort",
+  "name": "Photo Sort",
+  "description": "Fotos analysieren, organisieren und sicher sortieren.",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "minimumHostVersion": "0.0.1",
+  "assembly": "Elbwald.DesktopTools.PhotoSort.dll",
+  "enabled": true
+}

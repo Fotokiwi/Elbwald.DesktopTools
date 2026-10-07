@@ -1,0 +1,36 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.NavigationErrorView"
+    x:DataType="vm:NavigationErrorViewModel">
+
+    <Grid Margin="36">
+        <StackPanel MaxWidth="720"
+                    Spacing="16">
+            <TextBlock Text="{Binding Title}"
+                       FontSize="28"
+                       FontWeight="SemiBold" />
+
+            <TextBlock Text="{Binding Message}"
+                       FontSize="16"
+                       TextWrapping="Wrap"
+                       Opacity="0.78" />
+
+            <Border Padding="16"
+                    CornerRadius="8"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Technische Details"
+                               FontWeight="SemiBold" />
+
+                    <TextBlock Text="{Binding TechnicalMessage}"
+                               FontFamily="monospace"
+                               TextWrapping="Wrap"
+                               Opacity="0.72" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

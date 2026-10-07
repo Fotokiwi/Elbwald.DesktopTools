@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+        x:Class="Elbwald.DesktopTools.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1220"
+        Height="780"
+        MinWidth="920"
+        MinHeight="600"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Elbwald Digital – Desktop Tools">
+
+    <Grid ColumnDefinitions="250,*"
+          Background="{DynamicResource ElbwaldPageBrush}">
+
+        <Border Grid.Column="0"
+                Background="{DynamicResource ElbwaldSidebarBrush}"
+                BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                BorderThickness="0,0,1,0">
+            <Grid Margin="18"
+                  RowDefinitions="Auto,Auto,*,Auto">
+
+                <Grid ColumnDefinitions="46,*"
+                      Margin="4,8,4,28">
+                    <Border Width="40"
+                            Height="40"
+                            CornerRadius="11"
+                            Background="{DynamicResource ElbwaldAccentBrush}">
+                        <PathIcon Data="{StaticResource ElbwaldIconTree}"
+                                  Width="24"
+                                  Height="24"
+                                  Foreground="White"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Spacing="1">
+                        <TextBlock Text="{Binding ApplicationName}"
+                                   Foreground="{DynamicResource ElbwaldTextBrush}"
+                                   FontSize="17"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ApplicationSubtitle}"
+                                   Classes="elbwald-muted"
+                                   FontSize="12" />
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Grid.Row="1"
+                           Margin="10,0,0,7"
+                           Text="WERKZEUGE"
+                           Classes="elbwald-muted"
+                           FontSize="10"
+                           FontWeight="SemiBold" />
+
+                <ListBox Grid.Row="2"
+                         Classes="elbwald-nav"
+                         ItemsSource="{Binding NavigationItems}"
+                         SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavigationItemViewModel">
+                            <Grid ColumnDefinitions="30,*">
+                                <Grid Width="20"
+                                      Height="20"
+                                      VerticalAlignment="Center">
+                                    <PathIcon IsVisible="{Binding IsHome}"
+                                              Data="{StaticResource ElbwaldIconHome}"
+                                              Width="17"
+                                              Height="17" />
+                                    <PathIcon IsVisible="{Binding IsImageTool}"
+                                              Data="{StaticResource ElbwaldIconCamera}"
+                                              Width="17"
+                                              Height="17" />
+                                    <PathIcon IsVisible="{Binding IsMusicTool}"
+                                              Data="{StaticResource ElbwaldIconMusic}"
+                                              Width="17"
+                                              Height="17" />
+                                    <PathIcon IsVisible="{Binding IsGenericTool}"
+                                              Data="{StaticResource ElbwaldIconTool}"
+                                              Width="17"
+                                              Height="17" />
+                                </Grid>
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Name}"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="3"
+                            Margin="4,12,4,4"
+                            Spacing="10">
+                    <Border Padding="12,9"
+                            CornerRadius="10"
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                        <TextBlock Text="{Binding Greeting}"
+                                   Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold" />
+                    </Border>
+
+                    <TextBlock Text="Einfach · Sicher · Einheitlich"
+                               Classes="elbwald-muted"
+                               HorizontalAlignment="Center"
+                               FontSize="10" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ContentControl Grid.Column="1"
+                        Content="{Binding CurrentContent}" />
+    </Grid>
+</Window>
