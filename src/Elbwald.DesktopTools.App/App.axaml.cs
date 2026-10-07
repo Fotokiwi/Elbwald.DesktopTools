@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Elbwald.DesktopTools.App.Services;
 using Elbwald.DesktopTools.App.ViewModels;
 using Elbwald.DesktopTools.App.Views;
+using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Core.Modules;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -32,6 +33,7 @@ public partial class App : Application
         _serviceProvider = services.BuildServiceProvider();
 
         LoadModules(_serviceProvider);
+        ScanStartupRecovery(_serviceProvider);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -66,6 +68,32 @@ public partial class App : Application
             Console.Error.WriteLine(
                 $"Modul konnte nicht geladen werden: "
                 + $"{result.ModuleId ?? result.ModuleDirectory} – {result.Message}");
+        }
+    }
+
+    private static void ScanStartupRecovery(
+        IServiceProvider serviceProvider)
+    {
+        var recoveryService =
+            serviceProvider.GetRequiredService<IStartupRecoveryService>();
+
+        var snapshot = recoveryService
+            .ScanAsync()
+            .GetAwaiter()
+            .GetResult();
+
+        if (snapshot.State == StartupRecoveryState.AttentionRequired)
+        {
+            Console.Error.WriteLine(
+                "Recovery-Prüfung: "
+                + $"{snapshot.Candidates.Count} unvollständige Transaktion(en), "
+                + $"{snapshot.CorruptJournalLineCount} beschädigte Journalzeile(n).");
+        }
+        else if (snapshot.State == StartupRecoveryState.ScanFailed)
+        {
+            Console.Error.WriteLine(
+                "Recovery-Prüfung fehlgeschlagen: "
+                + $"{snapshot.ErrorMessage ?? "Unbekannter Fehler"}");
         }
     }
 }

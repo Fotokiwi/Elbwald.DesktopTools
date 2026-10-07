@@ -39,15 +39,24 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IRecoveryStore, HybridRecoveryStore>();
 
-        services.AddSingleton<IOperationJournal>(
+        services.AddSingleton(
             _ => new JsonLinesOperationJournal(
                 Path.Combine(
                     recoveryRoot,
                     "journal",
                     "operations.jsonl")));
 
+        services.AddSingleton<IOperationJournal>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<JsonLinesOperationJournal>());
+
+        services.AddSingleton<IOperationJournalMaintenance>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<JsonLinesOperationJournal>());
+
         services.AddSingleton<IFileOperationRecoveryInspector, FileOperationRecoveryInspector>();
         services.AddSingleton<IFileOperationRecoveryCoordinator, FileOperationRecoveryCoordinator>();
+        services.AddSingleton<IStartupRecoveryService, StartupRecoveryService>();
         services.AddSingleton<IFileOperationExecutor, FileOperationExecutor>();
 
         services.AddSingleton<INavigationService, NavigationService>();

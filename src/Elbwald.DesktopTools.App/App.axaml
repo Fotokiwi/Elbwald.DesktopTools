@@ -16,6 +16,10 @@
         <SolidColorBrush x:Key="ElbwaldBorderBrush" Color="#DCE5DF" />
         <SolidColorBrush x:Key="ElbwaldTextBrush" Color="#17251F" />
         <SolidColorBrush x:Key="ElbwaldMutedTextBrush" Color="#66756D" />
+        <SolidColorBrush x:Key="ElbwaldWarningBrush" Color="#A96200" />
+        <SolidColorBrush x:Key="ElbwaldWarningSoftBrush" Color="#FFF1D6" />
+        <SolidColorBrush x:Key="ElbwaldDangerBrush" Color="#A64235" />
+        <SolidColorBrush x:Key="ElbwaldDangerSoftBrush" Color="#FBE8E5" />
 
         <StreamGeometry x:Key="ElbwaldIconTree">M12 2L5 11H8L3 18H10V22H14V18H21L16 11H19L12 2Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconHome">M10 20V14H14V20H19V12H22L12 3L2 12H5V20Z</StreamGeometry>
@@ -26,6 +30,7 @@
         <StreamGeometry x:Key="ElbwaldIconCheck">M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconFolder">M10 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V8C22 6.9 21.1 6 20 6H12L10 4Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconEye">M12 4.5C7 4.5 2.73 7.61 1 12C2.73 16.39 7 19.5 12 19.5S21.27 16.39 23 12C21.27 7.61 17 4.5 12 4.5ZM12 17C9.24 17 7 14.76 7 12S9.24 7 12 7S17 9.24 17 12S14.76 17 12 17ZM12 9C10.34 9 9 10.34 9 12S10.34 15 12 15S15 13.66 15 12S13.66 9 12 9Z</StreamGeometry>
+        <StreamGeometry x:Key="ElbwaldIconWarning">M1 21H23L12 2L1 21ZM13 18H11V16H13V18ZM13 14H11V10H13V14Z</StreamGeometry>
     </Application.Resources>
 
     <Application.Styles>
@@ -81,6 +86,40 @@
         <Style Selector="ListBox.elbwald-nav > ListBoxItem:selected">
             <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+        </Style>
+
+        <Style Selector="Border.elbwald-recovery-item">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldPageBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+
+        <Style Selector="Button.elbwald-primary-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="Button.elbwald-primary-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentHoverBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-secondary-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="Button.elbwald-secondary-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
         </Style>
 
         <Style Selector="Button.elbwald-tool-card">

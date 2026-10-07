@@ -12,19 +12,23 @@ public sealed class FileOperationExecutor : IFileOperationExecutor
     private readonly IFileOperationSafetyChecker _safetyChecker;
     private readonly IOperationJournal _journal;
     private readonly IPersistentRecoveryStore _persistentRecoveryStore;
+    private readonly IStartupRecoveryService _startupRecoveryService;
 
     public FileOperationExecutor(
         IFileOperationSafetyChecker safetyChecker,
         IOperationJournal journal,
-        IPersistentRecoveryStore persistentRecoveryStore)
+        IPersistentRecoveryStore persistentRecoveryStore,
+        IStartupRecoveryService startupRecoveryService)
     {
         ArgumentNullException.ThrowIfNull(safetyChecker);
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(persistentRecoveryStore);
+        ArgumentNullException.ThrowIfNull(startupRecoveryService);
 
         _safetyChecker = safetyChecker;
         _journal = journal;
         _persistentRecoveryStore = persistentRecoveryStore;
+        _startupRecoveryService = startupRecoveryService;
     }
 
     public async Task<FileOperationExecutionResult> ExecuteAsync(
@@ -38,6 +42,44 @@ public sealed class FileOperationExecutor : IFileOperationExecutor
         {
             throw new InvalidOperationException(
                 "Ein Dateioperationsplan mit Konflikten darf nicht ausgeführt werden.");
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return CreateResult(
+                FileOperationExecutionState.Cancelled,
+                Array.Empty<FileOperationItemResult>(),
+                plan,
+                transactionId: null);
+        }
+
+        StartupRecoverySnapshot recoverySnapshot;
+
+        try
+        {
+            recoverySnapshot =
+                await _startupRecoveryService.ScanAsync(
+                    cancellationToken);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            return CreateResult(
+                FileOperationExecutionState.Cancelled,
+                Array.Empty<FileOperationItemResult>(),
+                plan,
+                transactionId: null);
+        }
+
+        if (!recoverySnapshot.CanStartFileOperations)
+        {
+            return CreateResult(
+                FileOperationExecutionState.BlockedByRecovery,
+                Array.Empty<FileOperationItemResult>(),
+                plan,
+                transactionId: null,
+                errorMessage:
+                    BuildRecoveryBlockMessage(recoverySnapshot));
         }
 
         var transactionId = Guid.NewGuid();
@@ -581,11 +623,39 @@ public sealed class FileOperationExecutor : IFileOperationExecutor
         }
     }
 
+    private static string BuildRecoveryBlockMessage(
+        StartupRecoverySnapshot snapshot)
+    {
+        return snapshot.State switch
+        {
+            StartupRecoveryState.AttentionRequired =>
+                "Neue Dateioperationen sind gesperrt, weil die Recovery-Prüfung "
+                + $"offene oder unklare Zustände gefunden hat. "
+                + $"Offene Transaktionen: {snapshot.Candidates.Count}; "
+                + $"beschädigte Journalzeilen: {snapshot.CorruptJournalLineCount}.",
+
+            StartupRecoveryState.ScanFailed =>
+                "Neue Dateioperationen sind gesperrt, weil die Recovery-Prüfung "
+                + "nicht sicher abgeschlossen werden konnte. "
+                + (string.IsNullOrWhiteSpace(snapshot.ErrorMessage)
+                    ? "Das Journal muss zuerst zuverlässig geprüft werden."
+                    : snapshot.ErrorMessage),
+
+            StartupRecoveryState.NotScanned =>
+                "Neue Dateioperationen sind gesperrt, solange die Recovery-Prüfung "
+                + "noch nicht abgeschlossen wurde.",
+
+            _ =>
+                "Neue Dateioperationen sind aufgrund des aktuellen "
+                + "Recovery-Zustands gesperrt."
+        };
+    }
+
     private static FileOperationExecutionResult CreateResult(
         FileOperationExecutionState state,
         IEnumerable<FileOperationItemResult> results,
         FileOperationPlan plan,
-        Guid transactionId,
+        Guid? transactionId,
         IEnumerable<FileOperationSafetyIssue>? safetyIssues = null,
         string? errorMessage = null)
     {

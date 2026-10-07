@@ -37,31 +37,71 @@
                 </StackPanel>
 
                 <Border Grid.Column="1"
-                        Classes="elbwald-soft-card"
+                        Classes="elbwald-card"
                         Padding="22">
                     <Grid ColumnDefinitions="48,*"
                           ColumnSpacing="15">
-                        <Border Width="44"
-                                Height="44"
-                                CornerRadius="12"
-                                Background="{DynamicResource ElbwaldAccentBrush}">
-                            <PathIcon Data="{StaticResource ElbwaldIconCheck}"
-                                      Width="23"
-                                      Height="23"
-                                      Foreground="White"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center" />
-                        </Border>
+                        <Grid Width="44"
+                              Height="44">
+                            <Border IsVisible="{Binding IsRecoveryClean}"
+                                    CornerRadius="12"
+                                    Background="{DynamicResource ElbwaldAccentBrush}">
+                                <PathIcon Data="{StaticResource ElbwaldIconCheck}"
+                                          Width="23"
+                                          Height="23"
+                                          Foreground="White"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                            </Border>
+
+                            <Border IsVisible="{Binding IsRecoveryAttentionRequired}"
+                                    CornerRadius="12"
+                                    Background="{DynamicResource ElbwaldWarningSoftBrush}">
+                                <PathIcon Data="{StaticResource ElbwaldIconWarning}"
+                                          Width="23"
+                                          Height="23"
+                                          Foreground="{DynamicResource ElbwaldWarningBrush}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                            </Border>
+
+                            <Border IsVisible="{Binding IsRecoveryScanFailed}"
+                                    CornerRadius="12"
+                                    Background="{DynamicResource ElbwaldDangerSoftBrush}">
+                                <PathIcon Data="{StaticResource ElbwaldIconWarning}"
+                                          Width="23"
+                                          Height="23"
+                                          Foreground="{DynamicResource ElbwaldDangerBrush}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                            </Border>
+
+                            <Border IsVisible="{Binding IsRecoveryNotScanned}"
+                                    CornerRadius="12"
+                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                                <PathIcon Data="{StaticResource ElbwaldIconEye}"
+                                          Width="23"
+                                          Height="23"
+                                          Foreground="{DynamicResource ElbwaldMutedTextBrush}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
 
                         <StackPanel Grid.Column="1"
                                     VerticalAlignment="Center"
                                     Spacing="5">
-                            <TextBlock Text="Sicher arbeiten"
+                            <TextBlock Text="DATEISICHERHEIT"
+                                       Classes="elbwald-muted"
+                                       FontSize="9"
+                                       FontWeight="SemiBold" />
+
+                            <TextBlock Text="{Binding RecoveryStatusTitle}"
                                        Foreground="{DynamicResource ElbwaldTextBrush}"
                                        FontSize="17"
                                        FontWeight="SemiBold" />
 
-                            <TextBlock Text="Änderungen werden vor der Ausführung geprüft und verständlich angezeigt."
+                            <TextBlock Text="{Binding RecoveryStatusMessage}"
                                        Classes="elbwald-muted"
                                        FontSize="12"
                                        LineHeight="18"
@@ -70,6 +110,246 @@
                     </Grid>
                 </Border>
             </Grid>
+
+            <Border IsVisible="{Binding IsRecoveryPanelVisible}"
+                    Classes="elbwald-card"
+                    Padding="22">
+                <StackPanel Spacing="18">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="18">
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="Recovery &amp; Dateisicherheit"
+                                       Classes="elbwald-section-title" />
+
+                            <TextBlock Text="Solange hier ein ungeklärter Zustand besteht, bleiben alle dateiverändernden Operationen im Core gesperrt."
+                                       Classes="elbwald-muted"
+                                       FontSize="12"
+                                       LineHeight="18"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Classes="elbwald-secondary-button"
+                                Command="{Binding RefreshRecoveryCommand}"
+                                VerticalAlignment="Center"
+                                Content="Erneut prüfen" />
+                    </Grid>
+
+                    <Border IsVisible="{Binding HasJournalCorruption}"
+                            Background="{DynamicResource ElbwaldDangerSoftBrush}"
+                            CornerRadius="12"
+                            Padding="14">
+                        <Grid ColumnDefinitions="28,*"
+                              ColumnSpacing="10">
+                            <PathIcon Data="{StaticResource ElbwaldIconWarning}"
+                                      Width="20"
+                                      Height="20"
+                                      Foreground="{DynamicResource ElbwaldDangerBrush}"
+                                      VerticalAlignment="Top" />
+
+                            <StackPanel Grid.Column="1"
+                                        Spacing="3">
+                                <TextBlock Text="Automatische Recovery gesperrt"
+                                           Foreground="{DynamicResource ElbwaldDangerBrush}"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Das Journal enthält beschädigte Zeilen. Normale Recovery bleibt deshalb gesperrt. Die Journal-Reparatur darf ausschließlich einen eindeutig abgebrochenen letzten Schreibvorgang entfernen und legt vorher ein vollständiges Backup an."
+                                           Classes="elbwald-muted"
+                                           FontSize="12"
+                                           LineHeight="18"
+                                           TextWrapping="Wrap" />
+
+                                <Button Classes="elbwald-secondary-button"
+                                        Command="{Binding RepairJournalCommand}"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,6,0,0"
+                                        Content="Journal-Reparatur sicher prüfen" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel IsVisible="{Binding HasRecoveryCandidates}"
+                                Spacing="10">
+                        <TextBlock Text="Offene Vorgänge"
+                                   Foreground="{DynamicResource ElbwaldTextBrush}"
+                                   FontSize="15"
+                                   FontWeight="SemiBold" />
+
+                        <ItemsControl ItemsSource="{Binding RecoveryCandidates}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecoveryCandidateViewModel">
+                                    <Border Classes="elbwald-recovery-item"
+                                            Margin="0,0,0,8"
+                                            Padding="14">
+                                        <Grid RowDefinitions="Auto,Auto,Auto"
+                                              ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="14"
+                                              RowSpacing="10">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{Binding OperationLabel}"
+                                                           Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding StateLabel}"
+                                                           Classes="elbwald-muted"
+                                                           FontSize="11" />
+                                            </StackPanel>
+
+                                            <Border Grid.Column="1"
+                                                    Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                                                    CornerRadius="8"
+                                                    Padding="8,4"
+                                                    VerticalAlignment="Top">
+                                                <TextBlock Text="{Binding TransactionShortId}"
+                                                           Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold" />
+                                            </Border>
+
+                                            <Grid Grid.Row="1"
+                                                  Grid.ColumnSpan="2"
+                                                  ColumnDefinitions="72,*"
+                                                  RowDefinitions="Auto,Auto"
+                                                  RowSpacing="5">
+                                                <TextBlock Text="Quelle"
+                                                           Classes="elbwald-muted"
+                                                           FontSize="11" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding SourcePath}"
+                                                           Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                           FontSize="11"
+                                                           TextTrimming="CharacterEllipsis" />
+
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Ziel"
+                                                           Classes="elbwald-muted"
+                                                           FontSize="11" />
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.Column="1"
+                                                           Text="{Binding DestinationPath}"
+                                                           Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                           FontSize="11"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+
+                                            <WrapPanel Grid.Row="2"
+                                                       Grid.ColumnSpan="2">
+                                                <Border Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                                                        CornerRadius="8"
+                                                        Padding="8,4"
+                                                        Margin="0,0,8,8">
+                                                    <TextBlock Text="{Binding SourceStateLabel}"
+                                                               FontSize="10" />
+                                                </Border>
+
+                                                <Border Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                                                        CornerRadius="8"
+                                                        Padding="8,4"
+                                                        Margin="0,0,8,8">
+                                                    <TextBlock Text="{Binding DestinationStateLabel}"
+                                                               FontSize="10" />
+                                                </Border>
+
+                                                <Border Background="{DynamicResource ElbwaldWarmCardBrush}"
+                                                        CornerRadius="8"
+                                                        Padding="8,4"
+                                                        Margin="0,0,0,8">
+                                                    <TextBlock Text="{Binding RecoveryStateLabel}"
+                                                               FontSize="10" />
+                                                </Border>
+                                            </WrapPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="18">
+                        <TextBlock Text="Die sichere Recovery prüft jeden Vorgang erneut. Vorhandene Dateien werden nicht überschrieben; zweideutige Fälle bleiben zur manuellen Prüfung offen."
+                                   Classes="elbwald-muted"
+                                   FontSize="11"
+                                   LineHeight="17"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center" />
+
+                        <Button Grid.Column="1"
+                                Classes="elbwald-primary-button"
+                                Command="{Binding RunSafeRecoveryCommand}"
+                                IsVisible="{Binding HasRecoveryCandidates}"
+                                VerticalAlignment="Center"
+                                Content="Sichere Recovery starten" />
+                    </Grid>
+
+                    <ProgressBar IsVisible="{Binding IsRecoveryBusy}"
+                                 IsIndeterminate="True"
+                                 Height="4" />
+
+                    <Border IsVisible="{Binding IsRecoveryActionMessageVisible}"
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                            CornerRadius="10"
+                            Padding="12">
+                        <TextBlock Text="{Binding RecoveryActionMessage}"
+                                   Foreground="{DynamicResource ElbwaldTextBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                    </Border>
+
+                    <StackPanel IsVisible="{Binding HasRecoveryResults}"
+                                Spacing="10">
+                        <TextBlock Text="Letztes Recovery-Ergebnis"
+                                   Foreground="{DynamicResource ElbwaldTextBrush}"
+                                   FontSize="14"
+                                   FontWeight="SemiBold" />
+
+                        <ItemsControl ItemsSource="{Binding RecoveryResults}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecoveryResultViewModel">
+                                    <Border Classes="elbwald-recovery-item"
+                                            Margin="0,0,0,6"
+                                            Padding="12">
+                                        <Grid ColumnDefinitions="24,*"
+                                              ColumnSpacing="10">
+                                            <Grid Width="20"
+                                                  Height="20">
+                                                <PathIcon IsVisible="{Binding IsSuccessful}"
+                                                          Data="{StaticResource ElbwaldIconCheck}"
+                                                          Width="18"
+                                                          Height="18"
+                                                          Foreground="{DynamicResource ElbwaldAccentBrush}" />
+                                                <PathIcon IsVisible="{Binding RequiresManualAction}"
+                                                          Data="{StaticResource ElbwaldIconWarning}"
+                                                          Width="18"
+                                                          Height="18"
+                                                          Foreground="{DynamicResource ElbwaldWarningBrush}" />
+                                                <PathIcon IsVisible="{Binding IsFailed}"
+                                                          Data="{StaticResource ElbwaldIconWarning}"
+                                                          Width="18"
+                                                          Height="18"
+                                                          Foreground="{DynamicResource ElbwaldDangerBrush}" />
+                                            </Grid>
+
+                                            <StackPanel Grid.Column="1"
+                                                        Spacing="3">
+                                                <TextBlock Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                           FontWeight="SemiBold">
+                                                    <Run Text="{Binding OutcomeLabel}" />
+                                                    <Run Text=" · " />
+                                                    <Run Text="{Binding TransactionShortId}" />
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Message}"
+                                                           Classes="elbwald-muted"
+                                                           FontSize="11"
+                                                           LineHeight="17"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
             <Border IsVisible="{Binding HasModuleLoadFailures}"
                     Classes="elbwald-card"
