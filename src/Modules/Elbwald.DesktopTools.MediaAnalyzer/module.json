@@ -1,0 +1,10 @@
+{
+  "id": "elbwald.mediaanalyzer",
+  "name": "Analysieren",
+  "description": "Fotos und Medien read-only prüfen und auswerten.",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "minimumHostVersion": "0.0.1",
+  "assembly": "Elbwald.DesktopTools.MediaAnalyzer.dll",
+  "enabled": true
+}

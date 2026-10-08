@@ -1,3 +1,4 @@
+using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Journaling;
 using Elbwald.DesktopTools.Contracts.Recovery;
 
@@ -8,6 +9,7 @@ public sealed class StartupRecoveryService
 {
     private readonly IOperationJournal _journal;
     private readonly IFileOperationRecoveryInspector _inspector;
+    private readonly IFileOperationProcessLock _processLock;
     private readonly SemaphoreSlim _scanGate = new(1, 1);
 
     private StartupRecoverySnapshot _current =
@@ -15,13 +17,16 @@ public sealed class StartupRecoveryService
 
     public StartupRecoveryService(
         IOperationJournal journal,
-        IFileOperationRecoveryInspector inspector)
+        IFileOperationRecoveryInspector inspector,
+        IFileOperationProcessLock processLock)
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(inspector);
+        ArgumentNullException.ThrowIfNull(processLock);
 
         _journal = journal;
         _inspector = inspector;
+        _processLock = processLock;
     }
 
     public StartupRecoverySnapshot Current =>
@@ -30,10 +35,33 @@ public sealed class StartupRecoveryService
     public async Task<StartupRecoverySnapshot> ScanAsync(
         CancellationToken cancellationToken = default)
     {
-        await _scanGate.WaitAsync(cancellationToken);
+        await _scanGate.WaitAsync(
+            cancellationToken);
 
         try
         {
+            var lockResult =
+                await _processLock.TryAcquireAsync(
+                    cancellationToken);
+
+            if (!lockResult.IsAcquired)
+            {
+                var state =
+                    lockResult.State
+                        == FileOperationProcessLockAcquireState.Unavailable
+                    ? StartupRecoveryState.ProcessLockUnavailable
+                    : StartupRecoveryState.ScanFailed;
+
+                _current = new StartupRecoverySnapshot(
+                    state,
+                    DateTimeOffset.UtcNow,
+                    Array.Empty<FileOperationRecoveryCandidate>(),
+                    corruptJournalLineCount: 0,
+                    errorMessage: lockResult.Message);
+
+                return _current;
+            }
+
             try
             {
                 var journalResult =

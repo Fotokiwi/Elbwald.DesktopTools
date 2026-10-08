@@ -284,6 +284,7 @@ public sealed class FileOperationRecoveryCoordinatorTests
         return new FileOperationRecoveryCoordinator(
             inspector,
             journal,
-            store);
+            store,
+            FixedFileOperationProcessLock.Held());
     }
 }

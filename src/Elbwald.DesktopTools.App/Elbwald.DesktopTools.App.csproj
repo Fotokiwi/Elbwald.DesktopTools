@@ -3,8 +3,14 @@
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+
+        <!-- Dynamic modules and reflection make trimming/single-file publishing unsuitable. -->
+        <PublishSingleFile>false</PublishSingleFile>
+        <PublishTrimmed>false</PublishTrimmed>
+        <PublishReadyToRun>false</PublishReadyToRun>
     </PropertyGroup>
 
     <ItemGroup>
@@ -16,7 +22,6 @@
         <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.3" />
-        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" Condition="'$(Configuration)' == 'Debug'" />
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     </ItemGroup>
@@ -30,23 +35,82 @@
         <ProjectReference
             Include="../Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj"
             ReferenceOutputAssembly="false" />
+
+        <!-- Build MediaAnalyzer as a development module without linking it into the host assembly. -->
+        <ProjectReference
+            Include="../Modules/Elbwald.DesktopTools.MediaAnalyzer/Elbwald.DesktopTools.MediaAnalyzer.csproj"
+            ReferenceOutputAssembly="false" />
     </ItemGroup>
 
     <Target Name="CopyDevelopmentModules" AfterTargets="Build">
         <PropertyGroup>
             <PhotoSortOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/</PhotoSortOutput>
             <PhotoSortDestination>$(TargetDir)Modules/PhotoSort/</PhotoSortDestination>
+            <MediaAnalyzerOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/</MediaAnalyzerOutput>
+            <MediaAnalyzerDestination>$(TargetDir)Modules/MediaAnalyzer/</MediaAnalyzerDestination>
         </PropertyGroup>
 
         <ItemGroup>
             <PhotoSortFiles Include="$(PhotoSortOutput)**/*" />
+            <MediaAnalyzerFiles Include="$(MediaAnalyzerOutput)**/*" />
         </ItemGroup>
 
         <MakeDir Directories="$(PhotoSortDestination)" />
+        <MakeDir Directories="$(MediaAnalyzerDestination)" />
 
         <Copy
             SourceFiles="@(PhotoSortFiles)"
             DestinationFiles="@(PhotoSortFiles->'$(PhotoSortDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true" />
+
+        <Copy
+            SourceFiles="@(MediaAnalyzerFiles)"
+            DestinationFiles="@(MediaAnalyzerFiles->'$(MediaAnalyzerDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true" />
+    </Target>
+
+    <Target Name="CopyPublishModules" AfterTargets="Publish">
+        <PropertyGroup>
+            <PhotoSortPublishSource
+                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.PhotoSort.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</PhotoSortPublishSource>
+
+            <PhotoSortPublishSource
+                Condition="'$(PhotoSortPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/</PhotoSortPublishSource>
+
+            <MediaAnalyzerPublishSource
+                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.MediaAnalyzer.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</MediaAnalyzerPublishSource>
+
+            <MediaAnalyzerPublishSource
+                Condition="'$(MediaAnalyzerPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/</MediaAnalyzerPublishSource>
+
+            <PhotoSortPublishDestination>$(PublishDir)Modules/PhotoSort/</PhotoSortPublishDestination>
+            <MediaAnalyzerPublishDestination>$(PublishDir)Modules/MediaAnalyzer/</MediaAnalyzerPublishDestination>
+        </PropertyGroup>
+
+        <Error
+            Condition="!Exists('$(PhotoSortPublishSource)Elbwald.DesktopTools.PhotoSort.dll')"
+            Text="Photo-Sort-Modul wurde für den Publish nicht gefunden: $(PhotoSortPublishSource)" />
+
+        <Error
+            Condition="!Exists('$(MediaAnalyzerPublishSource)Elbwald.DesktopTools.MediaAnalyzer.dll')"
+            Text="Media-Analyzer-Modul wurde für den Publish nicht gefunden: $(MediaAnalyzerPublishSource)" />
+
+        <ItemGroup>
+            <PhotoSortPublishFiles Include="$(PhotoSortPublishSource)**/*" />
+            <MediaAnalyzerPublishFiles Include="$(MediaAnalyzerPublishSource)**/*" />
+        </ItemGroup>
+
+        <MakeDir Directories="$(PhotoSortPublishDestination)" />
+        <MakeDir Directories="$(MediaAnalyzerPublishDestination)" />
+
+        <Copy
+            SourceFiles="@(PhotoSortPublishFiles)"
+            DestinationFiles="@(PhotoSortPublishFiles->'$(PhotoSortPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true" />
+
+        <Copy
+            SourceFiles="@(MediaAnalyzerPublishFiles)"
+            DestinationFiles="@(MediaAnalyzerPublishFiles->'$(MediaAnalyzerPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
             SkipUnchangedFiles="true" />
     </Target>
 

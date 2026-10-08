@@ -6,5 +6,6 @@ public enum FileOperationExecutionState
     Failed,
     Cancelled,
     RecoveryRequired,
-    BlockedByRecovery
+    BlockedByRecovery,
+    BlockedByProcessLock
 }

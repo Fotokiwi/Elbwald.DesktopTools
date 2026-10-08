@@ -1,0 +1,109 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.AboutView"
+    x:DataType="vm:AboutViewModel">
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+
+        <StackPanel
+            Margin="46,40,46,46"
+            MaxWidth="760"
+            Spacing="20">
+
+            <StackPanel Spacing="6">
+                <TextBlock
+                    Text="Über Elbwald Digital"
+                    Classes="elbwald-title" />
+
+                <TextBlock
+                    Text="{Binding ProductName}"
+                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                    FontSize="20"
+                    FontWeight="SemiBold" />
+
+                <TextBlock
+                    Text="{Binding Description}"
+                    Classes="elbwald-muted"
+                    FontSize="13"
+                    LineHeight="20"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border
+                Classes="elbwald-card"
+                Padding="22">
+
+                <Grid
+                    ColumnDefinitions="150,*"
+                    RowDefinitions="Auto,Auto,Auto"
+                    ColumnSpacing="16"
+                    RowSpacing="10">
+
+                    <TextBlock
+                        Text="Version"
+                        Classes="elbwald-muted" />
+
+                    <TextBlock
+                        Grid.Column="1"
+                        Text="{Binding Version}"
+                        FontWeight="SemiBold" />
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Text="Build"
+                        Classes="elbwald-muted" />
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Text="{Binding BuildLabel}" />
+
+                    <TextBlock
+                        Grid.Row="2"
+                        Text="Verarbeitung"
+                        Classes="elbwald-muted" />
+
+                    <TextBlock
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        Text="Lokal · keine Cloud-Pflicht" />
+                </Grid>
+            </Border>
+
+            <Border
+                Classes="elbwald-soft-card"
+                Padding="18">
+
+                <StackPanel Spacing="5">
+                    <TextBlock
+                        Text="Safety first"
+                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                        FontWeight="SemiBold" />
+
+                    <TextBlock
+                        Text="{Binding SafetyPrinciple}"
+                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                        FontSize="12"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock
+                Text="Diese Alpha-Version dient als Entwicklungs- und Teststand. Noch nicht implementierte Bereiche sind in der App ausdrücklich als geplant markiert."
+                Classes="elbwald-muted"
+                FontSize="11"
+                LineHeight="18"
+                TextWrapping="Wrap" />
+
+            <Button
+                Classes="elbwald-primary-button"
+                Command="{Binding BackToStartCommand}"
+                Content="Zurück zur Startseite"
+                HorizontalAlignment="Left" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -13,22 +13,26 @@ public sealed class FileOperationExecutor : IFileOperationExecutor
     private readonly IOperationJournal _journal;
     private readonly IPersistentRecoveryStore _persistentRecoveryStore;
     private readonly IStartupRecoveryService _startupRecoveryService;
+    private readonly IFileOperationProcessLock _processLock;
 
     public FileOperationExecutor(
         IFileOperationSafetyChecker safetyChecker,
         IOperationJournal journal,
         IPersistentRecoveryStore persistentRecoveryStore,
-        IStartupRecoveryService startupRecoveryService)
+        IStartupRecoveryService startupRecoveryService,
+        IFileOperationProcessLock processLock)
     {
         ArgumentNullException.ThrowIfNull(safetyChecker);
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(persistentRecoveryStore);
         ArgumentNullException.ThrowIfNull(startupRecoveryService);
+        ArgumentNullException.ThrowIfNull(processLock);
 
         _safetyChecker = safetyChecker;
         _journal = journal;
         _persistentRecoveryStore = persistentRecoveryStore;
         _startupRecoveryService = startupRecoveryService;
+        _processLock = processLock;
     }
 
     public async Task<FileOperationExecutionResult> ExecuteAsync(
@@ -51,6 +55,37 @@ public sealed class FileOperationExecutor : IFileOperationExecutor
                 Array.Empty<FileOperationItemResult>(),
                 plan,
                 transactionId: null);
+        }
+
+        FileOperationProcessLockAcquireResult processLockResult;
+
+        try
+        {
+            processLockResult =
+                await _processLock.TryAcquireAsync(
+                    cancellationToken);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            return CreateResult(
+                FileOperationExecutionState.Cancelled,
+                Array.Empty<FileOperationItemResult>(),
+                plan,
+                transactionId: null);
+        }
+
+        if (!processLockResult.IsAcquired)
+        {
+            return CreateResult(
+                FileOperationExecutionState.BlockedByProcessLock,
+                Array.Empty<FileOperationItemResult>(),
+                plan,
+                transactionId: null,
+                errorMessage:
+                    processLockResult.Message
+                    ?? "Der exklusive Dateisicherheits-Lock konnte nicht "
+                       + "übernommen werden.");
         }
 
         StartupRecoverySnapshot recoverySnapshot;

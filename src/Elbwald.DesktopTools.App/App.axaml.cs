@@ -12,7 +12,9 @@ namespace Elbwald.DesktopTools.App;
 
 public partial class App : Application
 {
-    private static readonly Version HostVersion = new(0, 0, 1);
+    private static readonly Version HostVersion =
+        typeof(App).Assembly.GetName().Version
+        ?? new Version(0, 1, 0, 0);
 
     private ServiceProvider? _serviceProvider;
 

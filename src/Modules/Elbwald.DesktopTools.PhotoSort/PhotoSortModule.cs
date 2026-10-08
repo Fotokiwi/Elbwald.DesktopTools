@@ -12,9 +12,9 @@ public sealed class PhotoSortModule : IToolModule
     {
         return new ToolModuleDescriptor(
             Id: Id,
-            Name: "Photo Sort",
-            Description: "Fotos analysieren, organisieren und sicher sortieren.",
-            Icon: "Image",
+            Name: "Sortieren",
+            Description: "Fotos per Dry Run analysieren und sicher nach Metadaten strukturieren.",
+            Icon: "Folder",
             ViewModelType: typeof(PhotoSortViewModel),
             ViewType: typeof(PhotoSortView));
     }

@@ -65,6 +65,9 @@ public sealed class FileOperationExecutionResult
     public bool WasBlockedByRecoveryState =>
         State == FileOperationExecutionState.BlockedByRecovery;
 
+    public bool WasBlockedByProcessLock =>
+        State == FileOperationExecutionState.BlockedByProcessLock;
+
     public bool RequiresRecovery =>
         State == FileOperationExecutionState.RecoveryRequired;
 }

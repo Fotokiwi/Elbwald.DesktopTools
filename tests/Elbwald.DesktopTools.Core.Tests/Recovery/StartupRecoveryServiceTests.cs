@@ -154,13 +154,37 @@ public sealed class StartupRecoveryServiceTests
     }
 
     [Fact]
+    public async Task ScanAsync_ProcessLockUnavailable_BlocksBeforeJournalRead()
+    {
+        var journal = new ThrowingJournal();
+
+        var service = new StartupRecoveryService(
+            journal,
+            new FileOperationRecoveryInspector(journal),
+            FixedFileOperationProcessLock.Unavailable());
+
+        var result = await service.ScanAsync();
+
+        Assert.Equal(
+            StartupRecoveryState.ProcessLockUnavailable,
+            result.State);
+
+        Assert.True(result.RequiresAttention);
+        Assert.False(result.CanStartFileOperations);
+        Assert.Contains(
+            "Prozess-Lock",
+            result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task ScanAsync_JournalReadFailure_IsScanFailed()
     {
         var journal = new ThrowingJournal();
 
         var service = new StartupRecoveryService(
             journal,
-            new FileOperationRecoveryInspector(journal));
+            new FileOperationRecoveryInspector(journal),
+            FixedFileOperationProcessLock.Held());
 
         var result = await service.ScanAsync();
 
@@ -188,7 +212,8 @@ public sealed class StartupRecoveryServiceTests
     {
         return new StartupRecoveryService(
             journal,
-            new FileOperationRecoveryInspector(journal));
+            new FileOperationRecoveryInspector(journal),
+            FixedFileOperationProcessLock.Held());
     }
 
     private sealed class ThrowingJournal

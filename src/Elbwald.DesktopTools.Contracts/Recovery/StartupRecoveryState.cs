@@ -5,5 +5,6 @@ public enum StartupRecoveryState
     NotScanned,
     Clean,
     AttentionRequired,
-    ScanFailed
+    ScanFailed,
+    ProcessLockUnavailable
 }

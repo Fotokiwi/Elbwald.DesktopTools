@@ -308,7 +308,8 @@ public sealed class FileOperationExecutorTests
             safetyChecker ?? new AlwaysSafeSafetyChecker(),
             journal,
             recoveryStore,
-            FixedStartupRecoveryService.Clean());
+            FixedStartupRecoveryService.Clean(),
+            FixedFileOperationProcessLock.Held());
     }
 
     private sealed class AlwaysSafeSafetyChecker

@@ -1,21 +1,647 @@
 <UserControl
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    x:Class="Elbwald.DesktopTools.PhotoSort.Views.PhotoSortView">
+    xmlns:vm="using:Elbwald.DesktopTools.PhotoSort.ViewModels"
+    x:Class="Elbwald.DesktopTools.PhotoSort.Views.PhotoSortView"
+    x:DataType="vm:PhotoSortViewModel">
 
-    <Grid Margin="32">
-        <StackPanel Spacing="12">
+    <UserControl.Styles>
+        <Style Selector="Border.elbwald-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+        </Style>
 
-            <TextBlock
-                FontSize="28"
-                FontWeight="SemiBold"
-                Text="Photo Sort" />
+        <Style Selector="Border.elbwald-soft-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="CornerRadius" Value="16" />
+        </Style>
 
-            <TextBlock
-                FontSize="16"
-                Text="Fotos analysieren, organisieren und sicher sortieren." />
+        <Style Selector="TextBlock.elbwald-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="FontSize" Value="38" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
 
+        <Style Selector="TextBlock.elbwald-section-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="TextBlock.elbwald-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-primary-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="Button.elbwald-primary-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentHoverBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-secondary-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="Button.elbwald-secondary-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+
+        <StackPanel
+            Margin="34,30,34,42"
+            MaxWidth="1380"
+            Spacing="18">
+
+            <Grid
+                ColumnDefinitions="*,Auto"
+                ColumnSpacing="16">
+
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Spacing="5">
+                    <TextBlock
+                        Text="Sortieren"
+                        Classes="elbwald-title" />
+
+                    <TextBlock
+                        Text="Fotos anhand ihrer Metadaten sicher strukturieren – zuerst immer als Dry Run."
+                        Classes="elbwald-muted"
+                        FontSize="13"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Border
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                    CornerRadius="10"
+                    Padding="12,8"
+                    VerticalAlignment="Center">
+
+                    <TextBlock
+                        Text="Nur Vorschau · 0032 bewertet Abweichungsstärke und führt keine Dateioperationen aus"
+                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                        FontSize="11"
+                        FontWeight="SemiBold" />
+                </Border>
+            </Grid>
+
+            <Border
+                Classes="elbwald-card"
+                Padding="18">
+
+                <StackPanel Spacing="14">
+                    <TextBlock
+                        Text="Quelle und Ziel"
+                        Classes="elbwald-section-title" />
+
+                    <Grid
+                        ColumnDefinitions="110,*,Auto"
+                        RowDefinitions="Auto,Auto"
+                        ColumnSpacing="10"
+                        RowSpacing="10">
+
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="0"
+                            Text="Quelle"
+                            Classes="elbwald-muted"
+                            VerticalAlignment="Center" />
+
+                        <TextBox
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Text="{Binding SourcePath, Mode=TwoWay}"
+                            PlaceholderText="Quellordner auswählen …" />
+
+                        <Button
+                            Grid.Row="0"
+                            Grid.Column="2"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding ChooseSourceCommand}"
+                            Content="Auswählen …" />
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Grid.Column="0"
+                            Text="Ziel"
+                            Classes="elbwald-muted"
+                            VerticalAlignment="Center" />
+
+                        <TextBox
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            Text="{Binding DestinationPath, Mode=TwoWay}"
+                            PlaceholderText="Zielordner auswählen …" />
+
+                        <Button
+                            Grid.Row="1"
+                            Grid.Column="2"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding ChooseDestinationCommand}"
+                            Content="Auswählen …" />
+                    </Grid>
+
+                    <Grid
+                        ColumnDefinitions="190,190,210,*,Auto,Auto"
+                        ColumnSpacing="12">
+
+                        <StackPanel
+                            Grid.Row="0"
+                            Grid.Column="0"
+                            Spacing="5">
+                            <TextBlock
+                                Text="Sortierregel"
+                                Classes="elbwald-muted"
+                                FontSize="10" />
+
+                            <ComboBox
+                                ItemsSource="{Binding RuleOptions}"
+                                SelectedItem="{Binding SelectedRule, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Spacing="5">
+
+                            <TextBlock
+                                Text="Spätere Operation"
+                                Classes="elbwald-muted"
+                                FontSize="10" />
+
+                            <ComboBox
+                                ItemsSource="{Binding OperationOptions}"
+                                SelectedItem="{Binding SelectedOperation, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Row="0"
+                            Grid.Column="2"
+                            Spacing="5">
+
+                            <TextBlock
+                                Text="Automatisch ab Vertrauen"
+                                Classes="elbwald-muted"
+                                FontSize="10" />
+
+                            <ComboBox
+                                ItemsSource="{Binding DateConfidenceOptions}"
+                                SelectedItem="{Binding SelectedDateConfidence, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <CheckBox
+                            Grid.Row="0"
+                            Grid.Column="3"
+                            Content="Unterordner einbeziehen"
+                            IsChecked="{Binding IncludeSubdirectories}"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,0,8" />
+
+                        <Button
+                            Grid.Row="0"
+                            Grid.Column="4"
+                            Classes="elbwald-primary-button"
+                            Command="{Binding BuildPreviewCommand}"
+                            Content="Dry Run erzeugen"
+                            VerticalAlignment="Bottom" />
+
+                        <Button
+                            Grid.Row="0"
+                            Grid.Column="5"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding CancelCommand}"
+                            Content="Abbrechen"
+                            VerticalAlignment="Bottom" />
+                    </Grid>
+
+                    <Grid
+                        ColumnDefinitions="*,Auto"
+                        ColumnSpacing="14">
+
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="0"
+                            Text="{Binding StatusMessage}"
+                            Classes="elbwald-muted"
+                            FontSize="11"
+                            TextWrapping="Wrap" />
+
+                        <TextBlock
+                            Grid.Column="1"
+                            Text="{Binding ElapsedTimeText}"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontSize="11"
+                            FontWeight="SemiBold" />
+                    </Grid>
+
+                    <ProgressBar
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding ProgressPercent}"
+                        IsIndeterminate="{Binding IsProgressIndeterminate}"
+                        Height="5" />
+                </StackPanel>
+            </Border>
+
+            <Grid
+                ColumnDefinitions="*,*,*,*,*"
+                ColumnSpacing="10">
+
+                <Border
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Classes="elbwald-card"
+                    Padding="15">
+
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            Text="Geplant"
+                            Classes="elbwald-muted"
+                            FontSize="10" />
+
+                        <TextBlock
+                            Text="{Binding PlannedFiles}"
+                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                            FontSize="22"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    Classes="elbwald-card"
+                    Padding="15">
+
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            Text="Datenmenge"
+                            Classes="elbwald-muted"
+                            FontSize="10" />
+
+                        <TextBlock
+                            Text="{Binding PlannedSize}"
+                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                            FontSize="22"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Grid.Row="0"
+                    Grid.Column="2"
+                    Classes="elbwald-card"
+                    Padding="15">
+
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            Text="Datum prüfen"
+                            Classes="elbwald-muted"
+                            FontSize="10" />
+
+                        <TextBlock
+                            Text="{Binding MissingDateCount}"
+                            Foreground="{DynamicResource ElbwaldWarningBrush}"
+                            FontSize="22"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Grid.Row="0"
+                    Grid.Column="3"
+                    Classes="elbwald-card"
+                    Padding="15">
+
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            Text="Konflikte"
+                            Classes="elbwald-muted"
+                            FontSize="10" />
+
+                        <TextBlock
+                            Text="{Binding ConflictCount}"
+                            Foreground="{DynamicResource ElbwaldDangerBrush}"
+                            FontSize="22"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Grid.Row="0"
+                    Grid.Column="4"
+                    Classes="elbwald-card"
+                    Padding="15">
+
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            Text="Ignoriert"
+                            Classes="elbwald-muted"
+                            FontSize="10" />
+
+                        <TextBlock
+                            Text="{Binding IgnoredCount}"
+                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                            FontSize="22"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border
+                Classes="elbwald-soft-card"
+                Padding="14">
+
+                <Grid
+                    ColumnDefinitions="Auto,*"
+                    ColumnSpacing="12">
+
+                    <TextBlock
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        Text="{Binding PlanState}"
+                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                        FontWeight="SemiBold" />
+
+                    <TextBlock
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Text="EXIF, GPS, Dateiname und Dateisystemzeiten werden getrennt bewertet. Kleine Abweichungen bleiben sichtbar; Dateisystemzeiten allein werden nie automatisch zur Aufnahmezeit."
+                        Classes="elbwald-muted"
+                        FontSize="11"
+                        TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+
+            <Border
+                IsVisible="{Binding HasPlan}"
+                Classes="elbwald-card"
+                Padding="18">
+
+                <StackPanel Spacing="12">
+                    <Grid
+                        ColumnDefinitions="*,Auto"
+                        ColumnSpacing="12">
+
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="0"
+                            Text="Dry-Run-Vorschau"
+                            Classes="elbwald-section-title" />
+
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Text="{Binding PreviewSummary}"
+                            Classes="elbwald-muted"
+                            FontSize="10" />
+                    </Grid>
+
+                    <Border
+                        Background="{DynamicResource ElbwaldPageBrush}"
+                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="6">
+
+                        <ListBox
+                            ItemsSource="{Binding PreviewItems}"
+                            MaxHeight="470">
+
+                            <ListBox.ItemTemplate>
+                                <DataTemplate
+                                    x:DataType="vm:PhotoSortPlanItemViewModel">
+
+                                    <Grid
+                                        ColumnDefinitions="1.1*,0.8*,1.6*,105,75"
+                                        ColumnSpacing="10"
+                                        Margin="5,6">
+
+                                        <StackPanel
+                                            Grid.Row="0"
+                                            Grid.Column="0"
+                                            Spacing="2">
+                                            <TextBlock
+                                                Text="{Binding FileName}"
+                                                FontWeight="SemiBold"
+                                                TextTrimming="CharacterEllipsis" />
+
+                                            <TextBlock
+                                                Text="{Binding SourcePath}"
+                                                Classes="elbwald-muted"
+                                                FontSize="9"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <StackPanel
+                                            Grid.Row="0"
+                                            Grid.Column="1"
+                                            Spacing="2">
+
+                                            <TextBlock
+                                                Text="{Binding RelativeDirectory}"
+                                                FontWeight="SemiBold"
+                                                FontSize="10" />
+
+                                            <TextBlock
+                                                Text="{Binding CaptureDate}"
+                                                Classes="elbwald-muted"
+                                                FontSize="9" />
+
+                                            <TextBlock
+                                                Text="{Binding DateConfidence}"
+                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                FontSize="9"
+                                                FontWeight="SemiBold" />
+
+                                            <TextBlock
+                                                Text="{Binding DateSource}"
+                                                Classes="elbwald-muted"
+                                                FontSize="8" />
+
+                                            <TextBlock
+                                                Text="{Binding DateEvidenceSummary}"
+                                                Classes="elbwald-muted"
+                                                FontSize="8"
+                                                TextWrapping="Wrap"
+                                                MaxWidth="340" />
+
+                                            <TextBlock
+                                                Text="{Binding DateDeviationSummary}"
+                                                Foreground="{DynamicResource ElbwaldWarningBrush}"
+                                                FontSize="8"
+                                                FontWeight="SemiBold"
+                                                TextWrapping="Wrap"
+                                                MaxWidth="340" />
+
+                                            <TextBlock
+                                                Text="{Binding DateExplanation}"
+                                                Classes="elbwald-muted"
+                                                FontSize="8"
+                                                TextWrapping="Wrap"
+                                                MaxWidth="340" />
+                                        </StackPanel>
+
+                                        <TextBlock
+                                            Grid.Row="0"
+                                            Grid.Column="2"
+                                            Text="{Binding DestinationPath}"
+                                            Classes="elbwald-muted"
+                                            FontSize="9"
+                                            TextTrimming="CharacterEllipsis"
+                                            VerticalAlignment="Center" />
+
+                                        <TextBlock
+                                            Grid.Row="0"
+                                            Grid.Column="3"
+                                            Text="{Binding Size}"
+                                            Classes="elbwald-muted"
+                                            FontSize="10"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center" />
+
+                                        <Grid
+                                            Grid.Row="0"
+                                            Grid.Column="4"
+                                            VerticalAlignment="Center">
+
+                                            <TextBlock
+                                                IsVisible="{Binding IsReady}"
+                                                Text="{Binding Status}"
+                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                FontSize="10"
+                                                FontWeight="SemiBold"
+                                                HorizontalAlignment="Right" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding NeedsDateReview}"
+                                                Text="{Binding Status}"
+                                                Foreground="{DynamicResource ElbwaldWarningBrush}"
+                                                FontSize="10"
+                                                FontWeight="SemiBold"
+                                                HorizontalAlignment="Right"
+                                                TextWrapping="Wrap"
+                                                TextAlignment="Right" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding HasConflict}"
+                                                Text="{Binding Status}"
+                                                Foreground="{DynamicResource ElbwaldDangerBrush}"
+                                                FontSize="10"
+                                                FontWeight="SemiBold"
+                                                HorizontalAlignment="Right" />
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border
+                IsVisible="{Binding HasIssues}"
+                Classes="elbwald-card"
+                Padding="18">
+
+                <StackPanel Spacing="12">
+                    <TextBlock
+                        Text="Prüffälle und Konflikte"
+                        Classes="elbwald-section-title" />
+
+                    <ItemsControl
+                        ItemsSource="{Binding Issues}">
+
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate
+                                x:DataType="vm:PhotoSortIssueViewModel">
+
+                                <Border
+                                    Background="{DynamicResource ElbwaldPageBrush}"
+                                    BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="9"
+                                    Padding="10"
+                                    Margin="0,0,0,7">
+
+                                    <Grid
+                                        ColumnDefinitions="80,*"
+                                        ColumnSpacing="10">
+
+                                        <Grid
+                                            Grid.Row="0"
+                                            Grid.Column="0">
+                                            <TextBlock
+                                                IsVisible="{Binding IsProblem}"
+                                                Text="{Binding Severity}"
+                                                Foreground="{DynamicResource ElbwaldDangerBrush}"
+                                                FontWeight="SemiBold"
+                                                FontSize="10" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding IsWarning}"
+                                                Text="{Binding Severity}"
+                                                Foreground="{DynamicResource ElbwaldWarningBrush}"
+                                                FontWeight="SemiBold"
+                                                FontSize="10" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding IsInfo}"
+                                                Text="{Binding Severity}"
+                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                FontWeight="SemiBold"
+                                                FontSize="10" />
+                                        </Grid>
+
+                                        <StackPanel
+                                            Grid.Row="0"
+                                            Grid.Column="1"
+                                            Spacing="3">
+
+                                            <TextBlock
+                                                Text="{Binding Category}"
+                                                FontWeight="SemiBold"
+                                                FontSize="11" />
+
+                                            <TextBlock
+                                                Text="{Binding Message}"
+                                                FontSize="11"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock
+                                                Text="{Binding Path}"
+                                                Classes="elbwald-muted"
+                                                FontSize="9"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
         </StackPanel>
-    </Grid>
-
+    </ScrollViewer>
 </UserControl>

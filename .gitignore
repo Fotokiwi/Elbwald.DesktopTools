@@ -29,3 +29,7 @@ Thumbs.db
 # Optional local environment/config
 .env
 .env.*
+
+# Local publish / alpha build artifacts
+artifacts/
+

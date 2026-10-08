@@ -20,6 +20,7 @@ public sealed class HomeViewModel : ObservableObject
     private bool _isRecoveryClean;
     private bool _isRecoveryAttentionRequired;
     private bool _isRecoveryScanFailed;
+    private bool _isProcessLockUnavailable;
     private bool _isRecoveryNotScanned;
     private bool _canStartFileOperations;
     private bool _hasRecoveryCandidates;
@@ -72,6 +73,18 @@ public sealed class HomeViewModel : ObservableObject
             .Select(result => new ModuleLoadFailureViewModel(result))
             .ToArray();
 
+        OpenAnalyzeCommand = new RelayCommand(
+            () => navigationService.NavigateTo("analyze"));
+
+        OpenOrganizeCommand = new RelayCommand(
+            () => navigationService.NavigateTo("organize"));
+
+        OpenEditCommand = new RelayCommand(
+            () => navigationService.NavigateTo("edit"));
+
+        OpenBackupCommand = new RelayCommand(
+            () => navigationService.NavigateTo("backup"));
+
         RunSafeRecoveryCommand = new AsyncRelayCommand(
             RunSafeRecoveryAsync,
             CanRunSafeRecovery);
@@ -97,6 +110,14 @@ public sealed class HomeViewModel : ObservableObject
     public IReadOnlyList<ModuleLoadFailureViewModel> FailedModules { get; }
 
     public bool HasModuleLoadFailures => FailedModules.Count > 0;
+
+    public IRelayCommand OpenAnalyzeCommand { get; }
+
+    public IRelayCommand OpenOrganizeCommand { get; }
+
+    public IRelayCommand OpenEditCommand { get; }
+
+    public IRelayCommand OpenBackupCommand { get; }
 
     public IAsyncRelayCommand RunSafeRecoveryCommand { get; }
 
@@ -156,6 +177,14 @@ public sealed class HomeViewModel : ObservableObject
         get => _isRecoveryScanFailed;
         private set => SetProperty(
             ref _isRecoveryScanFailed,
+            value);
+    }
+
+    public bool IsProcessLockUnavailable
+    {
+        get => _isProcessLockUnavailable;
+        private set => SetProperty(
+            ref _isProcessLockUnavailable,
             value);
     }
 
@@ -473,6 +502,9 @@ public sealed class HomeViewModel : ObservableObject
         IsRecoveryScanFailed =
             snapshot.State == StartupRecoveryState.ScanFailed;
 
+        IsProcessLockUnavailable =
+            snapshot.State == StartupRecoveryState.ProcessLockUnavailable;
+
         IsRecoveryNotScanned =
             snapshot.State == StartupRecoveryState.NotScanned;
 
@@ -517,6 +549,9 @@ public sealed class HomeViewModel : ObservableObject
             StartupRecoveryState.ScanFailed =>
                 "Sicherheitsprüfung fehlgeschlagen",
 
+            StartupRecoveryState.ProcessLockUnavailable =>
+                "Andere Instanz hat Dateizugriff",
+
             _ =>
                 "Dateisicherheit wird geprüft"
         };
@@ -553,6 +588,11 @@ public sealed class HomeViewModel : ObservableObject
                 + (string.IsNullOrWhiteSpace(snapshot.ErrorMessage)
                     ? string.Empty
                     : $" Fehler: {snapshot.ErrorMessage}"),
+
+            StartupRecoveryState.ProcessLockUnavailable =>
+                "Eine andere Desktop-Tools-Instanz hält den exklusiven "
+                + "Dateisicherheits-Lock. Diese Instanz bleibt im Nur-Lesen-"
+                + "Sicherheitszustand, bis der Lock übernommen werden kann.",
 
             _ =>
                 "Neue Dateioperationen bleiben gesperrt, bis die "

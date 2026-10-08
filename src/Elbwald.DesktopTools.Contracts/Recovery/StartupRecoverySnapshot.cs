@@ -50,7 +50,8 @@ public sealed class StartupRecoverySnapshot
     public bool RequiresAttention =>
         State is
             StartupRecoveryState.AttentionRequired
-            or StartupRecoveryState.ScanFailed;
+            or StartupRecoveryState.ScanFailed
+            or StartupRecoveryState.ProcessLockUnavailable;
 
     public bool CanStartFileOperations =>
         State == StartupRecoveryState.Clean;

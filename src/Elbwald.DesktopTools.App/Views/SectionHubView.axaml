@@ -1,0 +1,115 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.SectionHubView"
+    x:DataType="vm:SectionHubViewModel">
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+
+        <StackPanel
+            Margin="46,40,46,46"
+            MaxWidth="1080"
+            Spacing="24">
+
+            <StackPanel Spacing="7">
+                <TextBlock
+                    Text="{Binding Title}"
+                    Classes="elbwald-title" />
+
+                <TextBlock
+                    Text="{Binding Subtitle}"
+                    Classes="elbwald-muted"
+                    FontSize="14"
+                    LineHeight="21"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding Actions}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="12" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SectionActionViewModel">
+                        <Border
+                            Classes="elbwald-card"
+                            Padding="20">
+
+                            <Grid
+                                ColumnDefinitions="52,*,Auto"
+                                ColumnSpacing="16">
+
+                                <Border
+                                    Width="48"
+                                    Height="48"
+                                    CornerRadius="13"
+                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                                    <PathIcon
+                                        Data="{StaticResource ElbwaldIconArrowRight}"
+                                        Width="22"
+                                        Height="22"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel
+                                    Grid.Column="1"
+                                    Spacing="4"
+                                    VerticalAlignment="Center">
+
+                                    <TextBlock
+                                        Text="{Binding Title}"
+                                        Foreground="{DynamicResource ElbwaldTextBrush}"
+                                        FontSize="18"
+                                        FontWeight="SemiBold" />
+
+                                    <TextBlock
+                                        Text="{Binding Description}"
+                                        Classes="elbwald-muted"
+                                        FontSize="12"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <StackPanel
+                                    Grid.Column="2"
+                                    Spacing="8"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right">
+
+                                    <TextBlock
+                                        Text="{Binding Status}"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Right" />
+
+                                    <Button
+                                        Classes="elbwald-primary-button"
+                                        Command="{Binding OpenCommand}"
+                                        IsEnabled="{Binding IsAvailable}"
+                                        Content="Öffnen" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border
+                Classes="elbwald-soft-card"
+                Padding="18">
+                <TextBlock
+                    Text="Weitere Funktionen werden hier ergänzt, ohne die Hauptnavigation mit einzelnen Modulen zu überladen."
+                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                    FontSize="12"
+                    TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

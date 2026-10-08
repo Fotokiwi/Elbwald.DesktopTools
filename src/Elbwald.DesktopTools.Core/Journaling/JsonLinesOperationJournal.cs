@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Journaling;
 
 namespace Elbwald.DesktopTools.Core.Journaling;
@@ -19,15 +20,27 @@ public sealed class JsonLinesOperationJournal
             throwOnInvalidBytes: true);
 
     private readonly string _journalPath;
+    private readonly IFileOperationProcessLock? _processLock;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly JsonSerializerOptions _jsonOptions =
         new(JsonSerializerDefaults.Web);
 
     public JsonLinesOperationJournal(
         string journalPath)
+        : this(
+            journalPath,
+            processLock: null)
+    {
+    }
+
+    public JsonLinesOperationJournal(
+        string journalPath,
+        IFileOperationProcessLock? processLock)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(journalPath);
+
         _journalPath = Path.GetFullPath(journalPath);
+        _processLock = processLock;
     }
 
     public async Task AppendAsync(
@@ -35,6 +48,9 @@ public sealed class JsonLinesOperationJournal
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+
+        await EnsureProcessLockAsync(
+            cancellationToken);
 
         await _gate.WaitAsync(cancellationToken);
 
@@ -81,6 +97,9 @@ public sealed class JsonLinesOperationJournal
     public async Task<OperationJournalReadResult> ReadAsync(
         CancellationToken cancellationToken = default)
     {
+        await EnsureProcessLockAsync(
+            cancellationToken);
+
         await _gate.WaitAsync(cancellationToken);
 
         try
@@ -113,6 +132,9 @@ public sealed class JsonLinesOperationJournal
         AnalyzeIntegrityAsync(
             CancellationToken cancellationToken = default)
     {
+        await EnsureProcessLockAsync(
+            cancellationToken);
+
         await _gate.WaitAsync(cancellationToken);
 
         try
@@ -131,6 +153,18 @@ public sealed class JsonLinesOperationJournal
         RepairTrailingRecordAsync(
             CancellationToken cancellationToken = default)
     {
+        try
+        {
+            await EnsureProcessLockAsync(
+                cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return new OperationJournalRepairResult(
+                OperationJournalRepairOutcome.Failed,
+                exception.Message);
+        }
+
         await _gate.WaitAsync(cancellationToken);
 
         string? backupPath = null;
@@ -307,6 +341,27 @@ public sealed class JsonLinesOperationJournal
                 repairedTemporaryPath);
 
             _gate.Release();
+        }
+    }
+
+    private async ValueTask EnsureProcessLockAsync(
+        CancellationToken cancellationToken)
+    {
+        if (_processLock is null)
+        {
+            return;
+        }
+
+        var result =
+            await _processLock.TryAcquireAsync(
+                cancellationToken);
+
+        if (!result.IsAcquired)
+        {
+            throw new InvalidOperationException(
+                result.Message
+                ?? "Der exklusive Dateisicherheits-Lock konnte nicht "
+                   + "übernommen werden.");
         }
     }
 

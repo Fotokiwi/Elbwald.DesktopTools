@@ -33,7 +33,8 @@ public sealed class TransactionalFileOperationExecutorTests
             new AlwaysSafeSafetyChecker(),
             journal,
             persistentStore,
-            FixedStartupRecoveryService.Clean());
+            FixedStartupRecoveryService.Clean(),
+            FixedFileOperationProcessLock.Held());
 
         var plan = new FileOperationPlanner().CreatePlan([
             FileOperationRequest.Move(
@@ -98,7 +99,8 @@ public sealed class TransactionalFileOperationExecutorTests
             new AlwaysSafeSafetyChecker(),
             new AlwaysFailingJournal(),
             CreatePersistentStore(directory),
-            FixedStartupRecoveryService.Clean());
+            FixedStartupRecoveryService.Clean(),
+            FixedFileOperationProcessLock.Held());
 
         var plan = new FileOperationPlanner().CreatePlan([
             FileOperationRequest.Move(
@@ -137,7 +139,8 @@ public sealed class TransactionalFileOperationExecutorTests
             new AlwaysSafeSafetyChecker(),
             journal,
             persistentStore,
-            FixedStartupRecoveryService.Clean());
+            FixedStartupRecoveryService.Clean(),
+            FixedFileOperationProcessLock.Held());
 
         var plan = new FileOperationPlanner().CreatePlan([
             FileOperationRequest.Move(

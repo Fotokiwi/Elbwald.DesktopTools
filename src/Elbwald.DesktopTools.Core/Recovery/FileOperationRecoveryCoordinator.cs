@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Journaling;
 using Elbwald.DesktopTools.Contracts.Recovery;
 
@@ -12,25 +13,41 @@ public sealed class FileOperationRecoveryCoordinator
     private readonly IFileOperationRecoveryInspector _inspector;
     private readonly IOperationJournal _journal;
     private readonly IPersistentRecoveryStore _persistentRecoveryStore;
+    private readonly IFileOperationProcessLock _processLock;
 
     public FileOperationRecoveryCoordinator(
         IFileOperationRecoveryInspector inspector,
         IOperationJournal journal,
-        IPersistentRecoveryStore persistentRecoveryStore)
+        IPersistentRecoveryStore persistentRecoveryStore,
+        IFileOperationProcessLock processLock)
     {
         ArgumentNullException.ThrowIfNull(inspector);
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(persistentRecoveryStore);
+        ArgumentNullException.ThrowIfNull(processLock);
 
         _inspector = inspector;
         _journal = journal;
         _persistentRecoveryStore = persistentRecoveryStore;
+        _processLock = processLock;
     }
 
     public async Task<IReadOnlyList<FileOperationRecoveryResult>>
         RecoverPendingAsync(
             CancellationToken cancellationToken = default)
     {
+        var processLockResult =
+            await _processLock.TryAcquireAsync(
+                cancellationToken);
+
+        if (!processLockResult.IsAcquired)
+        {
+            throw new InvalidOperationException(
+                processLockResult.Message
+                ?? "Der exklusive Dateisicherheits-Lock konnte nicht "
+                   + "übernommen werden.");
+        }
+
         var candidates = await _inspector.InspectAsync(
             cancellationToken);
 

@@ -5,110 +5,206 @@
     x:Class="Elbwald.DesktopTools.App.Views.HomeView"
     x:DataType="vm:HomeViewModel">
 
-    <ScrollViewer>
-        <StackPanel Margin="46,40,46,46"
-                    MaxWidth="1080"
-                    Spacing="30">
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
 
-            <Grid ColumnDefinitions="*,300"
-                  ColumnSpacing="30">
-                <StackPanel VerticalAlignment="Center"
-                            Spacing="9">
-                    <TextBlock Text="{Binding Title}"
-                               Classes="elbwald-title" />
+        <StackPanel
+            Margin="46,40,46,46"
+            MaxWidth="1120"
+            Spacing="22">
 
-                    <TextBlock Text="Was möchtest du machen?"
-                               Foreground="{DynamicResource ElbwaldTextBrush}"
-                               FontSize="21"
-                               FontWeight="SemiBold" />
+            <StackPanel Spacing="7">
+                <TextBlock
+                    Text="Willkommen"
+                    Classes="elbwald-title" />
 
-                    <TextBlock MaxWidth="620"
-                               Text="Fotos, Musik und Dateien einfach organisieren – verständlich, sicher und ohne unnötigen Technikballast."
-                               Classes="elbwald-muted"
-                               FontSize="14"
-                               LineHeight="21"
-                               TextWrapping="Wrap" />
+                <TextBlock
+                    Text="Was möchtest du mit deinen Medien machen?"
+                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                    FontSize="21"
+                    FontWeight="SemiBold" />
 
-                    <TextBlock Text="{Binding ModuleSummary}"
-                               Margin="0,7,0,0"
-                               Foreground="{DynamicResource ElbwaldAccentBrush}"
-                               FontSize="13"
-                               FontWeight="SemiBold" />
-                </StackPanel>
+                <TextBlock
+                    Text="Analysiere, organisiere, bearbeite und sichere deine Medien lokal, übersichtlich und nachvollziehbar."
+                    Classes="elbwald-muted"
+                    FontSize="14"
+                    LineHeight="21"
+                    TextWrapping="Wrap" />
+            </StackPanel>
 
-                <Border Grid.Column="1"
-                        Classes="elbwald-card"
-                        Padding="22">
-                    <Grid ColumnDefinitions="48,*"
-                          ColumnSpacing="15">
-                        <Grid Width="44"
-                              Height="44">
-                            <Border IsVisible="{Binding IsRecoveryClean}"
-                                    CornerRadius="12"
-                                    Background="{DynamicResource ElbwaldAccentBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconCheck}"
-                                          Width="23"
-                                          Height="23"
-                                          Foreground="White"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center" />
-                            </Border>
+            <Grid
+                ColumnDefinitions="1.35*,0.65*"
+                ColumnSpacing="16">
 
-                            <Border IsVisible="{Binding IsRecoveryAttentionRequired}"
-                                    CornerRadius="12"
-                                    Background="{DynamicResource ElbwaldWarningSoftBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconWarning}"
-                                          Width="23"
-                                          Height="23"
-                                          Foreground="{DynamicResource ElbwaldWarningBrush}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center" />
-                            </Border>
+                <Border
+                    Classes="elbwald-card"
+                    Padding="24"
+                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
 
-                            <Border IsVisible="{Binding IsRecoveryScanFailed}"
-                                    CornerRadius="12"
-                                    Background="{DynamicResource ElbwaldDangerSoftBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconWarning}"
-                                          Width="23"
-                                          Height="23"
-                                          Foreground="{DynamicResource ElbwaldDangerBrush}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center" />
-                            </Border>
+                    <Grid
+                        ColumnDefinitions="72,*"
+                        ColumnSpacing="18">
 
-                            <Border IsVisible="{Binding IsRecoveryNotScanned}"
-                                    CornerRadius="12"
-                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconEye}"
-                                          Width="23"
-                                          Height="23"
-                                          Foreground="{DynamicResource ElbwaldMutedTextBrush}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center" />
-                            </Border>
-                        </Grid>
+                        <Border
+                            Width="66"
+                            Height="66"
+                            CornerRadius="18"
+                            Background="{DynamicResource ElbwaldAccentBrush}">
+                            <PathIcon
+                                Data="{StaticResource ElbwaldIconSearch}"
+                                Width="31"
+                                Height="31"
+                                Foreground="White"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
 
-                        <StackPanel Grid.Column="1"
-                                    VerticalAlignment="Center"
-                                    Spacing="5">
-                            <TextBlock Text="DATEISICHERHEIT"
-                                       Classes="elbwald-muted"
-                                       FontSize="9"
-                                       FontWeight="SemiBold" />
+                        <StackPanel
+                            Grid.Column="1"
+                            Spacing="8">
 
-                            <TextBlock Text="{Binding RecoveryStatusTitle}"
-                                       Foreground="{DynamicResource ElbwaldTextBrush}"
-                                       FontSize="17"
-                                       FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="Medien analysieren"
+                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                FontSize="23"
+                                FontWeight="SemiBold" />
 
-                            <TextBlock Text="{Binding RecoveryStatusMessage}"
-                                       Classes="elbwald-muted"
-                                       FontSize="12"
-                                       LineHeight="18"
-                                       TextWrapping="Wrap" />
+                            <TextBlock
+                                Text="Ordner auswählen und Bibliothek read-only auf Formate, Metadaten und Auffälligkeiten prüfen."
+                                Classes="elbwald-muted"
+                                FontSize="13"
+                                LineHeight="19"
+                                TextWrapping="Wrap" />
+
+                            <Button
+                                Classes="elbwald-primary-button"
+                                Command="{Binding OpenAnalyzeCommand}"
+                                HorizontalAlignment="Left"
+                                Margin="0,5,0,0"
+                                Content="Analyse öffnen" />
+
+                            <TextBlock
+                                Text="✓ Nur Analyse · keine Dateien werden verändert"
+                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                FontSize="11"
+                                FontWeight="SemiBold" />
                         </StackPanel>
                     </Grid>
                 </Border>
+
+                <Border
+                    Grid.Column="1"
+                    Classes="elbwald-card"
+                    Padding="20">
+
+                    <StackPanel Spacing="10">
+                        <TextBlock
+                            Text="Dateisicherheit"
+                            Classes="elbwald-section-title" />
+
+                        <TextBlock
+                            Text="{Binding RecoveryStatusTitle}"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontSize="17"
+                            FontWeight="SemiBold" />
+
+                        <TextBlock
+                            Text="{Binding RecoveryStatusMessage}"
+                            Classes="elbwald-muted"
+                            FontSize="12"
+                            LineHeight="18"
+                            TextWrapping="Wrap" />
+
+                        <Border
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                            CornerRadius="9"
+                            Padding="10">
+                            <TextBlock
+                                Text="Bei Unsicherheit wird nichts gelöscht und nichts überschrieben."
+                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                FontSize="10"
+                                TextWrapping="Wrap" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <TextBlock
+                Text="Schnellaktionen"
+                Classes="elbwald-section-title" />
+
+            <Grid
+                ColumnDefinitions="*,*,*"
+                ColumnSpacing="12">
+
+                <Button
+                    Classes="elbwald-tool-card"
+                    Command="{Binding OpenOrganizeCommand}">
+                    <StackPanel Spacing="9">
+                        <PathIcon
+                            Data="{StaticResource ElbwaldIconFolder}"
+                            Width="25"
+                            Height="25"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            HorizontalAlignment="Left" />
+                        <TextBlock
+                            Text="Organisieren"
+                            FontSize="17"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="Importieren, sortieren und umbenennen."
+                            Classes="elbwald-muted"
+                            FontSize="11"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    Grid.Column="1"
+                    Classes="elbwald-tool-card"
+                    Command="{Binding OpenEditCommand}">
+                    <StackPanel Spacing="9">
+                        <PathIcon
+                            Data="{StaticResource ElbwaldIconEdit}"
+                            Width="25"
+                            Height="25"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            HorizontalAlignment="Left" />
+                        <TextBlock
+                            Text="Bearbeiten"
+                            FontSize="17"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="Bilder, Audio und später Video bearbeiten."
+                            Classes="elbwald-muted"
+                            FontSize="11"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    Grid.Column="2"
+                    Classes="elbwald-tool-card"
+                    Command="{Binding OpenBackupCommand}">
+                    <StackPanel Spacing="9">
+                        <PathIcon
+                            Data="{StaticResource ElbwaldIconBackup}"
+                            Width="25"
+                            Height="25"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            HorizontalAlignment="Left" />
+                        <TextBlock
+                            Text="Sichern"
+                            FontSize="17"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="Redundante, überprüfbare Sicherungen vorbereiten."
+                            Classes="elbwald-muted"
+                            FontSize="11"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Button>
             </Grid>
 
             <Border IsVisible="{Binding IsRecoveryPanelVisible}"
@@ -376,183 +472,47 @@
                 </StackPanel>
             </Border>
 
-            <StackPanel Spacing="14">
-                <TextBlock Text="Deine Werkzeuge"
-                           Classes="elbwald-section-title" />
-
-                <ItemsControl ItemsSource="{Binding Modules}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:HomeModuleItemViewModel">
-                            <Button Classes="elbwald-tool-card"
-                                    Command="{Binding OpenCommand}"
-                                    Margin="0,0,0,10">
-                                <Grid ColumnDefinitions="64,*,44"
-                                      ColumnSpacing="18">
-                                    <Border Width="56"
-                                            Height="56"
-                                            CornerRadius="14"
-                                            Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                        <Grid>
-                                            <PathIcon IsVisible="{Binding IsImageTool}"
-                                                      Data="{StaticResource ElbwaldIconCamera}"
-                                                      Width="28"
-                                                      Height="28"
-                                                      Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                                            <PathIcon IsVisible="{Binding IsMusicTool}"
-                                                      Data="{StaticResource ElbwaldIconMusic}"
-                                                      Width="28"
-                                                      Height="28"
-                                                      Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                                            <PathIcon IsVisible="{Binding IsGenericTool}"
-                                                      Data="{StaticResource ElbwaldIconTool}"
-                                                      Width="28"
-                                                      Height="28"
-                                                      Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                                        </Grid>
-                                    </Border>
-
-                                    <StackPanel Grid.Column="1"
-                                                VerticalAlignment="Center"
-                                                Spacing="5">
-                                        <TextBlock Text="{Binding Name}"
-                                                   Foreground="{DynamicResource ElbwaldTextBrush}"
-                                                   FontSize="19"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Description}"
-                                                   Classes="elbwald-muted"
-                                                   FontSize="13"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-
-                                    <Border Grid.Column="2"
-                                            Width="38"
-                                            Height="38"
-                                            VerticalAlignment="Center"
-                                            CornerRadius="19"
-                                            Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                        <PathIcon Data="{StaticResource ElbwaldIconArrowRight}"
-                                                  Width="18"
-                                                  Height="18"
-                                                  Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                                    </Border>
-                                </Grid>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-
-            <Grid ColumnDefinitions="1.05*,0.95*"
-                  ColumnSpacing="18">
-                <Border Classes="elbwald-card"
-                        Padding="22"
-                        Background="{DynamicResource ElbwaldWarmCardBrush}">
-                    <Grid ColumnDefinitions="48,*"
-                          ColumnSpacing="14">
-                        <Border Width="42"
-                                Height="42"
-                                CornerRadius="12"
-                                Background="#EFE4D2">
-                            <PathIcon Data="{StaticResource ElbwaldIconMusic}"
-                                      Width="22"
-                                      Height="22"
-                                      Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                        </Border>
-
-                        <StackPanel Grid.Column="1"
-                                    Spacing="5">
-                            <TextBlock Text="Audio Tag"
-                                       Foreground="{DynamicResource ElbwaldTextBrush}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold" />
-                            <TextBlock Text="Titel, Interpret, Album und Cover komfortabel bearbeiten."
-                                       Classes="elbwald-muted"
-                                       FontSize="13"
-                                       TextWrapping="Wrap" />
-                            <TextBlock Text="In Planung"
-                                       Margin="0,4,0,0"
-                                       Foreground="{DynamicResource ElbwaldAccentBrush}"
-                                       FontSize="11"
-                                       FontWeight="SemiBold" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Column="1"
-                        Classes="elbwald-card"
-                        Padding="22">
-                    <StackPanel Spacing="15">
-                        <TextBlock Text="Schnellstart"
-                                   Classes="elbwald-section-title" />
-
-                        <Grid ColumnDefinitions="32,*"
-                              ColumnSpacing="10">
-                            <Border Width="28"
-                                    Height="28"
-                                    CornerRadius="14"
-                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconFolder}"
-                                          Width="15"
-                                          Height="15"
-                                          Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                            </Border>
-                            <StackPanel Grid.Column="1"
-                                        Spacing="1">
-                                <TextBlock Text="Ordner wählen"
-                                           Foreground="{DynamicResource ElbwaldTextBrush}"
-                                           FontWeight="SemiBold" />
-                                <TextBlock Text="Fotos oder Dateien auswählen."
-                                           Classes="elbwald-muted"
-                                           FontSize="11" />
-                            </StackPanel>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="32,*"
-                              ColumnSpacing="10">
-                            <Border Width="28"
-                                    Height="28"
-                                    CornerRadius="14"
-                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconEye}"
-                                          Width="15"
-                                          Height="15"
-                                          Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                            </Border>
-                            <StackPanel Grid.Column="1"
-                                        Spacing="1">
-                                <TextBlock Text="Vorschau prüfen"
-                                           Foreground="{DynamicResource ElbwaldTextBrush}"
-                                           FontWeight="SemiBold" />
-                                <TextBlock Text="Ergebnis in Ruhe kontrollieren."
-                                           Classes="elbwald-muted"
-                                           FontSize="11" />
-                            </StackPanel>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="32,*"
-                              ColumnSpacing="10">
-                            <Border Width="28"
-                                    Height="28"
-                                    CornerRadius="14"
-                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                <PathIcon Data="{StaticResource ElbwaldIconCheck}"
-                                          Width="15"
-                                          Height="15"
-                                          Foreground="{DynamicResource ElbwaldAccentBrush}" />
-                            </Border>
-                            <StackPanel Grid.Column="1"
-                                        Spacing="1">
-                                <TextBlock Text="Sicher ausführen"
-                                           Foreground="{DynamicResource ElbwaldTextBrush}"
-                                           FontWeight="SemiBold" />
-                                <TextBlock Text="Änderungen bewusst übernehmen."
-                                           Classes="elbwald-muted"
-                                           FontSize="11" />
-                            </StackPanel>
-                        </Grid>
+            <Border
+                Classes="elbwald-soft-card"
+                Padding="18">
+                <Grid
+                    ColumnDefinitions="*,*,*"
+                    ColumnSpacing="18">
+                    <StackPanel Spacing="3">
+                        <TextBlock
+                            Text="Offline first"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="Analyse und Verarbeitung laufen lokal auf deinem Gerät."
+                            Classes="elbwald-muted"
+                            FontSize="10"
+                            TextWrapping="Wrap" />
                     </StackPanel>
-                </Border>
-            </Grid>
+                    <StackPanel Grid.Column="1" Spacing="3">
+                        <TextBlock
+                            Text="Keine Cloud-Pflicht"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="Deine Medien bleiben unter deiner Kontrolle."
+                            Classes="elbwald-muted"
+                            FontSize="10"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock
+                            Text="Safety first"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="Dateiverändernde Aktionen bleiben Vorschau-, Recovery- und Sicherheitsregeln unterworfen."
+                            Classes="elbwald-muted"
+                            FontSize="10"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -11,6 +11,60 @@ namespace Elbwald.DesktopTools.Core.Tests.FileOperations;
 public sealed class FileOperationRecoveryGateTests
 {
     [Fact]
+    public async Task ExecuteAsync_ProcessLockUnavailable_BlocksBeforeRecoveryScanAndSafetyCheck()
+    {
+        using var directory = new TemporaryDirectory();
+
+        var journal = CreateJournal(directory);
+
+        var source = directory.CreateFile(
+            "source.jpg",
+            "source");
+
+        var destination = directory.GetPath(
+            "destination.jpg");
+
+        var safetyChecker =
+            new ThrowIfCalledSafetyChecker();
+
+        var recoveryStore =
+            CreateRecoveryStore(directory);
+
+        var executor = new FileOperationExecutor(
+            safetyChecker,
+            journal,
+            recoveryStore,
+            FixedStartupRecoveryService.Clean(),
+            FixedFileOperationProcessLock.Unavailable());
+
+        var plan = new FileOperationPlanner().CreatePlan([
+            FileOperationRequest.Copy(
+                source,
+                destination)
+        ]);
+
+        var result =
+            await executor.ExecuteAsync(plan);
+
+        Assert.Equal(
+            FileOperationExecutionState.BlockedByProcessLock,
+            result.State);
+
+        Assert.True(
+            result.WasBlockedByProcessLock);
+
+        Assert.Null(
+            result.TransactionId);
+
+        Assert.Equal(
+            0,
+            safetyChecker.CallCount);
+
+        Assert.True(File.Exists(source));
+        Assert.False(File.Exists(destination));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_IncompleteTransaction_BlocksBeforeSafetyCheck()
     {
         using var directory = new TemporaryDirectory();
@@ -128,7 +182,8 @@ public sealed class FileOperationRecoveryGateTests
         var recoveryService =
             new StartupRecoveryService(
                 journal,
-                new FileOperationRecoveryInspector(journal));
+                new FileOperationRecoveryInspector(journal),
+                FixedFileOperationProcessLock.Held());
 
         var source = directory.CreateFile(
             "source.jpg",
@@ -143,7 +198,8 @@ public sealed class FileOperationRecoveryGateTests
             new ThrowIfCalledSafetyChecker(),
             journal,
             recoveryStore,
-            recoveryService);
+            recoveryService,
+            FixedFileOperationProcessLock.Held());
 
         var plan = new FileOperationPlanner().CreatePlan([
             FileOperationRequest.Copy(
@@ -181,13 +237,15 @@ public sealed class FileOperationRecoveryGateTests
         var recoveryService =
             new StartupRecoveryService(
                 journal,
-                new FileOperationRecoveryInspector(journal));
+                new FileOperationRecoveryInspector(journal),
+                FixedFileOperationProcessLock.Held());
 
         return new FileOperationExecutor(
             safetyChecker,
             journal,
             recoveryStore,
-            recoveryService);
+            recoveryService,
+            FixedFileOperationProcessLock.Held());
     }
 
     private static FileRecoveryStore CreateRecoveryStore(

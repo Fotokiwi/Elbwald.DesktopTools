@@ -17,7 +17,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="module.json" CopyToOutputDirectory="PreserveNewest" />
+        <None Update="module.json"
+              CopyToOutputDirectory="PreserveNewest"
+              CopyToPublishDirectory="Never" />
     </ItemGroup>
 
 </Project>
