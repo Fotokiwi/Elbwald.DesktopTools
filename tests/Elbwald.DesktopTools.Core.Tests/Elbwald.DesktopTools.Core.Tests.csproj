@@ -19,6 +19,7 @@
     <ItemGroup>
         <ProjectReference Include="../../src/Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
         <ProjectReference Include="../../src/Elbwald.DesktopTools.Core/Elbwald.DesktopTools.Core.csproj" />
+        <ProjectReference Include="../../src/Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj" />
         <ProjectReference Include="../Fixtures/Elbwald.DesktopTools.TestModule/Elbwald.DesktopTools.TestModule.csproj"
                           ReferenceOutputAssembly="false" />
     </ItemGroup>

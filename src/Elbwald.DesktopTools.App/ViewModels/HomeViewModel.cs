@@ -85,6 +85,9 @@ public sealed class HomeViewModel : ObservableObject
         OpenBackupCommand = new RelayCommand(
             () => navigationService.NavigateTo("backup"));
 
+        OpenLibraryHealthCommand = new RelayCommand(
+            () => navigationService.NavigateTo("library-health"));
+
         RunSafeRecoveryCommand = new AsyncRelayCommand(
             RunSafeRecoveryAsync,
             CanRunSafeRecovery);
@@ -118,6 +121,8 @@ public sealed class HomeViewModel : ObservableObject
     public IRelayCommand OpenEditCommand { get; }
 
     public IRelayCommand OpenBackupCommand { get; }
+
+    public IRelayCommand OpenLibraryHealthCommand { get; }
 
     public IAsyncRelayCommand RunSafeRecoveryCommand { get; }
 

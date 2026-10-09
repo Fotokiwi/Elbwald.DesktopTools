@@ -587,6 +587,285 @@ public sealed class MediaSortPlannerTests
     }
 
     [Fact]
+    public void CreatePlan_RepeatedExifFilenameOffset_ExposesContextHintWithoutChangingDates()
+    {
+        using var directory =
+            new TestDirectory();
+
+        var sourceRoot =
+            directory.CreateDirectory(
+                "source");
+
+        var destinationRoot =
+            directory.CreateDirectory(
+                "target");
+
+        var analyzedFiles =
+            new List<MediaAnalyzedFile>();
+
+        var baseExif =
+            new DateTime(
+                2024,
+                6,
+                8,
+                6,
+                0,
+                0);
+
+        for (var index = 0;
+             index < 6;
+             index++)
+        {
+            var exifDate =
+                baseExif.AddMinutes(
+                    index);
+
+            var fileNameDate =
+                exifDate
+                + TimeSpan.FromMinutes(2)
+                + TimeSpan.FromSeconds(2);
+
+            var fileName =
+                $"IMG_{fileNameDate:yyyyMMdd_HHmmss}.jpg";
+
+            var sourcePath =
+                directory.CreateFile(
+                    $"source/{fileName}",
+                    $"photo-{index}");
+
+            var analyzed =
+                CreateAnalyzedImage(
+                    sourcePath,
+                    exifDate,
+                    "Sony",
+                    "ILCE-6400");
+
+            analyzedFiles.Add(
+                analyzed with
+                {
+                    ImageMetadata =
+                        analyzed.ImageMetadata! with
+                        {
+                            DateTimeOriginal =
+                                exifDate
+                        }
+                });
+        }
+
+        var plan =
+            CreatePlanner().CreatePlan(
+                sourceRoot,
+                destinationRoot,
+                analyzedFiles);
+
+        Assert.Equal(
+            6,
+            plan.PlannedFileCount);
+
+        var hint =
+            Assert.Single(
+                plan.DateContextHints);
+
+        Assert.Equal(
+            TimeSpan.FromMinutes(2)
+            + TimeSpan.FromSeconds(2),
+            hint.DominantDifference);
+
+        Assert.Equal(
+            6,
+            hint.MatchingFileCount);
+
+        Assert.All(
+            plan.Items,
+            item =>
+            {
+                var expectedExif =
+                    item.DateResolution.Candidates
+                        .Single(candidate =>
+                            candidate.Source
+                            == Elbwald.DesktopTools.Contracts.Media.Dates.MediaDateSource.ExifDateTimeOriginal)
+                        .Value;
+
+                Assert.Equal(
+                    expectedExif,
+                    item.CapturedAt);
+            });
+    }
+
+    [Fact]
+    public void CreatePlan_RawJpegXmp_GroupIsRecognizedButXmpIsNotOperation()
+    {
+        using var directory =
+            new TestDirectory();
+
+        var sourceRoot =
+            directory.CreateDirectory(
+                "source");
+
+        var destinationRoot =
+            directory.CreateDirectory(
+                "target");
+
+        var capturedAt =
+            new DateTime(
+                2024,
+                6,
+                8,
+                10,
+                0,
+                0);
+
+        var rawPath =
+            directory.CreateFile(
+                "source/DSC0001.ARW",
+                "raw");
+
+        var jpegPath =
+            directory.CreateFile(
+                "source/DSC0001.JPG",
+                "jpeg");
+
+        var xmpPath =
+            directory.CreateFile(
+                "source/DSC0001.xmp",
+                "xmp");
+
+        var plan =
+            CreatePlanner().CreatePlan(
+                sourceRoot,
+                destinationRoot,
+                new[]
+                {
+                    CreateAnalyzedImage(
+                        rawPath,
+                        capturedAt,
+                        "Sony",
+                        "ILCE-6400"),
+                    CreateAnalyzedImage(
+                        jpegPath,
+                        capturedAt,
+                        "Sony",
+                        "ILCE-6400"),
+                    CreateAnalyzedUnknown(
+                        xmpPath)
+                });
+
+        Assert.Equal(
+            2,
+            plan.PlannedFileCount);
+
+        Assert.Equal(
+            2,
+            plan.OperationPlan.Operations.Count);
+
+        Assert.DoesNotContain(
+            plan.OperationPlan.Operations,
+            operation =>
+                string.Equals(
+                    operation.SourcePath,
+                    xmpPath,
+                    StringComparison.Ordinal));
+
+        Assert.Equal(
+            1,
+            plan.CompanionGroupCount);
+
+        Assert.Equal(
+            1,
+            plan.ProjectedSidecarCount);
+
+        Assert.Equal(
+            0,
+            plan.CompanionConflictCount);
+
+        Assert.Equal(
+            0,
+            plan.IgnoredNonImageCount);
+
+        var group =
+            Assert.Single(
+                plan.CompanionGroups);
+
+        Assert.True(
+            group.IsRawJpegPair);
+
+        Assert.True(
+            group.HasSidecar);
+
+        Assert.Equal(
+            Elbwald.DesktopTools.Contracts.Media.Companions.MediaCompanionGroupState.Consistent,
+            group.State);
+    }
+
+    [Fact]
+    public void CreatePlan_ExistingProjectedXmpTarget_BlocksCanExecute()
+    {
+        using var directory =
+            new TestDirectory();
+
+        var sourceRoot =
+            directory.CreateDirectory(
+                "source");
+
+        var destinationRoot =
+            directory.CreateDirectory(
+                "target");
+
+        var capturedAt =
+            new DateTime(
+                2024,
+                6,
+                8,
+                10,
+                0,
+                0);
+
+        var rawPath =
+            directory.CreateFile(
+                "source/DSC0001.ARW",
+                "raw");
+
+        var xmpPath =
+            directory.CreateFile(
+                "source/DSC0001.xmp",
+                "xmp");
+
+        directory.CreateFile(
+            "target/2024/06/DSC0001.xmp",
+            "existing");
+
+        var plan =
+            CreatePlanner().CreatePlan(
+                sourceRoot,
+                destinationRoot,
+                new[]
+                {
+                    CreateAnalyzedImage(
+                        rawPath,
+                        capturedAt,
+                        "Sony",
+                        "ILCE-6400"),
+                    CreateAnalyzedUnknown(
+                        xmpPath)
+                });
+
+        Assert.Equal(
+            1,
+            plan.CompanionConflictCount);
+
+        Assert.False(
+            plan.CanExecute);
+
+        Assert.Contains(
+            plan.Issues,
+            issue =>
+                issue.Kind
+                    == MediaSortIssueKind.CompanionGroup
+                && issue.Severity
+                    == MediaSortIssueSeverity.Problem);
+    }
+
+    [Fact]
     public void CreatePlan_NonImage_IsIgnored()
     {
         using var directory =
@@ -689,7 +968,31 @@ public sealed class MediaSortPlannerTests
     {
         return new MediaSortPlanner(
             new FileOperationPlanner(),
-            new MediaDateResolver());
+            new MediaDateResolver(),
+            new MediaDateContextAnalyzer(),
+            new MediaCompanionPlanner());
+    }
+
+    private static MediaAnalyzedFile CreateAnalyzedUnknown(
+        string path)
+    {
+        var info =
+            new FileInfo(
+                path);
+
+        return new MediaAnalyzedFile(
+            new MediaFile(
+                info.FullName,
+                info.Name,
+                info.Extension.ToLowerInvariant(),
+                info.Length,
+                new DateTimeOffset(
+                    info.CreationTimeUtc),
+                new DateTimeOffset(
+                    info.LastWriteTimeUtc),
+                MediaFileType.Unknown,
+                IsSymbolicLink: false),
+            ImageMetadata: null);
     }
 
     private static MediaAnalyzedFile CreateAnalyzedImage(

@@ -5,6 +5,72 @@
     x:Class="Elbwald.DesktopTools.App.Views.SectionHubView"
     x:DataType="vm:SectionHubViewModel">
 
+    <UserControl.Resources>
+        <DataTemplate x:Key="SectionActionTemplate" x:DataType="vm:SectionActionViewModel">
+            <Border
+                Classes="elbwald-card"
+                Padding="20">
+
+                <Grid
+                    ColumnDefinitions="52,*,Auto"
+                    ColumnSpacing="16">
+
+                    <Border
+                        Width="48"
+                        Height="48"
+                        CornerRadius="13"
+                        Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                        <PathIcon
+                            Data="{StaticResource ElbwaldIconArrowRight}"
+                            Width="22"
+                            Height="22"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Spacing="4"
+                        VerticalAlignment="Center">
+
+                        <TextBlock
+                            Text="{Binding Title}"
+                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                            FontSize="18"
+                            FontWeight="SemiBold" />
+
+                        <TextBlock
+                            Text="{Binding Description}"
+                            Classes="elbwald-muted"
+                            FontSize="12"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="2"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right">
+
+                        <TextBlock
+                            Text="{Binding Status}"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Right" />
+
+                        <Button
+                            Classes="elbwald-primary-button"
+                            Command="{Binding OpenCommand}"
+                            IsEnabled="{Binding IsAvailable}"
+                            Content="Öffnen" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <ScrollViewer
         HorizontalScrollBarVisibility="Disabled"
         VerticalScrollBarVisibility="Auto">
@@ -27,79 +93,95 @@
                     TextWrapping="Wrap" />
             </StackPanel>
 
-            <ItemsControl ItemsSource="{Binding Actions}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Spacing="12" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
+            <StackPanel Spacing="12">
+                <StackPanel
+                    IsVisible="{Binding HasPrimaryGroupTitle}"
+                    Spacing="3"
+                    Margin="0,0,0,2">
+                    <TextBlock
+                        Text="{Binding PrimaryGroupTitle}"
+                        Classes="elbwald-section-title" />
+                    <TextBlock
+                        Text="{Binding PrimaryGroupDescription}"
+                        Classes="elbwald-muted"
+                        FontSize="11"
+                        TextWrapping="Wrap" />
+                </StackPanel>
 
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:SectionActionViewModel">
-                        <Border
-                            Classes="elbwald-card"
-                            Padding="20">
+                <ItemsControl
+                    ItemsSource="{Binding PrimaryActions}"
+                    ItemTemplate="{StaticResource SectionActionTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
 
-                            <Grid
-                                ColumnDefinitions="52,*,Auto"
-                                ColumnSpacing="16">
+            <StackPanel
+                IsVisible="{Binding HasSecondaryActions}"
+                Spacing="12"
+                Margin="0,12,0,0">
 
-                                <Border
-                                    Width="48"
-                                    Height="48"
-                                    CornerRadius="13"
-                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
-                                    <PathIcon
-                                        Data="{StaticResource ElbwaldIconArrowRight}"
-                                        Width="22"
-                                        Height="22"
-                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center" />
-                                </Border>
+                <Border
+                    Height="1"
+                    Background="{DynamicResource ElbwaldBorderBrush}"
+                    Margin="0,0,0,8" />
 
-                                <StackPanel
-                                    Grid.Column="1"
-                                    Spacing="4"
-                                    VerticalAlignment="Center">
+                <StackPanel Spacing="3" Margin="0,0,0,2">
+                    <TextBlock
+                        Text="{Binding SecondaryGroupTitle}"
+                        Classes="elbwald-section-title" />
+                    <TextBlock
+                        Text="{Binding SecondaryGroupDescription}"
+                        Classes="elbwald-muted"
+                        FontSize="11"
+                        TextWrapping="Wrap" />
+                </StackPanel>
 
-                                    <TextBlock
-                                        Text="{Binding Title}"
-                                        Foreground="{DynamicResource ElbwaldTextBrush}"
-                                        FontSize="18"
-                                        FontWeight="SemiBold" />
+                <ItemsControl
+                    ItemsSource="{Binding SecondaryActions}"
+                    ItemTemplate="{StaticResource SectionActionTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
 
-                                    <TextBlock
-                                        Text="{Binding Description}"
-                                        Classes="elbwald-muted"
-                                        FontSize="12"
-                                        TextWrapping="Wrap" />
-                                </StackPanel>
+            <StackPanel
+                IsVisible="{Binding HasTertiaryActions}"
+                Spacing="12"
+                Margin="0,12,0,0">
 
-                                <StackPanel
-                                    Grid.Column="2"
-                                    Spacing="8"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Right">
+                <Border
+                    Height="1"
+                    Background="{DynamicResource ElbwaldBorderBrush}"
+                    Margin="0,0,0,8" />
 
-                                    <TextBlock
-                                        Text="{Binding Status}"
-                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
-                                        FontSize="11"
-                                        FontWeight="SemiBold"
-                                        HorizontalAlignment="Right" />
+                <StackPanel Spacing="3" Margin="0,0,0,2">
+                    <TextBlock
+                        Text="{Binding TertiaryGroupTitle}"
+                        Classes="elbwald-section-title" />
+                    <TextBlock
+                        Text="{Binding TertiaryGroupDescription}"
+                        Classes="elbwald-muted"
+                        FontSize="11"
+                        TextWrapping="Wrap" />
+                </StackPanel>
 
-                                    <Button
-                                        Classes="elbwald-primary-button"
-                                        Command="{Binding OpenCommand}"
-                                        IsEnabled="{Binding IsAvailable}"
-                                        Content="Öffnen" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                <ItemsControl
+                    ItemsSource="{Binding TertiaryActions}"
+                    ItemTemplate="{StaticResource SectionActionTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
 
             <Border
                 Classes="elbwald-soft-card"

@@ -13,7 +13,7 @@ public sealed class PhotoSortModule : IToolModule
         return new ToolModuleDescriptor(
             Id: Id,
             Name: "Sortieren",
-            Description: "Fotos per Dry Run analysieren und sicher nach Metadaten strukturieren.",
+            Description: "Fotos per Dry Run prüfen und nach expliziter Sicherheitsfreigabe verifiziert kopieren oder recovery-gesichert verschieben.",
             Icon: "Folder",
             ViewModelType: typeof(PhotoSortViewModel),
             ViewType: typeof(PhotoSortView));

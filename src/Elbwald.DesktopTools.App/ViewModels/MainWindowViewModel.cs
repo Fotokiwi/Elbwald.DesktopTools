@@ -78,6 +78,26 @@ public partial class MainWindowViewModel : ObservableObject
             new RelayCommand(
                 () => navigationService.NavigateTo("settings"));
 
+        NavigateDiagnosticsCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("diagnostics"));
+
+        NavigateLibraryHealthCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("library-health"));
+
+        NavigateMediaIndexCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("media-index"));
+
+        NavigateProjectsCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("projects"));
+
+        NavigateImportCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("import"));
+
         OpenAboutCommand =
             new RelayCommand(
                 OpenAboutPage);
@@ -114,6 +134,16 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand NavigateToolsCommand { get; }
 
     public IRelayCommand NavigateSettingsCommand { get; }
+
+    public IRelayCommand NavigateDiagnosticsCommand { get; }
+
+    public IRelayCommand NavigateLibraryHealthCommand { get; }
+
+    public IRelayCommand NavigateMediaIndexCommand { get; }
+
+    public IRelayCommand NavigateProjectsCommand { get; }
+
+    public IRelayCommand NavigateImportCommand { get; }
 
     public IRelayCommand OpenAboutCommand { get; }
 
@@ -228,6 +258,162 @@ public partial class MainWindowViewModel : ObservableObject
         if (primaryTarget is not null)
         {
             SelectedItem = primaryTarget;
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "import",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var organize = NavigationItems.FirstOrDefault(
+                item => string.Equals(item.Id, "organize", StringComparison.OrdinalIgnoreCase));
+
+            if (organize is not null)
+            {
+                SelectedItem = organize;
+            }
+
+            const string cacheKey = "special:import";
+            if (!_pageCache.TryGetValue(cacheKey, out var importPage))
+            {
+                importPage = _contentFactory.CreateMediaImportPage();
+                _pageCache[cacheKey] = importPage;
+            }
+
+            CurrentContent = importPage;
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "projects",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var organize = NavigationItems.FirstOrDefault(
+                item => string.Equals(item.Id, "organize", StringComparison.OrdinalIgnoreCase));
+
+            if (organize is not null)
+            {
+                SelectedItem = organize;
+            }
+
+            const string cacheKey = "special:projects";
+            if (!_pageCache.TryGetValue(cacheKey, out var projectsPage))
+            {
+                projectsPage = _contentFactory.CreateProjectsPage();
+                _pageCache[cacheKey] = projectsPage;
+            }
+
+            CurrentContent = projectsPage;
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "media-index",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var tools = NavigationItems.FirstOrDefault(
+                item => string.Equals(
+                    item.Id,
+                    "tools",
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (tools is not null)
+            {
+                SelectedItem = tools;
+            }
+
+            const string cacheKey =
+                "special:media-index";
+
+            if (!_pageCache.TryGetValue(
+                    cacheKey,
+                    out var mediaIndexPage))
+            {
+                mediaIndexPage =
+                    _contentFactory.CreateMediaIndexPage();
+
+                _pageCache[cacheKey] =
+                    mediaIndexPage;
+            }
+
+            CurrentContent =
+                mediaIndexPage;
+
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "library-health",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var tools = NavigationItems.FirstOrDefault(
+                item => string.Equals(
+                    item.Id,
+                    "tools",
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (tools is not null)
+            {
+                SelectedItem = tools;
+            }
+
+            const string cacheKey =
+                "special:library-health";
+
+            if (!_pageCache.TryGetValue(
+                    cacheKey,
+                    out var libraryHealthPage))
+            {
+                libraryHealthPage =
+                    _contentFactory.CreateLibraryHealthPage();
+
+                _pageCache[cacheKey] =
+                    libraryHealthPage;
+            }
+
+            CurrentContent =
+                libraryHealthPage;
+
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "diagnostics",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var tools = NavigationItems.FirstOrDefault(
+                item => string.Equals(
+                    item.Id,
+                    "tools",
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (tools is not null)
+            {
+                SelectedItem = tools;
+            }
+
+            const string cacheKey =
+                "special:diagnostics";
+
+            if (!_pageCache.TryGetValue(
+                    cacheKey,
+                    out var diagnosticsPage))
+            {
+                diagnosticsPage =
+                    _contentFactory.CreateDiagnosticsPage();
+
+                _pageCache[cacheKey] =
+                    diagnosticsPage;
+            }
+
+            CurrentContent =
+                diagnosticsPage;
+
             return;
         }
 

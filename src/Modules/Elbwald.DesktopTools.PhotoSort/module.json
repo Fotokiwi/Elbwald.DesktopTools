@@ -1,7 +1,7 @@
 {
   "id": "elbwald.photosort",
   "name": "Sortieren",
-  "description": "Fotos per Dry Run analysieren und sicher nach Metadaten strukturieren.",
+  "description": "Fotos per Dry Run prüfen und nach expliziter Sicherheitsfreigabe verifiziert kopieren oder recovery-gesichert verschieben.",
   "version": "0.1.0",
   "apiVersion": 1,
   "minimumHostVersion": "0.1.0",

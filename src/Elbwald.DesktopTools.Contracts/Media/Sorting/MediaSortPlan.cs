@@ -1,4 +1,6 @@
 using Elbwald.DesktopTools.Contracts.FileOperations;
+using Elbwald.DesktopTools.Contracts.Media.Dates;
+using Elbwald.DesktopTools.Contracts.Media.Companions;
 
 namespace Elbwald.DesktopTools.Contracts.Media.Sorting;
 
@@ -10,6 +12,8 @@ public sealed class MediaSortPlan
         MediaSortOptions options,
         IEnumerable<MediaSortPlanItem> items,
         IEnumerable<MediaSortIssue> issues,
+        IEnumerable<MediaDateContextHint> dateContextHints,
+        IEnumerable<MediaCompanionGroupPlan> companionGroups,
         FileOperationPlan operationPlan,
         int ignoredNonImageCount)
     {
@@ -18,6 +22,8 @@ public sealed class MediaSortPlan
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(issues);
+        ArgumentNullException.ThrowIfNull(dateContextHints);
+        ArgumentNullException.ThrowIfNull(companionGroups);
         ArgumentNullException.ThrowIfNull(operationPlan);
 
         SourceRoot = sourceRoot;
@@ -25,6 +31,8 @@ public sealed class MediaSortPlan
         Options = options;
         Items = items.ToArray();
         Issues = issues.ToArray();
+        DateContextHints = dateContextHints.ToArray();
+        CompanionGroups = companionGroups.ToArray();
         OperationPlan = operationPlan;
         IgnoredNonImageCount = ignoredNonImageCount;
     }
@@ -38,6 +46,10 @@ public sealed class MediaSortPlan
     public IReadOnlyList<MediaSortPlanItem> Items { get; }
 
     public IReadOnlyList<MediaSortIssue> Issues { get; }
+
+    public IReadOnlyList<MediaDateContextHint> DateContextHints { get; }
+
+    public IReadOnlyList<MediaCompanionGroupPlan> CompanionGroups { get; }
 
     public FileOperationPlan OperationPlan { get; }
 
@@ -81,7 +93,28 @@ public sealed class MediaSortPlan
     public int ConflictCount =>
         OperationPlan.Conflicts.Count;
 
+    public int DateContextHintCount =>
+        DateContextHints.Count;
+
+    public int CompanionGroupCount =>
+        CompanionGroups.Count;
+
+    public int CompanionReviewCount =>
+        CompanionGroups.Count(group =>
+            group.State
+            == MediaCompanionGroupState.Review);
+
+    public int CompanionConflictCount =>
+        CompanionGroups.Count(group =>
+            group.State
+            == MediaCompanionGroupState.Conflict);
+
+    public int ProjectedSidecarCount =>
+        CompanionGroups.Sum(group =>
+            group.ProjectedSidecars.Count);
+
     public bool CanExecute =>
         ProblemCount == 0
+        && CompanionConflictCount == 0
         && OperationPlan.CanExecute;
 }

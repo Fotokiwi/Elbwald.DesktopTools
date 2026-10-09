@@ -1,6 +1,7 @@
 using System.Globalization;
 using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Companions;
 using Elbwald.DesktopTools.Contracts.Media.Dates;
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
 
@@ -14,19 +15,31 @@ public sealed class MediaSortPlanner
 
     private readonly IFileOperationPlanner _fileOperationPlanner;
     private readonly IMediaDateResolver _dateResolver;
+    private readonly IMediaDateContextAnalyzer _dateContextAnalyzer;
+    private readonly IMediaCompanionPlanner _companionPlanner;
 
     public MediaSortPlanner(
         IFileOperationPlanner fileOperationPlanner,
-        IMediaDateResolver dateResolver)
+        IMediaDateResolver dateResolver,
+        IMediaDateContextAnalyzer dateContextAnalyzer,
+        IMediaCompanionPlanner companionPlanner)
     {
         ArgumentNullException.ThrowIfNull(fileOperationPlanner);
         ArgumentNullException.ThrowIfNull(dateResolver);
+        ArgumentNullException.ThrowIfNull(dateContextAnalyzer);
+        ArgumentNullException.ThrowIfNull(companionPlanner);
 
         _fileOperationPlanner =
             fileOperationPlanner;
 
         _dateResolver =
             dateResolver;
+
+        _dateContextAnalyzer =
+            dateContextAnalyzer;
+
+        _companionPlanner =
+            companionPlanner;
     }
 
     public MediaSortPlan CreatePlan(
@@ -54,6 +67,9 @@ public sealed class MediaSortPlanner
                 ? StringComparer.OrdinalIgnoreCase
                 : StringComparer.Ordinal;
 
+        var allFiles =
+            files.ToArray();
+
         var issues =
             new List<MediaSortIssue>();
 
@@ -70,30 +86,52 @@ public sealed class MediaSortPlanner
                     "Das Ziel liegt innerhalb der Quelle. Bereits vorhandene Zieldateien können bei späteren Scans erneut erfasst werden."));
         }
 
+        var contextEntries =
+            new List<MediaDateContextEntry>();
+
+        var ignoredNonImageCount = 0;
+
+        foreach (var analyzedFile in allFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (analyzedFile.File.MediaType
+                != MediaFileType.Image)
+            {
+                ignoredNonImageCount++;
+                continue;
+            }
+
+            contextEntries.Add(
+                new MediaDateContextEntry(
+                    analyzedFile,
+                    _dateResolver.Resolve(
+                        analyzedFile)));
+        }
+
+        var dateContextHints =
+            _dateContextAnalyzer.Analyze(
+                contextEntries,
+                cancellationToken);
+
         var items =
             new List<MediaSortPlanItem>();
 
         var requests =
             new List<FileOperationRequest>();
 
-        var ignoredNonImageCount = 0;
-
-        foreach (var analyzedFile in files)
+        foreach (var contextEntry in contextEntries)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            var analyzedFile =
+                contextEntry.File;
 
             var file =
                 analyzedFile.File;
 
-            if (file.MediaType != MediaFileType.Image)
-            {
-                ignoredNonImageCount++;
-                continue;
-            }
-
             var dateResolution =
-                _dateResolver.Resolve(
-                    analyzedFile);
+                contextEntry.Resolution;
 
             if (!dateResolution.IsResolved)
             {
@@ -180,6 +218,94 @@ public sealed class MediaSortPlanner
                 });
         }
 
+        var resolutionByPath =
+            contextEntries.ToDictionary(
+                entry =>
+                    Path.GetFullPath(
+                        entry.File.File.FullPath),
+                entry =>
+                    entry.Resolution,
+                pathComparer);
+
+        var itemByPath =
+            items.ToDictionary(
+                item =>
+                    Path.GetFullPath(
+                        item.File.FullPath),
+                item =>
+                    item,
+                pathComparer);
+
+        var companionEntries =
+            allFiles.Select(analyzedFile =>
+            {
+                var normalizedPath =
+                    Path.GetFullPath(
+                        analyzedFile.File.FullPath);
+
+                resolutionByPath.TryGetValue(
+                    normalizedPath,
+                    out var resolution);
+
+                itemByPath.TryGetValue(
+                    normalizedPath,
+                    out var item);
+
+                return new MediaCompanionContextEntry(
+                    analyzedFile,
+                    resolution,
+                    item?.RelativeDirectory,
+                    item?.DestinationPath);
+            }).ToArray();
+
+        var companionGroups =
+            _companionPlanner.CreatePlans(
+                normalizedDestinationRoot,
+                companionEntries,
+                cancellationToken);
+
+        var recognizedSidecarPaths =
+            companionGroups
+                .SelectMany(group =>
+                    group.Members)
+                .Where(member =>
+                    member.Kind
+                    == MediaCompanionKind.XmpSidecar)
+                .Select(member =>
+                    Path.GetFullPath(
+                        member.File.File.FullPath))
+                .Distinct(pathComparer)
+                .Count();
+
+        ignoredNonImageCount =
+            Math.Max(
+                0,
+                ignoredNonImageCount
+                - recognizedSidecarPaths);
+
+        foreach (var companionGroup in companionGroups)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (companionGroup.State
+                == MediaCompanionGroupState.Consistent)
+            {
+                continue;
+            }
+
+            issues.Add(
+                new MediaSortIssue(
+                    Path.Combine(
+                        companionGroup.DirectoryPath,
+                        companionGroup.CompanionStem),
+                    MediaSortIssueKind.CompanionGroup,
+                    companionGroup.State
+                        == MediaCompanionGroupState.Conflict
+                            ? MediaSortIssueSeverity.Problem
+                            : MediaSortIssueSeverity.Warning,
+                    companionGroup.Message));
+        }
+
         var operationPlan =
             _fileOperationPlanner.CreatePlan(
                 requests);
@@ -209,6 +335,8 @@ public sealed class MediaSortPlanner
             options,
             items,
             issues,
+            dateContextHints,
+            companionGroups,
             operationPlan,
             ignoredNonImageCount);
     }

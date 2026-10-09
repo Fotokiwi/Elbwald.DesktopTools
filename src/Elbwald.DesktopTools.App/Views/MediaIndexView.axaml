@@ -1,0 +1,367 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.MediaIndexView"
+    x:DataType="vm:MediaIndexViewModel">
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+
+        <StackPanel
+            Margin="38,28,38,40"
+            MaxWidth="1180"
+            Spacing="16">
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Medienindex" Classes="elbwald-title" />
+                    <TextBlock
+                        Text="Lokaler logischer Medien-Layer über deinen konfigurierten Speicher-Endpunkten. Der Index liest Dateien und Hashes, verändert aber keine Mediendateien."
+                        Classes="elbwald-muted"
+                        FontSize="12"
+                        LineHeight="18"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding LastIndexedText}"
+                               Foreground="{DynamicResource ElbwaldAccentBrush}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Right" />
+                    <TextBlock Text="{Binding DatabasePath}"
+                               Classes="elbwald-muted"
+                               FontSize="9"
+                               HorizontalAlignment="Right" />
+                </StackPanel>
+            </Grid>
+
+            <Border Classes="elbwald-card" Padding="16">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Classes="elbwald-muted" FontSize="10">
+                            <Run Text="Laufzeit: " />
+                            <Run Text="{Binding ElapsedText}" />
+                        </TextBlock>
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding OpenSettingsCommand}"
+                            Content="Speicherorte" />
+                    <Button Grid.Column="2"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding RefreshSummaryCommand}"
+                            Content="Status laden" />
+                    <Button Grid.Column="3"
+                            Classes="elbwald-primary-button"
+                            Command="{Binding UpdateIndexCommand}"
+                            Content="Index aktualisieren" />
+                </Grid>
+            </Border>
+
+            <Button IsVisible="{Binding IsBusy}"
+                    Classes="elbwald-secondary-button"
+                    Command="{Binding CancelCommand}"
+                    HorizontalAlignment="Left"
+                    Content="Indexlauf abbrechen" />
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <Border Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Logische Medien" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding ItemCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Ein Inhalt kann mehrere physische Fundorte besitzen." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Aktuelle Fundorte" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding PresentLocationCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Derzeit als vorhanden bekannte Locations." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Historische Fundorte" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding HistoricalLocationCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Nicht mehr vorhandene frühere Locations bleiben nachvollziehbar." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Classes="elbwald-card" Padding="16" IsVisible="{Binding HasRunDetails}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Letzter Lauf" Classes="elbwald-section-title" />
+                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Endpunkte" Classes="elbwald-muted" FontSize="9" />
+                            <TextBlock Text="{Binding EndpointCount}" FontSize="16" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="3">
+                            <TextBlock Text="Gefunden" Classes="elbwald-muted" FontSize="9" />
+                            <TextBlock Text="{Binding FilesDiscovered}" FontSize="16" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="3">
+                            <TextBlock Text="Indexiert" Classes="elbwald-muted" FontSize="9" />
+                            <TextBlock Text="{Binding FilesIndexed}" FontSize="16" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Spacing="3">
+                            <TextBlock Text="Hashes wiederverwendet" Classes="elbwald-muted" FontSize="9" />
+                            <TextBlock Text="{Binding ReusedHashes}" FontSize="16" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+                        <Border Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Neue Medien" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="{Binding NewItems}" FontSize="18" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Neue Fundorte" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="{Binding NewLocations}" FontSize="18" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Nicht mehr gefunden" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="{Binding LocationsMarkedMissing}" FontSize="18" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="3" Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Wiedergefunden / verschoben" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="{Binding RelocationCount}" FontSize="18" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-card"
+                    Padding="16"
+                    IsVisible="{Binding HasRelocations}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Wiedergefundene / verschobene Medien" Classes="elbwald-section-title" />
+                    <TextBlock
+                        Text="Nur eindeutige 1:1-Zuordnungen werden hier als Verschiebung interpretiert. Mehrdeutige Fälle bleiben bewusst unklassifiziert."
+                        Classes="elbwald-muted"
+                        FontSize="10"
+                        TextWrapping="Wrap" />
+
+                    <ItemsControl ItemsSource="{Binding Relocations}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MediaIndexRelocationItemViewModel">
+                                <Border Classes="elbwald-soft-card" Padding="12">
+                                    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="Vorher" Classes="elbwald-muted" FontSize="9" />
+                                            <TextBlock Text="{Binding PreviousLocationText}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <PathIcon Grid.Column="1"
+                                                  Data="{StaticResource ElbwaldIconArrowRight}"
+                                                  Width="18"
+                                                  Height="18"
+                                                  Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                  VerticalAlignment="Center" />
+
+                                        <StackPanel Grid.Column="2" Spacing="3">
+                                            <TextBlock Text="Jetzt" Classes="elbwald-muted" FontSize="9" />
+                                            <TextBlock Text="{Binding CurrentLocationText}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-card" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Index durchsuchen" Classes="elbwald-section-title" />
+                    <TextBlock
+                        Text="Suche nach Dateiname/Pfad, Endpoint-ID, Media-ID oder SHA-256. Die Ansicht liest ausschließlich den lokalen Index."
+                        Classes="elbwald-muted"
+                        FontSize="10"
+                        TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*,160,Auto" ColumnSpacing="10">
+                        <TextBox
+                            Grid.Column="0"
+                            Text="{Binding SearchText, Mode=TwoWay}"
+                            PlaceholderText="z. B. IMG_2024, 2024/10, SHA-256 oder Media-ID" />
+                        <ComboBox
+                            Grid.Column="1"
+                            ItemsSource="{Binding PresenceFilters}"
+                            SelectedItem="{Binding SelectedPresenceFilter, Mode=TwoWay}" />
+                        <Button
+                            Grid.Column="2"
+                            Classes="elbwald-primary-button"
+                            Command="{Binding SearchCommand}"
+                            Content="Suchen" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding SearchStatusMessage}" Classes="elbwald-muted" FontSize="10" />
+
+                    <Grid ColumnDefinitions="1.05*,0.95*" ColumnSpacing="12">
+                        <Border Classes="elbwald-soft-card" Padding="8" MinHeight="230">
+                            <Grid>
+                                <ListBox
+                                    IsVisible="{Binding HasSearchResults}"
+                                    ItemsSource="{Binding SearchResults}"
+                                    SelectedItem="{Binding SelectedSearchResult, Mode=TwoWay}"
+                                    Background="Transparent"
+                                    BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:MediaIndexBrowseItemViewModel">
+                                            <Grid ColumnDefinitions="*,Auto" Margin="6" ColumnSpacing="12">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="{Binding RelativePath}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding EndpointName}" Classes="elbwald-muted" FontSize="9" />
+                                                    <TextBlock Text="{Binding LocationSummary}" Classes="elbwald-muted" FontSize="9" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding PresenceText}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding MediaType}" Classes="elbwald-muted" FontSize="9" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding SizeText}" Classes="elbwald-muted" FontSize="9" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock
+                                    IsVisible="{Binding HasNoSearchResults}"
+                                    Text="Noch keine Treffer. Suche starten, um Medien aus dem lokalen Index anzuzeigen."
+                                    Classes="elbwald-muted"
+                                    TextWrapping="Wrap"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="14" MinHeight="230">
+                            <Grid>
+                                <StackPanel IsVisible="{Binding HasSelectedMedia}" Spacing="8">
+                                    <TextBlock Text="{Binding SelectedMediaTitle}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                                        <TextBlock Text="Media-ID" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SelectedMediaId}" FontSize="9" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Row="1" Text="Typ / Größe" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Row="1" Grid.Column="1" FontSize="9">
+                                            <Run Text="{Binding SelectedMediaType}" />
+                                            <Run Text=" · " />
+                                            <Run Text="{Binding SelectedMediaSize}" />
+                                        </TextBlock>
+                                        <TextBlock Grid.Row="2" Text="SHA-256" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedMediaHash}" FontSize="9" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Row="3" Text="Gesehen" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedMediaSeen}" FontSize="9" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Row="4" Text="Fundorte" Classes="elbwald-muted" FontSize="9" />
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding SelectedMediaLocations}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:MediaIndexLocationItemViewModel">
+                                                <Border Background="#F7FAF8" CornerRadius="8" Padding="8">
+                                                    <StackPanel Spacing="2">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                            <TextBlock Text="{Binding EndpointName}" FontSize="9" FontWeight="SemiBold" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="9" FontWeight="SemiBold" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding RelativePath}" FontSize="9" TextWrapping="Wrap" />
+                                                        <TextBlock Classes="elbwald-muted" FontSize="8">
+                                                            <Run Text="{Binding SizeText}" />
+                                                            <Run Text=" · zuletzt " />
+                                                            <Run Text="{Binding LastSeen}" />
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <TextBlock
+                                    IsVisible="{Binding HasNoSelectedMedia}"
+                                    Text="Wähle links einen Treffer aus, um Media-ID, Hash und alle aktuellen/historischen Fundorte zu sehen."
+                                    Classes="elbwald-muted"
+                                    TextWrapping="Wrap"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-card" Padding="16">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Hinweise aus dem letzten Lauf" Classes="elbwald-section-title" />
+
+                    <ItemsControl IsVisible="{Binding HasIssues}" ItemsSource="{Binding Issues}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MediaIndexIssueItemViewModel">
+                                <Border Classes="elbwald-soft-card" Padding="12">
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnDefinitions="160,*" ColumnSpacing="10">
+                                            <TextBlock Text="{Binding Kind}"
+                                                       Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                       FontSize="10"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding EndpointId}"
+                                                       Classes="elbwald-muted"
+                                                       FontSize="9"
+                                                       HorizontalAlignment="Right" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Message}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        <TextBlock IsVisible="{Binding HasPath}" Text="{Binding Path}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock IsVisible="{Binding HasNoIssues}"
+                               Text="Keine Hinweise aus dem letzten Lauf."
+                               Classes="elbwald-muted"
+                               FontSize="11" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-soft-card" Padding="14">
+                <TextBlock
+                    Text="0045 macht den Media-Index durchsuchbar und zeigt logische Medien samt aktueller und historischer Fundorte. Es werden weiterhin keine Dateien verändert."
+                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                    FontSize="10"
+                    TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Elbwald.DesktopTools.Contracts.Recovery;
+using Elbwald.DesktopTools.Core.Storage;
 
 namespace Elbwald.DesktopTools.Core.Recovery;
 
@@ -278,50 +279,91 @@ public sealed class FileRecoveryStore : IPersistentRecoveryStore
         string destinationPath,
         CancellationToken cancellationToken)
     {
-        await using var source = new FileStream(
-            sourcePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            BufferSize,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        FileStream source;
 
-        await using var destination = new FileStream(
-            destinationPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            BufferSize,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-        using var hash = IncrementalHash.CreateHash(
-            HashAlgorithmName.SHA256);
-
-        var buffer = new byte[BufferSize];
-
-        while (true)
+        try
         {
-            var bytesRead = await source.ReadAsync(
-                buffer.AsMemory(),
-                cancellationToken);
-
-            if (bytesRead == 0)
-            {
-                break;
-            }
-
-            hash.AppendData(
-                buffer,
-                0,
-                bytesRead);
-
-            await destination.WriteAsync(
-                buffer.AsMemory(0, bytesRead),
-                cancellationToken);
+            source =
+                new FileStream(
+                    sourcePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    BufferSize,
+                    FileOptions.Asynchronous
+                    | FileOptions.SequentialScan);
+        }
+        catch (IOException exception)
+        {
+            throw new SourceReadIOException(
+                sourcePath,
+                "Öffnen für die Recovery-Sicherung",
+                exception);
         }
 
-        await destination.FlushAsync(cancellationToken);
-        destination.Flush(flushToDisk: true);
+        await using var sourceStream =
+            source;
+
+        await using var destination =
+            new FileStream(
+                destinationPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                BufferSize,
+                FileOptions.Asynchronous
+                | FileOptions.SequentialScan);
+
+        using var hash =
+            IncrementalHash.CreateHash(
+                HashAlgorithmName.SHA256);
+
+            var buffer =
+                new byte[BufferSize];
+
+            while (true)
+            {
+                int bytesRead;
+
+                try
+                {
+                    bytesRead =
+                        await sourceStream.ReadAsync(
+                            buffer.AsMemory(
+                                0,
+                                buffer.Length),
+                            cancellationToken);
+                }
+                catch (IOException exception)
+                {
+                    throw new SourceReadIOException(
+                        sourcePath,
+                        "Lesen für die Recovery-Sicherung",
+                        exception);
+                }
+
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                hash.AppendData(
+                    buffer,
+                    0,
+                    bytesRead);
+
+                await destination.WriteAsync(
+                    buffer.AsMemory(
+                        0,
+                        bytesRead),
+                    cancellationToken);
+            }
+
+            await destination.FlushAsync(
+                cancellationToken);
+
+            destination.Flush(
+                flushToDisk: true);
 
         return Convert.ToHexString(
             hash.GetHashAndReset());

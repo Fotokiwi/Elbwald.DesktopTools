@@ -46,6 +46,49 @@ public sealed class SectionHubViewModel
                 "Dieser Bereich wird schrittweise ausgebaut.",
                 Array.Empty<SectionActionViewModel>())
         };
+
+        if (string.Equals(sectionId, "organize", StringComparison.OrdinalIgnoreCase))
+        {
+            PrimaryGroupTitle = "Dateien organisieren";
+            PrimaryGroupDescription = "Medien sicher übernehmen, physisch strukturieren und einheitlich benennen.";
+            SecondaryGroupTitle = "Sammlungen & Vorhaben";
+            SecondaryGroupDescription = "Medien logisch zusammenstellen, ohne ihre physische Ablage zu verändern.";
+
+            PrimaryActions = Actions
+                .Where(action => !string.Equals(action.Title, "Projekte", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            SecondaryActions = Actions
+                .Where(action => string.Equals(action.Title, "Projekte", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+        else if (string.Equals(sectionId, "tools", StringComparison.OrdinalIgnoreCase))
+        {
+            PrimaryGroupTitle = "Dateiwerkzeuge";
+            PrimaryGroupDescription = "Spezialfunktionen, die direkt an Medien und ihren Inhalten arbeiten.";
+            SecondaryGroupTitle = "Bibliothek & Wartung";
+            SecondaryGroupDescription = "Den logischen Medienbestand prüfen und technische Bibliotheksdienste verwalten.";
+            TertiaryGroupTitle = "Diagnose";
+            TertiaryGroupDescription = "Technische Ereignisse nachvollziehen, wenn etwas nicht wie erwartet läuft.";
+
+            PrimaryActions = Actions
+                .Where(action => action.Title is "Metadaten" or "Konvertieren")
+                .ToArray();
+
+            SecondaryActions = Actions
+                .Where(action => action.Title is "Bibliotheksstatus" or "Medienindex")
+                .ToArray();
+
+            TertiaryActions = Actions
+                .Where(action => string.Equals(action.Title, "Protokoll", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+        else
+        {
+            PrimaryActions = Actions;
+            SecondaryActions = Array.Empty<SectionActionViewModel>();
+            TertiaryActions = Array.Empty<SectionActionViewModel>();
+        }
     }
 
     public string Title { get; }
@@ -53,6 +96,30 @@ public sealed class SectionHubViewModel
     public string Subtitle { get; }
 
     public IReadOnlyList<SectionActionViewModel> Actions { get; }
+
+    public IReadOnlyList<SectionActionViewModel> PrimaryActions { get; }
+
+    public IReadOnlyList<SectionActionViewModel> SecondaryActions { get; }
+
+    public IReadOnlyList<SectionActionViewModel> TertiaryActions { get; } = Array.Empty<SectionActionViewModel>();
+
+    public string PrimaryGroupTitle { get; } = string.Empty;
+
+    public string PrimaryGroupDescription { get; } = string.Empty;
+
+    public string SecondaryGroupTitle { get; } = string.Empty;
+
+    public string SecondaryGroupDescription { get; } = string.Empty;
+
+    public string TertiaryGroupTitle { get; } = string.Empty;
+
+    public string TertiaryGroupDescription { get; } = string.Empty;
+
+    public bool HasPrimaryGroupTitle => !string.IsNullOrWhiteSpace(PrimaryGroupTitle);
+
+    public bool HasSecondaryActions => SecondaryActions.Count > 0;
+
+    public bool HasTertiaryActions => TertiaryActions.Count > 0;
 
     private static (
         string Title,
@@ -86,12 +153,15 @@ public sealed class SectionHubViewModel
 
         return (
             "Organisieren",
-            "Medien importieren, sicher strukturieren und einheitlich benennen.",
+            "Medien sicher übernehmen, physisch ordnen und logisch zu Sammlungen zusammenstellen.",
             new[]
             {
-                Planned(
+                new SectionActionViewModel(
                     "Importieren",
-                    "Kamera, Smartphone, SD-Karte oder Ordner sicher übernehmen.",
+                    "Kamera, Smartphone, SD-Karte oder Ordner sicher in die Import-Wartehalle übernehmen.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "import",
                     navigationService),
 
                 new SectionActionViewModel(
@@ -105,6 +175,14 @@ public sealed class SectionHubViewModel
                 Planned(
                     "Umbenennen",
                     "Dateien anhand von Datum, Kamera und Metadaten einheitlich benennen.",
+                    navigationService),
+
+                new SectionActionViewModel(
+                    "Projekte",
+                    "Medien logisch zu Sammlungen und Vorhaben zusammenstellen – unabhängig vom aktuellen Dateipfad.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "projects",
                     navigationService)
             });
     }
@@ -184,6 +262,30 @@ public sealed class SectionHubViewModel
                 Planned(
                     "Konvertieren",
                     "Bilder, Audio und später Video in geeignete Formate umwandeln.",
+                    navigationService),
+
+                new SectionActionViewModel(
+                    "Bibliotheksstatus",
+                    "Read-only Überblick über konfigurierte Speicherorte, Verfügbarkeit und erste Auffälligkeiten.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "library-health",
+                    navigationService),
+
+                new SectionActionViewModel(
+                    "Medienindex",
+                    "Lokalen logischen Medienindex aktualisieren und Indexzustand prüfen.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "media-index",
+                    navigationService),
+
+                new SectionActionViewModel(
+                    "Protokoll",
+                    "Strukturierte Warnungen und Fehler aus Datenträger-, Dateioperations- und Recovery-Pfaden durchsuchen.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "diagnostics",
                     navigationService)
             });
     }

@@ -7,6 +7,7 @@ public enum MediaSortIssueKind
     InsufficientDateConfidence,
     DateConflict,
     MissingCameraInformation,
+    CompanionGroup,
     DestinationInsideSource,
     FileOperationConflict
 }

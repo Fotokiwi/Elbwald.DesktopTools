@@ -1,0 +1,196 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.DiagnosticsLogView"
+    x:DataType="vm:DiagnosticsLogViewModel">
+
+    <Grid
+        Margin="38,28,38,34"
+        RowDefinitions="Auto,Auto,*"
+        RowSpacing="16">
+
+        <StackPanel
+            Grid.Row="0"
+            Spacing="5">
+            <TextBlock
+                Text="Protokoll"
+                Classes="elbwald-title" />
+
+            <TextBlock
+                Text="Strukturierte technische Ereignisse aus Datenträger-, Dateioperations- und Recovery-Pfaden. Das Protokoll ist Diagnosehilfe und niemals Grundlage für Recovery-Entscheidungen."
+                Classes="elbwald-muted"
+                FontSize="12"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Border
+            Grid.Row="1"
+            Classes="elbwald-card"
+            Padding="16">
+
+            <Grid
+                ColumnDefinitions="160,170,*,Auto"
+                ColumnSpacing="12">
+
+                <ComboBox
+                    Grid.Column="0"
+                    ItemsSource="{Binding SeverityOptions}"
+                    SelectedItem="{Binding SelectedSeverity, Mode=TwoWay}" />
+
+                <ComboBox
+                    Grid.Column="1"
+                    ItemsSource="{Binding CategoryOptions}"
+                    SelectedItem="{Binding SelectedCategory, Mode=TwoWay}" />
+
+                <TextBox
+                    Grid.Column="2"
+                    Text="{Binding SearchText, Mode=TwoWay}"
+                    PlaceholderText="Datei, Datenträger, Meldung …" />
+
+                <Button
+                    Grid.Column="3"
+                    Classes="elbwald-primary-button"
+                    Command="{Binding RefreshCommand}"
+                    Content="Aktualisieren" />
+            </Grid>
+        </Border>
+
+        <Grid
+            Grid.Row="2"
+            RowDefinitions="Auto,*"
+            RowSpacing="10">
+
+            <TextBlock
+                Grid.Row="0"
+                Text="{Binding StatusMessage}"
+                Classes="elbwald-muted"
+                FontSize="11" />
+
+            <Border
+                Grid.Row="1"
+                Classes="elbwald-card"
+                Padding="8">
+
+                <Grid>
+                    <ScrollViewer
+                        IsVisible="{Binding HasEvents}"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+
+                        <ItemsControl ItemsSource="{Binding Events}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="8" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DiagnosticEventItemViewModel">
+                                    <Border
+                                        Classes="elbwald-soft-card"
+                                        Padding="14">
+
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="150,100,120,*">
+                                                <TextBlock
+                                                    Grid.Column="0"
+                                                    Text="{Binding Timestamp}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="10" />
+
+                                                <TextBlock
+                                                    Grid.Column="1"
+                                                    Text="{Binding Severity}"
+                                                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                    FontSize="10"
+                                                    FontWeight="SemiBold" />
+
+                                                <TextBlock
+                                                    Grid.Column="2"
+                                                    Text="{Binding Category}"
+                                                    FontSize="10"
+                                                    FontWeight="SemiBold" />
+
+                                                <TextBlock
+                                                    Grid.Column="3"
+                                                    Text="{Binding Source}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="10"
+                                                    HorizontalAlignment="Right" />
+                                            </Grid>
+
+                                            <TextBlock
+                                                Text="{Binding Message}"
+                                                FontSize="12"
+                                                FontWeight="SemiBold"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding HasDetails}"
+                                                Text="{Binding Details}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding HasDevice}"
+                                                Text="{Binding DeviceLine}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding HasStorageContext}"
+                                                Text="{Binding StorageContextLine}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding HasFilePath}"
+                                                Text="{Binding FilePathLine}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10"
+                                                TextWrapping="Wrap" />
+
+                                            <TextBlock
+                                                IsVisible="{Binding HasDestinationPath}"
+                                                Text="{Binding DestinationPathLine}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10"
+                                                TextWrapping="Wrap" />
+
+                                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="14">
+                                                <TextBlock
+                                                    Grid.Column="0"
+                                                    IsVisible="{Binding HasOperation}"
+                                                    Text="{Binding OperationLine}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="10" />
+
+                                                <TextBlock
+                                                    Grid.Column="1"
+                                                    IsVisible="{Binding HasErrorCode}"
+                                                    Text="{Binding ErrorCodeLine}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="10" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock
+                        IsVisible="{Binding HasNoEvents}"
+                        Text="Noch keine passenden Diagnoseereignisse vorhanden."
+                        Classes="elbwald-muted"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

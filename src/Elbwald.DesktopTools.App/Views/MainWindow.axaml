@@ -30,8 +30,14 @@
                         Header="Medien analysieren"
                         Command="{Binding NavigateAnalyzeCommand}" />
                     <MenuItem
+                        Header="Importieren"
+                        Command="{Binding NavigateImportCommand}" />
+                    <MenuItem
                         Header="Organisieren"
                         Command="{Binding NavigateOrganizeCommand}" />
+                    <MenuItem
+                        Header="Projekte"
+                        Command="{Binding NavigateProjectsCommand}" />
                     <Separator />
                     <MenuItem
                         Header="Beenden"
@@ -45,6 +51,9 @@
                     <MenuItem
                         Header="Analysieren"
                         Command="{Binding NavigateAnalyzeCommand}" />
+                    <MenuItem
+                        Header="Importieren"
+                        Command="{Binding NavigateImportCommand}" />
                     <MenuItem
                         Header="Organisieren"
                         Command="{Binding NavigateOrganizeCommand}" />
@@ -67,6 +76,15 @@
                         Header="Recovery-Status"
                         Command="{Binding NavigateHomeCommand}" />
                     <MenuItem
+                        Header="Bibliotheksstatus"
+                        Command="{Binding NavigateLibraryHealthCommand}" />
+                    <MenuItem
+                        Header="Medienindex"
+                        Command="{Binding NavigateMediaIndexCommand}" />
+                    <MenuItem
+                        Header="Protokoll"
+                        Command="{Binding NavigateDiagnosticsCommand}" />
+                    <MenuItem
                         Header="Cache-Verwaltung"
                         Command="{Binding NavigateSettingsCommand}" />
                     <Separator />
@@ -88,26 +106,36 @@
             Grid.Column="0"
             Background="{DynamicResource ElbwaldSidebarBrush}"
             BorderBrush="{DynamicResource ElbwaldBorderBrush}"
-            BorderThickness="0,0,1,0">
+            BorderThickness="0,0,1,0"
+            ClipToBounds="True">
 
-            <Grid
-                Margin="16"
-                RowDefinitions="Auto,Auto,*,Auto">
+            <Grid>
+                <Image
+                    Source="/Assets/Branding/sidebar-forest.png"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Bottom"
+                    Height="310"
+                    Stretch="UniformToFill"
+                    Opacity="0.92"
+                    IsHitTestVisible="False" />
 
                 <Grid
-                    ColumnDefinitions="42,*"
+                    Margin="16"
+                    RowDefinitions="Auto,Auto,*,Auto">
+
+                <Grid
+                    ColumnDefinitions="72,*"
                     Margin="4,8,4,25">
 
                     <Border
-                        Width="38"
-                        Height="38"
-                        CornerRadius="10"
-                        Background="{DynamicResource ElbwaldAccentBrush}">
-                        <PathIcon
-                            Data="{StaticResource ElbwaldIconTree}"
-                            Width="22"
-                            Height="22"
-                            Foreground="White"
+                        Width="68"
+                        Height="68"
+                        CornerRadius="14"
+                        Background="Transparent"
+                        ClipToBounds="True">
+                        <Image
+                            Source="/Assets/Branding/tree-logo.png"
+                            Stretch="Uniform"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center" />
                     </Border>
@@ -172,12 +200,13 @@
                 <StackPanel
                     Grid.Row="3"
                     Margin="4,12,4,4"
-                    Spacing="7">
+                    Spacing="7"
+                    VerticalAlignment="Bottom">
 
                     <Border
                         Padding="10,8"
                         CornerRadius="10"
-                        Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                        Background="#ECF5F0E8">
                         <StackPanel Spacing="2">
                             <TextBlock
                                 Text="{Binding ApplicationVersion}"
@@ -197,12 +226,49 @@
                         HorizontalAlignment="Center"
                         FontSize="9" />
                 </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
-        <ContentControl
+        <Grid
             Grid.Row="1"
             Grid.Column="1"
-            Content="{Binding CurrentContent}" />
+            ClipToBounds="True">
+
+            <Border
+                Height="800"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top"
+                IsHitTestVisible="False">
+                <Border.Background>
+                    <ImageBrush
+                        Source="/Assets/Branding/hero-landscape.png"
+                        Stretch="UniformToFill"
+                        AlignmentX="Center"
+                        AlignmentY="Top" />
+                </Border.Background>
+            </Border>
+
+            <Border
+                Height="800"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top"
+                IsHitTestVisible="False">
+                <Border.Background>
+                    <LinearGradientBrush
+                        StartPoint="50%,0%"
+                        EndPoint="50%,100%">
+                        <GradientStop Color="#00FAFCFA" Offset="0.56" />
+                        <GradientStop Color="#22FAFCFA" Offset="0.68" />
+                        <GradientStop Color="#88FAFCFA" Offset="0.82" />
+                        <GradientStop Color="#DDFAFCFA" Offset="0.94" />
+                        <GradientStop Color="#FFFAFCFA" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <ContentControl
+                Content="{Binding CurrentContent}" />
+        </Grid>
     </Grid>
 </Window>

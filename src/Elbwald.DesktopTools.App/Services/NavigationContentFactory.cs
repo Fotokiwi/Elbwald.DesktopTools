@@ -80,6 +80,79 @@ public sealed class NavigationContentFactory : INavigationContentFactory
         return view;
     }
 
+    public object CreateLibraryHealthPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<LibraryHealthViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<LibraryHealthView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+
+        return view;
+    }
+
+    public object CreateMediaImportPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<MediaImportViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<MediaImportView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+        return view;
+    }
+
+    public object CreateProjectsPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<ProjectsViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<ProjectsView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+        return view;
+    }
+
+    public object CreateMediaIndexPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<MediaIndexViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<MediaIndexView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+
+        return view;
+    }
+
+    public object CreateDiagnosticsPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<DiagnosticsLogViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<DiagnosticsLogView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+
+        return view;
+    }
+
     public object CreateModulePage(ToolModuleDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);

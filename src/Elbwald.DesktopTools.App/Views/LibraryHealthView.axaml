@@ -1,0 +1,197 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.LibraryHealthView"
+    x:DataType="vm:LibraryHealthViewModel">
+
+    <Grid
+        Margin="38,28,38,34"
+        RowDefinitions="Auto,Auto,Auto,*,*"
+        RowSpacing="16">
+
+        <Grid Grid.Row="0" ColumnDefinitions="*,260" ColumnSpacing="16">
+            <StackPanel Spacing="5">
+                <TextBlock Text="Bibliotheksstatus" Classes="elbwald-title" />
+                <TextBlock
+                    Text="Read-only Gesamtüberblick über konfigurierte Speicherorte. Die Foundation prüft Verfügbarkeit, Pfadauflösung und erste Medienauffälligkeiten – ohne Änderungen an Dateien."
+                    Classes="elbwald-muted"
+                    FontSize="12"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Grid.Column="1"
+                    Classes="elbwald-soft-card"
+                    Padding="14"
+                    Background="#EBF5EF">
+                <StackPanel Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding LastScanMessage}"
+                               Foreground="{DynamicResource ElbwaldAccentBrush}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Volume-ID statt Pfad · fail closed bei Ambiguität"
+                               Classes="elbwald-muted"
+                               FontSize="10"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" Classes="elbwald-card" Padding="16">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="Bei Unklarheiten wird ein Speicherort nicht still über alte Pfade weiterverwendet."
+                               Classes="elbwald-muted"
+                               FontSize="11"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Classes="elbwald-secondary-button"
+                        Command="{Binding OpenSettingsCommand}"
+                        Content="Speicherorte" />
+
+                <Button Grid.Column="2"
+                        Classes="elbwald-primary-button"
+                        Command="{Binding RefreshCommand}"
+                        Content="Neu scannen" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+            <Border Classes="elbwald-card" Padding="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Endpunkte" Classes="elbwald-muted" FontSize="10" />
+                    <TextBlock Text="{Binding EndpointSummary}" FontSize="18" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Classes="elbwald-card" Padding="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Verfügbarkeit" Classes="elbwald-muted" FontSize="10" />
+                    <TextBlock Text="{Binding AvailabilitySummary}" FontSize="18" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Classes="elbwald-card" Padding="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Warnungen" Classes="elbwald-muted" FontSize="10" />
+                    <TextBlock Text="{Binding WarningCount}" FontSize="18" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="3" Classes="elbwald-card" Padding="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Probleme" Classes="elbwald-muted" FontSize="10" />
+                    <TextBlock Text="{Binding ProblemCount}" FontSize="18" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Classes="elbwald-card" Padding="14">
+            <Grid RowDefinitions="Auto,*" RowSpacing="10">
+                <TextBlock Text="Speicherorte" Classes="elbwald-section-title" />
+                <Grid Grid.Row="1">
+                    <ScrollViewer IsVisible="{Binding HasEndpoints}"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Endpoints}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LibraryHealthEndpointItemViewModel">
+                                    <Border Classes="elbwald-soft-card" Padding="14">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                            <StackPanel Spacing="4">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Kind}"
+                                                               Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Right" />
+                                                </Grid>
+                                                <TextBlock Text="{Binding StatusTitle}" FontSize="12" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding StatusMessage}" Classes="elbwald-muted" FontSize="11" TextWrapping="Wrap" />
+                                                <TextBlock IsVisible="{Binding HasResolvedPath}" Text="{Binding ResolvedPath}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding FilesAnalyzedText}" FontSize="11" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding IssueSummaryText}" Classes="elbwald-muted" FontSize="10" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding MissingCaptureDateText}" Classes="elbwald-muted" FontSize="10" HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock IsVisible="{Binding HasNoEndpoints}"
+                               Text="Noch keine aktiven Speicherorte vorhanden. Lege Import-Wartehalle, Bibliothek oder weitere Endpunkte zuerst in den Einstellungen fest."
+                               Classes="elbwald-muted"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="4" Classes="elbwald-card" Padding="14">
+            <Grid RowDefinitions="Auto,*" RowSpacing="10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="Auffälligkeiten" Classes="elbwald-section-title" />
+                    <Button Grid.Column="1"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding OpenDiagnosticsCommand}"
+                            Content="Protokoll öffnen" />
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <ScrollViewer IsVisible="{Binding HasIssues}"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Issues}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LibraryHealthIssueItemViewModel">
+                                    <Border Classes="elbwald-soft-card" Padding="14">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="120,160,*" ColumnSpacing="12">
+                                                <TextBlock Text="{Binding Severity}"
+                                                           Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding EndpointName}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Kind}" Classes="elbwald-muted" FontSize="10" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Message}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock IsVisible="{Binding HasPath}" Text="{Binding Path}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock IsVisible="{Binding HasNoIssues}"
+                               Text="Keine Auffälligkeiten gefunden. Alle aktuell aktivierten Endpunkte sind sauber durchgelaufen."
+                               Classes="elbwald-muted"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

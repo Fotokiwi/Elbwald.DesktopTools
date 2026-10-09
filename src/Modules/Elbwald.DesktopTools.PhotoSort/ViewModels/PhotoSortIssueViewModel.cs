@@ -1,4 +1,5 @@
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
+using Elbwald.DesktopTools.Contracts.Media.Sorting.Execution;
 
 namespace Elbwald.DesktopTools.PhotoSort.ViewModels;
 
@@ -33,6 +34,9 @@ public sealed class PhotoSortIssueViewModel
                 MediaSortIssueKind.MissingCameraInformation =>
                     "Kamera",
 
+                MediaSortIssueKind.CompanionGroup =>
+                    "Dateigruppe",
+
                 _ =>
                     "Hinweis"
             };
@@ -58,6 +62,39 @@ public sealed class PhotoSortIssueViewModel
 
         IsInfo =
             issue.Severity == MediaSortIssueSeverity.Info;
+    }
+
+    public PhotoSortIssueViewModel(
+        MediaSortExecutionProblem problem)
+    {
+        ArgumentNullException.ThrowIfNull(problem);
+
+        Path =
+            problem.SourcePath;
+
+        Message =
+            problem.Message
+            + " "
+            + problem.StorageHealth.Summary;
+
+        Category =
+            problem.SuspectsPhysicalDevice
+                ? "Datenträger"
+                : "Lesefehler";
+
+        Severity =
+            problem.SuspectsPhysicalDevice
+                ? "Problem"
+                : "Warnung";
+
+        IsProblem =
+            problem.SuspectsPhysicalDevice;
+
+        IsWarning =
+            !problem.SuspectsPhysicalDevice;
+
+        IsInfo =
+            false;
     }
 
     public string Path { get; }

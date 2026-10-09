@@ -29,7 +29,7 @@ public sealed class FileSystemOperationProcessLockTests
     }
 
     [Fact]
-    public async Task TryAcquireAsync_SecondOwnerIsBlockedUntilFirstReleases()
+    public async Task TryAcquireAsync_SecondInstanceInSameProcessSharesLease()
     {
         using var directory = new TemporaryDirectory();
 
@@ -52,20 +52,87 @@ public sealed class FileSystemOperationProcessLockTests
             await second.TryAcquireAsync();
 
         Assert.True(firstResult.IsAcquired);
+        Assert.True(secondResult.IsAcquired);
+        Assert.True(first.IsHeld);
+        Assert.True(second.IsHeld);
+    }
 
-        Assert.Equal(
-            FileOperationProcessLockAcquireState.Unavailable,
-            secondResult.State);
+    [Fact]
+    public async Task Dispose_FirstInstance_DoesNotReleaseSharedProcessLease()
+    {
+        using var directory = new TemporaryDirectory();
 
-        Assert.False(second.IsHeld);
+        var lockPath =
+            directory.GetPath(
+                "recovery/desktop-tools.process.lock");
+
+        var first =
+            new FileSystemOperationProcessLock(
+                lockPath);
+
+        using var second =
+            new FileSystemOperationProcessLock(
+                lockPath);
+
+        Assert.True(
+            (await first.TryAcquireAsync()).IsAcquired);
+
+        Assert.True(
+            (await second.TryAcquireAsync()).IsAcquired);
 
         first.Dispose();
 
-        var retry =
-            await second.TryAcquireAsync();
-
-        Assert.True(retry.IsAcquired);
+        Assert.False(first.IsHeld);
         Assert.True(second.IsHeld);
+
+        _ = Assert.Throws<IOException>(() =>
+            new FileStream(
+                lockPath,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None));
+
+        second.Dispose();
+
+        using var afterRelease =
+            new FileStream(
+                lockPath,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None);
+    }
+
+    [Fact]
+    public async Task TryAcquireAsync_ExternalExclusiveOwnerIsBlocked()
+    {
+        using var directory = new TemporaryDirectory();
+
+        var lockPath =
+            directory.GetPath(
+                "recovery/desktop-tools.process.lock");
+
+        Directory.CreateDirectory(
+            Path.GetDirectoryName(lockPath)!);
+
+        using var externalOwner =
+            new FileStream(
+                lockPath,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+        using var processLock =
+            new FileSystemOperationProcessLock(
+                lockPath);
+
+        var result =
+            await processLock.TryAcquireAsync();
+
+        Assert.Equal(
+            FileOperationProcessLockAcquireState.Unavailable,
+            result.State);
+
+        Assert.False(processLock.IsHeld);
     }
 
     [Fact]

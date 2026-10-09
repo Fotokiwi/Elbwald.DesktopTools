@@ -7,6 +7,7 @@ using Elbwald.DesktopTools.App.Views;
 using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Core.Modules;
 using Microsoft.Extensions.DependencyInjection;
+using System.Threading;
 
 namespace Elbwald.DesktopTools.App;
 
@@ -17,6 +18,8 @@ public partial class App : Application
         ?? new Version(0, 1, 0, 0);
 
     private ServiceProvider? _serviceProvider;
+    private CancellationTokenSource? _startupRecoveryCancellation;
+    private int _servicesDisposed;
 
     public override void Initialize()
     {
@@ -34,20 +37,71 @@ public partial class App : Application
 
         _serviceProvider = services.BuildServiceProvider();
 
-        LoadModules(_serviceProvider);
-        ScanStartupRecovery(_serviceProvider);
+        var desktop =
+            ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime;
 
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (desktop is not null)
         {
-            var window = _serviceProvider.GetRequiredService<MainWindow>();
+            // Solange es noch keinen expliziten Tray-/Hintergrundmodus gibt,
+            // bedeutet das Schließen des Hauptfensters immer Prozessende.
+            desktop.ShutdownMode =
+                Avalonia.Controls.ShutdownMode.OnMainWindowClose;
+
+            desktop.Exit += OnDesktopExit;
+        }
+
+        LoadModules(_serviceProvider);
+
+        if (desktop is not null)
+        {
+            var window =
+                _serviceProvider.GetRequiredService<MainWindow>();
 
             window.DataContext =
                 _serviceProvider.GetRequiredService<MainWindowViewModel>();
 
-            desktop.MainWindow = window;
+            desktop.MainWindow =
+                window;
         }
 
         base.OnFrameworkInitializationCompleted();
+
+        if (desktop is not null)
+        {
+            StartStartupRecoveryInBackground(
+                _serviceProvider);
+        }
+    }
+
+    private void OnDesktopExit(
+        object? sender,
+        ControlledApplicationLifetimeExitEventArgs args)
+    {
+        if (sender is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Exit -= OnDesktopExit;
+        }
+
+        CancelStartupRecovery();
+        DisposeServices();
+    }
+
+    private void DisposeServices()
+    {
+        if (Interlocked.Exchange(
+                ref _servicesDisposed,
+                1) != 0)
+        {
+            return;
+        }
+
+        var serviceProvider =
+            _serviceProvider;
+
+        _serviceProvider = null;
+
+        serviceProvider?.Dispose();
     }
 
     private static void LoadModules(IServiceProvider serviceProvider)
@@ -73,17 +127,85 @@ public partial class App : Application
         }
     }
 
-    private static void ScanStartupRecovery(
+    private void StartStartupRecoveryInBackground(
         IServiceProvider serviceProvider)
     {
         var recoveryService =
             serviceProvider.GetRequiredService<IStartupRecoveryService>();
 
-        var snapshot = recoveryService
-            .ScanAsync()
-            .GetAwaiter()
-            .GetResult();
+        var cancellation =
+            new CancellationTokenSource();
 
+        _startupRecoveryCancellation =
+            cancellation;
+
+        _ = Task.Run(
+                async () =>
+                {
+                    try
+                    {
+                        var snapshot =
+                            await recoveryService
+                                .ScanAsync(
+                                    cancellation.Token)
+                                .ConfigureAwait(false);
+
+                        LogStartupRecoverySnapshot(
+                            snapshot);
+                    }
+                    catch (OperationCanceledException)
+                        when (cancellation.IsCancellationRequested)
+                    {
+                        // Normaler Shutdown während der Startup-Prüfung.
+                    }
+                    catch (Exception exception)
+                    {
+                        // Startup darf die UI niemals wieder blockieren oder beenden.
+                        // Dateioperationen bleiben trotzdem fail-closed, weil deren
+                        // Recovery-Prüfung unabhängig davon erneut ausgeführt wird.
+                        Console.Error.WriteLine(
+                            "Recovery-Prüfung im Hintergrund fehlgeschlagen: "
+                            + exception.Message);
+                    }
+                    finally
+                    {
+                        Interlocked.CompareExchange(
+                            ref _startupRecoveryCancellation,
+                            null,
+                            cancellation);
+
+                        cancellation.Dispose();
+                    }
+                },
+                cancellation.Token);
+    }
+
+    private void CancelStartupRecovery()
+    {
+        var cancellation =
+            Interlocked.Exchange(
+                ref _startupRecoveryCancellation,
+                null);
+
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        try
+        {
+            cancellation.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Shutdown bleibt idempotent.
+        }
+
+    }
+
+    private static void LogStartupRecoverySnapshot(
+        StartupRecoverySnapshot snapshot)
+    {
         if (snapshot.State == StartupRecoveryState.AttentionRequired)
         {
             Console.Error.WriteLine(
@@ -98,4 +220,5 @@ public partial class App : Application
                 + $"{snapshot.ErrorMessage ?? "Unbekannter Fehler"}");
         }
     }
+
 }

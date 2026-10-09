@@ -14,24 +14,37 @@
             MaxWidth="1120"
             Spacing="22">
 
-            <StackPanel Spacing="7">
-                <TextBlock
-                    Text="Willkommen"
-                    Classes="elbwald-title" />
+            <Grid MinHeight="230">
+                <StackPanel
+                    MaxWidth="540"
+                    Spacing="8"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Left">
 
-                <TextBlock
-                    Text="Was möchtest du mit deinen Medien machen?"
-                    Foreground="{DynamicResource ElbwaldTextBrush}"
-                    FontSize="21"
-                    FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="Willkommen"
+                        Classes="elbwald-title" />
 
-                <TextBlock
-                    Text="Analysiere, organisiere, bearbeite und sichere deine Medien lokal, übersichtlich und nachvollziehbar."
-                    Classes="elbwald-muted"
-                    FontSize="14"
-                    LineHeight="21"
-                    TextWrapping="Wrap" />
-            </StackPanel>
+                    <TextBlock
+                        Text="Was möchtest du mit deinen Medien machen?"
+                        Foreground="{DynamicResource ElbwaldTextBrush}"
+                        FontSize="21"
+                        FontWeight="SemiBold" />
+
+                    <TextBlock
+                        Text="Analysiere, organisiere, bearbeite und sichere deine Medien lokal, übersichtlich und nachvollziehbar."
+                        Classes="elbwald-muted"
+                        FontSize="14"
+                        LineHeight="21"
+                        TextWrapping="Wrap" />
+
+                    <TextBlock
+                        Text="Deine Medien in guten Händen."
+                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                        FontSize="12"
+                        FontWeight="SemiBold" />
+                </StackPanel>
+            </Grid>
 
             <Grid
                 ColumnDefinitions="1.35*,0.65*"
@@ -126,6 +139,12 @@
                                 FontSize="10"
                                 TextWrapping="Wrap" />
                         </Border>
+
+                        <Button
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding OpenLibraryHealthCommand}"
+                            HorizontalAlignment="Left"
+                            Content="Bibliotheksstatus" />
                     </StackPanel>
                 </Border>
             </Grid>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Elbwald.DesktopTools.Contracts.FileOperations;
 
 namespace Elbwald.DesktopTools.Core.FileOperations;
@@ -5,10 +6,20 @@ namespace Elbwald.DesktopTools.Core.FileOperations;
 public sealed class FileSystemOperationProcessLock
     : IFileOperationProcessLock
 {
-    private readonly string _lockFilePath;
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private static readonly StringComparer LockPathComparer =
+        OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
 
-    private FileStream? _lockStream;
+    private static readonly ConcurrentDictionary<string, SharedLockState>
+        SharedStates =
+            new(LockPathComparer);
+
+    private readonly string _lockFilePath;
+    private readonly SemaphoreSlim _instanceGate = new(1, 1);
+
+    private SharedLockState? _sharedState;
+    private bool _designerBypassHeld;
     private bool _disposed;
     private int _isHeld;
 
@@ -29,7 +40,7 @@ public sealed class FileSystemOperationProcessLock
         TryAcquireAsync(
             CancellationToken cancellationToken = default)
     {
-        await _gate.WaitAsync(
+        await _instanceGate.WaitAsync(
             cancellationToken);
 
         try
@@ -41,28 +52,14 @@ public sealed class FileSystemOperationProcessLock
                     "Der Prozess-Lock wurde bereits freigegeben.");
             }
 
-            if (_lockStream is not null)
+            if (_designerBypassHeld
+                || IsAvaloniaDesignerHost())
             {
-                return new FileOperationProcessLockAcquireResult(
-                    FileOperationProcessLockAcquireState.Acquired);
-            }
-
-            var directory =
-                Path.GetDirectoryName(_lockFilePath)
-                ?? throw new InvalidOperationException(
-                    "Der Prozess-Lock hat kein gültiges Verzeichnis.");
-
-            Directory.CreateDirectory(directory);
-
-            try
-            {
-                _lockStream = new FileStream(
-                    _lockFilePath,
-                    FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite,
-                    FileShare.None,
-                    bufferSize: 1,
-                    FileOptions.WriteThrough);
+                // Rider/Avalonia Designer lädt die echte App-DLL in separaten
+                // Designer.HostApp-Prozessen. Diese Prozesse dürfen den globalen
+                // Dateisicherheits-Lock niemals besitzen, weil sie keine echten
+                // Benutzer-Dateioperationen ausführen.
+                _designerBypassHeld = true;
 
                 Volatile.Write(
                     ref _isHeld,
@@ -71,38 +68,93 @@ public sealed class FileSystemOperationProcessLock
                 return new FileOperationProcessLockAcquireResult(
                     FileOperationProcessLockAcquireState.Acquired);
             }
-            catch (IOException exception)
+
+            if (_sharedState is not null)
             {
                 return new FileOperationProcessLockAcquireResult(
-                    FileOperationProcessLockAcquireState.Unavailable,
-                    "Der exklusive Dateisicherheits-Lock ist bereits belegt "
-                    + "oder konnte vom Dateisystem nicht exklusiv geöffnet werden. "
-                    + $"Details: {exception.Message}");
+                    FileOperationProcessLockAcquireState.Acquired);
             }
-            catch (UnauthorizedAccessException exception)
+
+            var sharedState =
+                SharedStates.GetOrAdd(
+                    _lockFilePath,
+                    _ => new SharedLockState());
+
+            await sharedState.Gate.WaitAsync(
+                cancellationToken);
+
+            try
             {
+                if (sharedState.LockStream is null)
+                {
+                    var directory =
+                        Path.GetDirectoryName(_lockFilePath)
+                        ?? throw new InvalidOperationException(
+                            "Der Prozess-Lock hat kein gültiges Verzeichnis.");
+
+                    Directory.CreateDirectory(directory);
+
+                    try
+                    {
+                        sharedState.LockStream =
+                            new FileStream(
+                                _lockFilePath,
+                                FileMode.OpenOrCreate,
+                                FileAccess.ReadWrite,
+                                FileShare.None,
+                                bufferSize: 1,
+                                FileOptions.WriteThrough);
+                    }
+                    catch (IOException exception)
+                    {
+                        return new FileOperationProcessLockAcquireResult(
+                            FileOperationProcessLockAcquireState.Unavailable,
+                            "Der exklusive Dateisicherheits-Lock ist bereits von einem anderen Prozess belegt "
+                            + "oder konnte vom Dateisystem nicht exklusiv geöffnet werden. "
+                            + $"Details: {exception.Message}");
+                    }
+                    catch (UnauthorizedAccessException exception)
+                    {
+                        return new FileOperationProcessLockAcquireResult(
+                            FileOperationProcessLockAcquireState.Failed,
+                            "Auf den Dateisicherheits-Lock kann nicht zugegriffen werden. "
+                            + $"Details: {exception.Message}");
+                    }
+                    catch (NotSupportedException exception)
+                    {
+                        return new FileOperationProcessLockAcquireResult(
+                            FileOperationProcessLockAcquireState.Failed,
+                            "Das Dateisystem unterstützt den Dateisicherheits-Lock "
+                            + $"nicht wie benötigt. Details: {exception.Message}");
+                    }
+                }
+
+                sharedState.LeaseCount++;
+
+                _sharedState =
+                    sharedState;
+
+                Volatile.Write(
+                    ref _isHeld,
+                    1);
+
                 return new FileOperationProcessLockAcquireResult(
-                    FileOperationProcessLockAcquireState.Failed,
-                    "Auf den Dateisicherheits-Lock kann nicht zugegriffen werden. "
-                    + $"Details: {exception.Message}");
+                    FileOperationProcessLockAcquireState.Acquired);
             }
-            catch (NotSupportedException exception)
+            finally
             {
-                return new FileOperationProcessLockAcquireResult(
-                    FileOperationProcessLockAcquireState.Failed,
-                    "Das Dateisystem unterstützt den Dateisicherheits-Lock "
-                    + $"nicht wie benötigt. Details: {exception.Message}");
+                sharedState.Gate.Release();
             }
         }
         finally
         {
-            _gate.Release();
+            _instanceGate.Release();
         }
     }
 
     public void Dispose()
     {
-        _gate.Wait();
+        _instanceGate.Wait();
 
         try
         {
@@ -112,9 +164,35 @@ public sealed class FileSystemOperationProcessLock
             }
 
             _disposed = true;
+            _designerBypassHeld = false;
 
-            _lockStream?.Dispose();
-            _lockStream = null;
+            var sharedState =
+                _sharedState;
+
+            _sharedState = null;
+
+            if (sharedState is not null)
+            {
+                sharedState.Gate.Wait();
+
+                try
+                {
+                    if (sharedState.LeaseCount > 0)
+                    {
+                        sharedState.LeaseCount--;
+                    }
+
+                    if (sharedState.LeaseCount == 0)
+                    {
+                        sharedState.LockStream?.Dispose();
+                        sharedState.LockStream = null;
+                    }
+                }
+                finally
+                {
+                    sharedState.Gate.Release();
+                }
+            }
 
             Volatile.Write(
                 ref _isHeld,
@@ -122,7 +200,36 @@ public sealed class FileSystemOperationProcessLock
         }
         finally
         {
-            _gate.Release();
+            _instanceGate.Release();
         }
+    }
+
+    private static bool IsAvaloniaDesignerHost()
+    {
+        foreach (var argument in Environment.GetCommandLineArgs())
+        {
+            var fileName =
+                Path.GetFileName(argument);
+
+            if (string.Equals(
+                    fileName,
+                    "Avalonia.Designer.HostApp.dll",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private sealed class SharedLockState
+    {
+        public SemaphoreSlim Gate { get; } =
+            new(1, 1);
+
+        public FileStream? LockStream { get; set; }
+
+        public int LeaseCount { get; set; }
     }
 }
