@@ -3,6 +3,7 @@ using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Companions;
 using Elbwald.DesktopTools.Contracts.Media.Dates;
+using Elbwald.DesktopTools.Contracts.Media.Naming;
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
 
 namespace Elbwald.DesktopTools.Core.Media;
@@ -17,17 +18,20 @@ public sealed class MediaSortPlanner
     private readonly IMediaDateResolver _dateResolver;
     private readonly IMediaDateContextAnalyzer _dateContextAnalyzer;
     private readonly IMediaCompanionPlanner _companionPlanner;
+    private readonly IMediaNamingTemplateEngine _namingTemplateEngine;
 
     public MediaSortPlanner(
         IFileOperationPlanner fileOperationPlanner,
         IMediaDateResolver dateResolver,
         IMediaDateContextAnalyzer dateContextAnalyzer,
-        IMediaCompanionPlanner companionPlanner)
+        IMediaCompanionPlanner companionPlanner,
+        IMediaNamingTemplateEngine namingTemplateEngine)
     {
         ArgumentNullException.ThrowIfNull(fileOperationPlanner);
         ArgumentNullException.ThrowIfNull(dateResolver);
         ArgumentNullException.ThrowIfNull(dateContextAnalyzer);
         ArgumentNullException.ThrowIfNull(companionPlanner);
+        ArgumentNullException.ThrowIfNull(namingTemplateEngine);
 
         _fileOperationPlanner =
             fileOperationPlanner;
@@ -40,6 +44,9 @@ public sealed class MediaSortPlanner
 
         _companionPlanner =
             companionPlanner;
+
+        _namingTemplateEngine =
+            namingTemplateEngine;
     }
 
     public MediaSortPlan CreatePlan(
@@ -120,6 +127,8 @@ public sealed class MediaSortPlanner
         var requests =
             new List<FileOperationRequest>();
 
+        var sequence = 1;
+
         foreach (var contextEntry in contextEntries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -177,8 +186,11 @@ public sealed class MediaSortPlanner
                 BuildRelativeDirectory(
                     analyzedFile,
                     capturedAt,
+                    sequence,
                     options,
                     issues);
+
+            sequence++;
 
             var destinationPath =
                 Path.GetFullPath(
@@ -341,50 +353,143 @@ public sealed class MediaSortPlanner
             ignoredNonImageCount);
     }
 
-    private static string BuildRelativeDirectory(
+    private string BuildRelativeDirectory(
         MediaAnalyzedFile analyzedFile,
         DateTime capturedAt,
+        int sequence,
         MediaSortOptions options,
         ICollection<MediaSortIssue> issues)
     {
-        var year =
-            capturedAt.Year.ToString(
-                "0000",
-                CultureInfo.InvariantCulture);
+        var pattern =
+            string.IsNullOrWhiteSpace(options.PathPattern)
+                ? options.Rule == MediaSortRule.YearCameraMonth
+                    ? "{year}/{camera}/{month}"
+                    : "{year}/{month}"
+                : options.PathPattern.Trim();
 
-        var month =
-            capturedAt.Month.ToString(
-                "00",
-                CultureInfo.InvariantCulture);
-
-        if (options.Rule == MediaSortRule.YearMonth)
+        if (Path.IsPathRooted(pattern)
+            || pattern.StartsWith("/", StringComparison.Ordinal)
+            || pattern.StartsWith("\\", StringComparison.Ordinal))
         {
-            return Path.Combine(
-                year,
-                month);
+            throw new FormatException(
+                "Die Zielstruktur muss relativ zum gewählten Zielordner bleiben.");
         }
 
-        var camera =
-            CreateCameraLabel(
-                analyzedFile.ImageMetadata);
+        var sourcePath =
+            Path.GetFullPath(analyzedFile.File.FullPath);
 
-        if (string.IsNullOrWhiteSpace(camera))
+        var metadata =
+            TryGetMetadataContext(
+                options.MetadataBySourcePath,
+                sourcePath);
+
+        var imageMetadata =
+            analyzedFile.ImageMetadata;
+
+        var context =
+            new MediaNamingContext(
+                capturedAt,
+                Path.GetFileNameWithoutExtension(analyzedFile.File.FileName),
+                analyzedFile.File.Extension,
+                analyzedFile.File.MediaType.ToString(),
+                Path.GetFileName(analyzedFile.File.DirectoryPath),
+                imageMetadata?.CameraMake,
+                imageMetadata?.CameraModel,
+                metadata?.Title,
+                metadata?.Description,
+                imageMetadata?.PixelWidth,
+                imageMetadata?.PixelHeight,
+                sequence);
+
+        var rawSegments =
+            pattern
+                .Replace('\\', '/')
+                .Split(
+                    '/',
+                    StringSplitOptions.RemoveEmptyEntries
+                    | StringSplitOptions.TrimEntries);
+
+        if (rawSegments.Length == 0)
         {
-            camera =
-                UnknownCameraSegment;
+            throw new FormatException(
+                "Die Zielstruktur darf nicht leer sein.");
+        }
 
+        var renderedSegments =
+            new List<string>(rawSegments.Length);
+
+        foreach (var rawSegment in rawSegments)
+        {
+            if (rawSegment is "." or "..")
+            {
+                throw new FormatException(
+                    "Die Zielstruktur darf keine .- oder ..-Segmente enthalten.");
+            }
+
+            var rendered =
+                _namingTemplateEngine.RenderFileStem(
+                    rawSegment,
+                    context);
+
+            rendered =
+                SanitizePathSegment(rendered);
+
+            if (rendered is "." or ".."
+                || string.IsNullOrWhiteSpace(rendered))
+            {
+                throw new FormatException(
+                    $"Die Zielstruktur erzeugt ein ungültiges Segment aus '{rawSegment}'.");
+            }
+
+            renderedSegments.Add(rendered);
+        }
+
+        if (pattern.Contains(
+                "{camera",
+                StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(
+                CreateCameraLabel(imageMetadata)))
+        {
             issues.Add(
                 new MediaSortIssue(
                     analyzedFile.File.FullPath,
                     MediaSortIssueKind.MissingCameraInformation,
                     MediaSortIssueSeverity.Info,
-                    $"Keine Kamerainformation vorhanden. Zielordner: '{UnknownCameraSegment}'."));
+                    $"Keine Kamerainformation vorhanden. Platzhalter verwendet Fallback '{UnknownCameraSegment}'."));
         }
 
         return Path.Combine(
-            year,
-            SanitizePathSegment(camera),
-            month);
+            renderedSegments.ToArray());
+    }
+
+    private static MediaSortMetadataContext? TryGetMetadataContext(
+        IReadOnlyDictionary<string, MediaSortMetadataContext> metadataBySourcePath,
+        string sourcePath)
+    {
+        if (metadataBySourcePath.TryGetValue(
+                sourcePath,
+                out var direct))
+        {
+            return direct;
+        }
+
+        var comparison =
+            OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+        foreach (var pair in metadataBySourcePath)
+        {
+            if (string.Equals(
+                    Path.GetFullPath(pair.Key),
+                    sourcePath,
+                    comparison))
+            {
+                return pair.Value;
+            }
+        }
+
+        return null;
     }
 
     private static string? CreateCameraLabel(

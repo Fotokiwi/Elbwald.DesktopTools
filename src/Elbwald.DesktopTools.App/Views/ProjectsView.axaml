@@ -61,15 +61,19 @@
                     </Grid>
                 </Border>
 
-                <Grid Grid.Column="1" IsVisible="{Binding HasSelectedProject}" RowDefinitions="Auto,Auto,*" RowSpacing="14">
+                <Grid Grid.Column="1" IsVisible="{Binding HasSelectedProject}" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="14">
                     <Border Classes="elbwald-card" Padding="16">
-                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
                             <Grid ColumnDefinitions="*,190" ColumnSpacing="10">
                                 <TextBox Text="{Binding EditName, Mode=TwoWay}" PlaceholderText="Projektname" />
                                 <ComboBox Grid.Column="1" ItemsSource="{Binding ProjectKinds}" SelectedItem="{Binding EditKind, Mode=TwoWay}" />
                             </Grid>
-                            <TextBox Grid.Row="1" Text="{Binding EditLocation, Mode=TwoWay}" PlaceholderText="Ort (optional)" />
-                            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <TextBox Text="{Binding EditStartDateText, Mode=TwoWay}" PlaceholderText="Start YYYY-MM-DD" />
+                                <TextBox Grid.Column="1" Text="{Binding EditEndDateText, Mode=TwoWay}" PlaceholderText="Ende YYYY-MM-DD" />
+                            </Grid>
+                            <TextBox Grid.Row="2" Text="{Binding EditLocation, Mode=TwoWay}" PlaceholderText="Ort (optional)" />
+                            <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                 <TextBox Text="{Binding EditNotes, Mode=TwoWay}" PlaceholderText="Notizen (optional)" AcceptsReturn="True" MinHeight="62" TextWrapping="Wrap" />
                                 <Button Grid.Column="1" Classes="elbwald-primary-button" Command="{Binding SaveProjectCommand}" VerticalAlignment="Bottom" Content="Speichern" />
                             </Grid>
@@ -77,6 +81,44 @@
                     </Border>
 
                     <Border Grid.Row="1" Classes="elbwald-card" Padding="16">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="Medien finden" Classes="elbwald-section-title" />
+                                    <TextBlock Text="Rückwärtssuche über den Projektzeitraum. Elbwald nutzt das effektive Aufnahmedatum: DB-Korrektur vor zentral erfasstem EXIF-Datum."
+                                               Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding FindMediaCommand}" Content="Medien finden" VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock Text="{Binding FindMediaStatus}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                            <Grid IsVisible="{Binding HasSuggestedMedia}" RowDefinitions="*,Auto" RowSpacing="8">
+                                <ScrollViewer MaxHeight="230">
+                                    <ItemsControl ItemsSource="{Binding SuggestedMedia}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ProjectSearchResultViewModel">
+                                                <Border BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="0,0,0,1" Padding="6,7">
+                                                    <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="10">
+                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" Spacing="2">
+                                                            <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="10" />
+                                                            <TextBlock Text="{Binding RelativePath}" Classes="elbwald-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding CaptureDateText}" FontSize="9" />
+                                                            <TextBlock Text="{Binding RatingText}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="9" HorizontalAlignment="Right" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <Button Grid.Row="1" Classes="elbwald-primary-button" HorizontalAlignment="Right" Command="{Binding AddSuggestedMediaCommand}" Content="Auswahl dem Projekt zuordnen" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" Classes="elbwald-card" Padding="16">
                         <StackPanel Spacing="10">
                             <TextBlock Text="Medien hinzufügen" Classes="elbwald-section-title" />
                             <TextBlock Text="Suche im lokalen Medienindex. Hinzugefügt wird ausschließlich die stabile Media-ID – kein Dateipfad wird ins Projekt kopiert." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
@@ -107,7 +149,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="2" Classes="elbwald-card" Padding="16">
+                    <Border Grid.Row="3" Classes="elbwald-card" Padding="16">
                         <Grid RowDefinitions="Auto,*" RowSpacing="10">
                             <TextBlock Text="Projektmedien" Classes="elbwald-section-title" />
                             <Grid Grid.Row="1">

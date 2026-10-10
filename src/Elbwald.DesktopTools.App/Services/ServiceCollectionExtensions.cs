@@ -4,7 +4,11 @@ using Elbwald.DesktopTools.Contracts.Journaling;
 using Elbwald.DesktopTools.Contracts.LibraryHealth;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Importing;
+using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
+using Elbwald.DesktopTools.Contracts.Media.MetadataExporting;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.Media.Naming;
+using Elbwald.DesktopTools.Contracts.OperationHistory;
 using Elbwald.DesktopTools.Contracts.Media.Dates;
 using Elbwald.DesktopTools.Contracts.Media.Companions;
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
@@ -19,7 +23,11 @@ using Elbwald.DesktopTools.Core.Journaling;
 using Elbwald.DesktopTools.Core.LibraryHealth;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.Media.Importing;
+using Elbwald.DesktopTools.Core.Media.MetadataEditing;
+using Elbwald.DesktopTools.Core.Media.MetadataExporting;
 using Elbwald.DesktopTools.Core.MediaIndex;
+using Elbwald.DesktopTools.Core.Media.Naming;
+using Elbwald.DesktopTools.Core.OperationHistory;
 using Elbwald.DesktopTools.Core.Modules;
 using Elbwald.DesktopTools.Core.Paths;
 using Elbwald.DesktopTools.Core.Projects;
@@ -87,8 +95,12 @@ public static class ServiceCollectionExtensions
                     serviceProvider.GetRequiredService<IMediaAnalysisCache>()));
 
         services.AddSingleton<IMediaAnalyzer, MediaAnalyzerService>();
+        services.AddSingleton<IMetadataSidecarService, XmpMetadataSidecarService>();
+        services.AddSingleton<IMetadataExportService, MetadataExportService>();
         services.AddSingleton<IMediaImportPlanner, MediaImportPlanner>();
         services.AddSingleton<IMediaImportExecutor, MediaImportExecutor>();
+        services.AddSingleton<IMediaImportCleanupPlanner, MediaImportCleanupPlanner>();
+        services.AddSingleton<IMediaImportCleanupExecutor, MediaImportCleanupExecutor>();
         services.AddSingleton<ILibraryHealthService, LibraryHealthService>();
 
         services.AddSingleton(
@@ -106,6 +118,18 @@ public static class ServiceCollectionExtensions
             });
 
         services.AddSingleton<IMediaIndexService, MediaIndexService>();
+        services.AddSingleton<IMediaNamingTemplateEngine, MediaNamingTemplateEngine>();
+
+        services.AddSingleton(
+            serviceProvider =>
+            {
+                var appPaths = serviceProvider.GetRequiredService<IAppPaths>();
+                return new OperationHistoryOptions
+                {
+                    DatabasePath = Path.Combine(appPaths.DatabaseDirectory, "operation-history.db")
+                };
+            });
+        services.AddSingleton<IOperationHistoryStore, SqliteOperationHistoryStore>();
 
         services.AddSingleton(
             serviceProvider =>
@@ -132,13 +156,13 @@ public static class ServiceCollectionExtensions
             {
                 var appPaths = serviceProvider.GetRequiredService<IAppPaths>();
 
-                return new MediaThumbnailOptions
-                {
-                    CacheDirectory =
-                        Path.Combine(
-                            appPaths.CacheDirectory,
-                            "Thumbnails")
-                };
+                return MediaThumbnailOptions.Load(
+                    Path.Combine(
+                        appPaths.CacheDirectory,
+                        "Thumbnails"),
+                    Path.Combine(
+                        appPaths.ConfigDirectory,
+                        "thumbnail-settings.json"));
             });
 
         services.AddSingleton<IRawPreviewExtractor, TiffEmbeddedJpegPreviewExtractor>();
@@ -224,6 +248,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFileOperationRecoveryCoordinator, FileOperationRecoveryCoordinator>();
         services.AddSingleton<IStartupRecoveryService, StartupRecoveryService>();
         services.AddSingleton<IFileOperationExecutor, FileOperationExecutor>();
+
+        services.AddSingleton<MediaExportSelectionContext>();
 
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<INavigationContentFactory, NavigationContentFactory>();

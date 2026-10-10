@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
+using Elbwald.DesktopTools.Contracts.Media.Knowledge;
 using Elbwald.DesktopTools.Contracts.Storage;
 
 namespace Elbwald.DesktopTools.Core.MediaIndex;
@@ -9,19 +11,23 @@ public sealed class MediaIndexService : IMediaIndexService
 {
     private readonly IMediaScanner _mediaScanner;
     private readonly IStorageLocationResolver _storageResolver;
+    private readonly IImageMetadataReader _imageMetadataReader;
     private readonly SqliteMediaIndexStore _store;
 
     public MediaIndexService(
         IMediaScanner mediaScanner,
         IStorageLocationResolver storageResolver,
+        IImageMetadataReader imageMetadataReader,
         MediaIndexOptions options)
     {
         ArgumentNullException.ThrowIfNull(mediaScanner);
         ArgumentNullException.ThrowIfNull(storageResolver);
+        ArgumentNullException.ThrowIfNull(imageMetadataReader);
         ArgumentNullException.ThrowIfNull(options);
 
         _mediaScanner = mediaScanner;
         _storageResolver = storageResolver;
+        _imageMetadataReader = imageMetadataReader;
         _store = new SqliteMediaIndexStore(options);
     }
 
@@ -152,6 +158,7 @@ public sealed class MediaIndexService : IMediaIndexService
                             DateTimeOffset.UtcNow,
                             cancellationToken);
 
+                        await EnsureFactsAsync(indexedState.MediaItemId, file, forceRefresh: false, cancellationToken);
                         reusedHashes++;
                         filesIndexed++;
                         continue;
@@ -181,6 +188,8 @@ public sealed class MediaIndexService : IMediaIndexService
                         scanId,
                         DateTimeOffset.UtcNow,
                         cancellationToken);
+
+                    await EnsureFactsAsync(upsert.MediaItemId, file, forceRefresh: true, cancellationToken);
 
                     if (upsert.IsNewItem)
                     {
@@ -270,6 +279,74 @@ public sealed class MediaIndexService : IMediaIndexService
         CancellationToken cancellationToken = default) =>
         _store.FindByHashAsync(sha256, length, cancellationToken);
 
+    public Task<MediaIndexItem> EnsureItemAsync(
+        string sha256,
+        long length,
+        MediaFileType mediaType,
+        CancellationToken cancellationToken = default) =>
+        _store.EnsureItemAsync(sha256, length, mediaType, cancellationToken);
+
+    public Task<MediaMetadataSnapshot> GetMetadataAsync(
+        string mediaItemId,
+        CancellationToken cancellationToken = default) =>
+        _store.GetMetadataAsync(mediaItemId, cancellationToken);
+
+    public Task SaveMetadataBatchAsync(
+        IReadOnlyList<MediaMetadataUpdate> updates,
+        CancellationToken cancellationToken = default) =>
+        _store.SaveMetadataBatchAsync(updates, cancellationToken);
+
+    public Task<MediaIndexFacts?> GetFactsAsync(
+        string mediaItemId,
+        CancellationToken cancellationToken = default) =>
+        _store.GetFactsAsync(mediaItemId, cancellationToken);
+
+    public Task<IReadOnlyList<MediaKnowledgeItem>> GetKnowledgeItemsAsync(
+        MediaKnowledgeKind kind,
+        string? searchText = null,
+        int limit = 24,
+        CancellationToken cancellationToken = default) =>
+        _store.GetKnowledgeItemsAsync(kind, searchText, limit, cancellationToken);
+
+    public Task<MediaKnowledgeItem> EnsureKnowledgeItemAsync(
+        MediaKnowledgeDraft draft,
+        CancellationToken cancellationToken = default) =>
+        _store.EnsureKnowledgeItemAsync(draft, cancellationToken);
+
+    public Task<MediaKnowledgeSnapshot> GetKnowledgeAsync(
+        string mediaItemId,
+        CancellationToken cancellationToken = default) =>
+        _store.GetKnowledgeAsync(mediaItemId, cancellationToken);
+
+    public Task<int> AssignKnowledgeItemBatchAsync(
+        IReadOnlyList<string> mediaItemIds,
+        string knowledgeItemId,
+        CancellationToken cancellationToken = default) =>
+        _store.AssignKnowledgeItemBatchAsync(mediaItemIds, knowledgeItemId, cancellationToken);
+
+    public Task<int> RemoveKnowledgeItemBatchAsync(
+        IReadOnlyList<string> mediaItemIds,
+        string knowledgeItemId,
+        CancellationToken cancellationToken = default) =>
+        _store.RemoveKnowledgeItemBatchAsync(mediaItemIds, knowledgeItemId, cancellationToken);
+
+    public Task SetRatingBatchAsync(
+        IReadOnlyList<string> mediaItemIds,
+        int rating,
+        CancellationToken cancellationToken = default) =>
+        _store.SetRatingBatchAsync(mediaItemIds, rating, cancellationToken);
+
+    public Task UpdateIdentityAfterControlledRewriteAsync(
+        string mediaItemId,
+        string expectedOldSha256,
+        long expectedOldLength,
+        string newSha256,
+        long newLength,
+        DateTime newLastWriteTimeUtc,
+        CancellationToken cancellationToken = default) =>
+        _store.UpdateIdentityAfterControlledRewriteAsync(
+            mediaItemId, expectedOldSha256, expectedOldLength, newSha256, newLength, newLastWriteTimeUtc, cancellationToken);
+
     public Task<IReadOnlyList<MediaIndexLocation>> GetLocationsAsync(
         string mediaItemId,
         CancellationToken cancellationToken = default) =>
@@ -279,6 +356,45 @@ public sealed class MediaIndexService : IMediaIndexService
         MediaIndexSearchQuery query,
         CancellationToken cancellationToken = default) =>
         _store.SearchAsync(query, cancellationToken);
+
+    public Task<IReadOnlyList<MediaIndexFolderFacet>> GetFolderFacetsAsync(
+        CancellationToken cancellationToken = default) =>
+        _store.GetFolderFacetsAsync(cancellationToken);
+
+    public Task<IReadOnlyList<MediaIndexFolderNode>> GetFolderChildrenAsync(
+        string endpointId,
+        string? parentRelativeFolder = null,
+        CancellationToken cancellationToken = default) =>
+        _store.GetFolderChildrenAsync(endpointId, parentRelativeFolder, cancellationToken);
+
+    private async Task EnsureFactsAsync(
+        string mediaItemId,
+        MediaFile file,
+        bool forceRefresh,
+        CancellationToken cancellationToken)
+    {
+        if (file.MediaType != MediaFileType.Image)
+        {
+            return;
+        }
+
+        if (!forceRefresh && await _store.HasFactsAsync(mediaItemId, cancellationToken))
+        {
+            return;
+        }
+
+        var result = await _imageMetadataReader.ReadAsync(file, cancellationToken);
+        if (!result.IsSuccessful)
+        {
+            return;
+        }
+
+        await _store.UpsertFactsAsync(
+            mediaItemId,
+            result.Metadata,
+            file.LastWriteTimeUtc,
+            cancellationToken);
+    }
 
     private static IReadOnlyList<MediaIndexRelocation> ClassifyRelocations(
         IReadOnlyList<RelocationNewCandidate> newCandidates,

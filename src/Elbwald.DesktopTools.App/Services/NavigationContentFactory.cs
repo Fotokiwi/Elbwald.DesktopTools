@@ -32,6 +32,23 @@ public sealed class NavigationContentFactory : INavigationContentFactory
 
         if (string.Equals(
                 sectionId,
+                "library",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var libraryViewModel =
+                ActivatorUtilities.CreateInstance<MediaBrowserViewModel>(
+                    _serviceProvider);
+
+            var libraryView =
+                ActivatorUtilities.CreateInstance<MediaBrowserView>(
+                    _serviceProvider);
+
+            libraryView.DataContext = libraryViewModel;
+            return libraryView;
+        }
+
+        if (string.Equals(
+                sectionId,
                 "settings",
                 StringComparison.OrdinalIgnoreCase))
         {
@@ -109,6 +126,48 @@ public sealed class NavigationContentFactory : INavigationContentFactory
         return view;
     }
 
+    public object CreateMetadataEditorPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<MetadataEditorViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<MetadataEditorView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+        return view;
+    }
+
+    public object CreateMediaExportPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<MediaExportViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<MediaExportView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+        return view;
+    }
+
+    public object CreateRenamePage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<RenameViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<RenameView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+        return view;
+    }
+
     public object CreateProjectsPage()
     {
         var viewModel =
@@ -150,6 +209,20 @@ public sealed class NavigationContentFactory : INavigationContentFactory
 
         view.DataContext = viewModel;
 
+        return view;
+    }
+
+    public object CreateOperationHistoryPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<OperationHistoryViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<OperationHistoryView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
         return view;
     }
 

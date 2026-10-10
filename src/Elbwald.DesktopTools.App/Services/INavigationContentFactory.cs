@@ -12,6 +12,8 @@ public interface INavigationContentFactory
 
     object CreateDiagnosticsPage();
 
+    object CreateOperationHistoryPage();
+
     object CreateLibraryHealthPage();
 
     object CreateMediaIndexPage();
@@ -19,6 +21,12 @@ public interface INavigationContentFactory
     object CreateProjectsPage();
 
     object CreateMediaImportPage();
+
+    object CreateMetadataEditorPage();
+
+    object CreateMediaExportPage();
+
+    object CreateRenamePage();
 
     object CreateModulePage(ToolModuleDescriptor descriptor);
 }

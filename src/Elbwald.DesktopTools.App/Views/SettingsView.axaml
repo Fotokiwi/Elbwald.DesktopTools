@@ -250,12 +250,99 @@
                         </Border>
 
                         <Border Classes="elbwald-card" Padding="20">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="Vorschau-Auflösungen" Classes="elbwald-section-title" />
+                                        <TextBlock
+                                            Text="Elbwald erzeugt Media-ID-gebundene Cache-Varianten nur bei Bedarf. Kleinere Werte sparen deutlich Speicherplatz."
+                                            Classes="elbwald-muted"
+                                            FontSize="11"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+
+                                    <Button
+                                        Grid.Column="1"
+                                        Classes="elbwald-primary-button"
+                                        Command="{Binding SaveThumbnailSettingsCommand}"
+                                        Content="Übernehmen" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                    <Border
+                                        Background="{DynamicResource ElbwaldPageBrush}"
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="14">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="Galerie" FontWeight="SemiBold" />
+                                            <TextBlock Text="Kleine Kacheln im Medienbrowser." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                            <ComboBox
+                                                ItemsSource="{Binding GridThumbnailWidths}"
+                                                SelectedItem="{Binding SelectedGridThumbnailWidth, Mode=TwoWay}"
+                                                HorizontalAlignment="Stretch" />
+                                            <TextBlock Text="Standard: 168 px" Classes="elbwald-muted" FontSize="9" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border
+                                        Grid.Column="1"
+                                        Background="{DynamicResource ElbwaldPageBrush}"
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="14">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="Detailansicht" FontWeight="SemiBold" />
+                                            <TextBlock Text="Größere Vorschau im rechten Detailbereich." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                            <ComboBox
+                                                ItemsSource="{Binding DetailThumbnailWidths}"
+                                                SelectedItem="{Binding SelectedDetailThumbnailWidth, Mode=TwoWay}"
+                                                HorizontalAlignment="Stretch" />
+                                            <TextBlock Text="Standard: 720 px" Classes="elbwald-muted" FontSize="9" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border
+                                        Grid.Column="2"
+                                        Background="{DynamicResource ElbwaldPageBrush}"
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="14">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="Großansicht / Vollbild" FontWeight="SemiBold" />
+                                            <TextBlock Text="Viewer und Präsentationsmodus. Wird erst beim Öffnen eines Bildes erzeugt." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                            <ComboBox
+                                                ItemsSource="{Binding ViewerThumbnailWidths}"
+                                                SelectedItem="{Binding SelectedViewerThumbnailWidth, Mode=TwoWay}"
+                                                HorizontalAlignment="Stretch" />
+                                            <TextBlock Text="Standard: 1920 px" Classes="elbwald-muted" FontSize="9" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Border Background="{DynamicResource ElbwaldAccentSoftBrush}" CornerRadius="10" Padding="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding ThumbnailResolutionSummary}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" />
+                                        <TextBlock
+                                            Text="Eine Änderung löscht vorhandene Cache-Dateien nicht automatisch. Alte Größen können über „Thumbnails leeren“ entfernt werden."
+                                            Classes="elbwald-muted"
+                                            FontSize="10"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="elbwald-card" Padding="20">
                             <StackPanel Spacing="9">
                                 <TextBlock Text="Performance" Classes="elbwald-section-title" />
                                 <TextBlock Text="{Binding PerformanceProfile}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding PerformanceDetails}" Classes="elbwald-muted" FontSize="11" LineHeight="18" TextWrapping="Wrap" />
                                 <TextBlock
-                                    Text="Konfigurierbare Grenzwerte folgen später. Bis dahin nutzt Elbwald bewusst konservative Defaults."
+                                    Text="Die Vorschaugrößen können oben an Bildschirmauflösung, Speicherbedarf und gewünschte Bildqualität angepasst werden."
                                     Classes="elbwald-muted"
                                     FontSize="10"
                                     TextWrapping="Wrap" />

@@ -6,4 +6,8 @@ public sealed record MediaIndexSearchResult(
     string? RepresentativeRelativePath,
     bool RepresentativeIsPresent,
     int PresentLocationCount,
-    int HistoricalLocationCount);
+    int HistoricalLocationCount,
+    string? Title = null,
+    DateTime? CaptureDate = null,
+    string? Description = null,
+    int Rating = 0);

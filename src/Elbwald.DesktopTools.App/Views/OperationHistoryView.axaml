@@ -1,0 +1,162 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.OperationHistoryView"
+    x:DataType="vm:OperationHistoryViewModel">
+
+    <Grid Margin="38,28,38,34" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+        <StackPanel Grid.Row="0" Spacing="5">
+            <TextBlock Text="Vorgangsverlauf" Classes="elbwald-title" />
+            <TextBlock
+                Text="Nachvollziehbare Benutzer-Dateioperationen. Undo ist vom Recovery-System getrennt und wird nur nach vollständiger erneuter Verifikation angeboten."
+                Classes="elbwald-muted"
+                FontSize="12"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Classes="elbwald-card" Padding="14">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock
+                    Grid.Column="0"
+                    Text="{Binding StatusMessage}"
+                    Classes="elbwald-muted"
+                    VerticalAlignment="Center"
+                    TextWrapping="Wrap" />
+                <Button
+                    Grid.Column="1"
+                    Command="{Binding RefreshCommand}"
+                    Content="Aktualisieren" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="360,*" ColumnSpacing="14">
+            <Border Grid.Column="0" Classes="elbwald-card" Padding="10">
+                <Grid>
+                    <TextBlock
+                        IsVisible="{Binding HasNoBatches}"
+                        Text="Noch keine Benutzer-Dateioperationen protokolliert."
+                        Classes="elbwald-muted"
+                        Margin="8"
+                        TextWrapping="Wrap" />
+
+                    <ListBox
+                        IsVisible="{Binding HasBatches}"
+                        ItemsSource="{Binding Batches}"
+                        SelectedItem="{Binding SelectedBatch, Mode=TwoWay}"
+                        Background="Transparent"
+                        BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:OperationHistoryBatchViewModel">
+                                <Border Classes="elbwald-soft-card" Padding="12" Margin="0,0,0,8">
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock
+                                                Grid.Column="0"
+                                                Text="{Binding OperationLabel}"
+                                                FontWeight="SemiBold"
+                                                FontSize="13" />
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="{Binding StateLabel}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding CompletedText}" Classes="elbwald-muted" FontSize="10" />
+                                        <TextBlock Text="{Binding Summary}" FontSize="11" />
+                                        <TextBlock Text="{Binding ShortBatchId}" Classes="elbwald-muted" FontSize="9" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Classes="elbwald-card" Padding="16">
+                <Grid IsVisible="{Binding HasSelection}" RowDefinitions="Auto,*,Auto" RowSpacing="14">
+                    <StackPanel Grid.Row="0" Spacing="4">
+                        <TextBlock Text="{Binding SelectedBatch.OperationLabel}" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding SelectedBatch.Summary}" Classes="elbwald-muted" />
+                        <TextBlock Text="{Binding SelectedBatch.BatchId}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding SelectedBatch.Entries}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="8" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:OperationHistoryEntryViewModel">
+                                    <Border Classes="elbwald-soft-card" Padding="12">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="60,*" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="Vorher" Classes="elbwald-muted" FontSize="10" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SourcePath}" FontSize="10" TextWrapping="Wrap" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="60,*" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="Nachher" Classes="elbwald-muted" FontSize="10" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DestinationPath}" FontSize="10" TextWrapping="Wrap" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding SizeText}" Classes="elbwald-muted" FontSize="9" />
+                                            <TextBlock Text="{Binding Sha256Short}" Classes="elbwald-muted" FontSize="9" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <Border Grid.Row="2" Classes="elbwald-soft-card" Padding="14">
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="9">
+                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Button
+                                    Grid.Column="0"
+                                    Command="{Binding CheckUndoCommand}"
+                                    Content="Undo prüfen" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Text="{Binding UndoCheckMessage}"
+                                    Classes="elbwald-muted"
+                                    VerticalAlignment="Center"
+                                    TextWrapping="Wrap" />
+                            </Grid>
+
+                            <ProgressBar
+                                Grid.Row="1"
+                                IsVisible="{Binding IsBusy}"
+                                Minimum="0"
+                                Maximum="100"
+                                Value="{Binding ProgressPercent}" />
+
+                            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsUndoReady}">
+                                <StackPanel Grid.Column="0" Spacing="3">
+                                    <TextBlock Text="Zweite Bestätigung" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding ConfirmationHint}" Classes="elbwald-muted" FontSize="10" />
+                                    <TextBox
+                                        Text="{Binding ConfirmationText, Mode=TwoWay}"
+                                        PlaceholderText="RÜCKGÄNGIG" />
+                                </StackPanel>
+                                <Button
+                                    Grid.Column="1"
+                                    VerticalAlignment="Bottom"
+                                    Classes="elbwald-primary-button"
+                                    Command="{Binding ExecuteUndoCommand}"
+                                    Content="Rückgängig ausführen" />
+                            </Grid>
+
+                            <TextBlock
+                                Grid.Row="3"
+                                Text="Nach Beginn der Dateioperation gibt es bewusst keinen Benutzerabbruch. Die vorhandene Recovery-Sicherung der File-Operation-Engine bleibt aktiv."
+                                Classes="elbwald-muted"
+                                FontSize="9"
+                                TextWrapping="Wrap" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

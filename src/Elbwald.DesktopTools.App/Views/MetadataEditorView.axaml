@@ -1,0 +1,167 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.MetadataEditorView"
+    x:DataType="vm:MetadataEditorViewModel">
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="38,28,38,40" Spacing="16">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Metadaten" Classes="elbwald-title" />
+                    <TextBlock
+                        Text="Bildmetadaten prüfen und Änderungen kontrolliert vorbereiten. 0052 arbeitet bewusst DB-first: Elbwald speichert Änderungen zentral im Media Index."
+                        Classes="elbwald-muted"
+                        FontSize="12"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <Border Grid.Column="1" Classes="elbwald-card" Padding="12,7" VerticalAlignment="Center">
+                    <TextBlock Text="DB-first · Export nur auf ausdrücklichen Wunsch" FontSize="10" FontWeight="SemiBold" />
+                </Border>
+            </Grid>
+
+            <Border Classes="elbwald-card" Padding="16">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Quelle" Classes="elbwald-section-title" />
+                        <TextBlock Text="{Binding SourcePath}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding StatusMessage}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding ChooseFileCommand}" Content="Datei wählen" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Classes="elbwald-primary-button" Command="{Binding ChooseFolderCommand}" Content="Ordner wählen" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="1.35*,1*" ColumnSpacing="14" IsVisible="{Binding HasFiles}">
+                <Border Classes="elbwald-card" Padding="14" MinHeight="520">
+                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                            <StackPanel>
+                                <TextBlock Text="Dateien" Classes="elbwald-section-title" />
+                                <TextBlock Text="{Binding SelectionText}" Classes="elbwald-muted" FontSize="10" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding SelectAllCommand}" Content="Alle" />
+                            <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding SelectNoneCommand}" Content="Keine" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" ColumnDefinitions="34,1.25*,0.8*,0.75*,0.7*,0.9*" ColumnSpacing="8" Margin="6,0">
+                            <TextBlock Grid.Column="1" Text="Datei" FontSize="9" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" Text="Aufnahme" FontSize="9" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="3" Text="GPS" FontSize="9" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="4" Text="DB" FontSize="9" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="5" Text="Export" FontSize="9" FontWeight="SemiBold" />
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" MaxHeight="520">
+                            <ItemsControl ItemsSource="{Binding Files}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:MetadataFileItemViewModel">
+                                        <Border BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="0,0,0,1" Padding="6,8">
+                                            <Grid ColumnDefinitions="34,1.25*,0.8*,0.75*,0.7*,0.9*" ColumnSpacing="8">
+                                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="{Binding FileName}" FontSize="10" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding CameraText}" Classes="elbwald-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding SizeText}" Classes="elbwald-muted" FontSize="8" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding CaptureDateText}" FontSize="9" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="3" Text="{Binding GpsText}" FontSize="9" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="4" Spacing="2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DatabaseState}" FontSize="8" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Status}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="5" Text="{Binding ExportStatus}" FontSize="8" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" Spacing="14">
+                    <Border Classes="elbwald-card" Padding="16">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Änderungen" Classes="elbwald-section-title" />
+                            <TextBlock Text="Nur aktivierte Felder überschreiben die effektiven Elbwald-Metadaten in der zentralen Datenbank." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <CheckBox IsChecked="{Binding ApplyCaptureDate, Mode=TwoWay}" Content="Aufnahmedatum" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding CaptureDateText, Mode=TwoWay}" PlaceholderText="2026-10-09 18:30:00" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <CheckBox IsChecked="{Binding ApplyTitle, Mode=TwoWay}" Content="Titel" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding TitleText, Mode=TwoWay}" PlaceholderText="Titel (leer = bewusst leer speichern)" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <CheckBox IsChecked="{Binding ApplyDescription, Mode=TwoWay}" Content="Beschreibung" VerticalAlignment="Top" Margin="0,6,0,0" />
+                                <TextBox Grid.Column="1" Text="{Binding DescriptionText, Mode=TwoWay}" PlaceholderText="Beschreibung" AcceptsReturn="True" MinHeight="70" TextWrapping="Wrap" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="10">
+                                <CheckBox IsChecked="{Binding ApplyGps, Mode=TwoWay}" Content="GPS setzen" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding LatitudeText, Mode=TwoWay}" PlaceholderText="Breite" />
+                                <TextBox Grid.Column="2" Text="{Binding LongitudeText, Mode=TwoWay}" PlaceholderText="Länge" />
+                            </Grid>
+
+                            <CheckBox IsChecked="{Binding RemoveGps, Mode=TwoWay}" Content="GPS in den effektiven Elbwald-Metadaten entfernen" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="elbwald-card" Padding="16">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <StackPanel>
+                                    <TextBlock Text="Vorschau &amp; Speichern" Classes="elbwald-section-title" />
+                                    <TextBlock Text="Vor dem Speichern werden Dateizustand, SHA-256 und Media-ID aller ausgewählten Medien erneut geprüft." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding CreatePreviewCommand}" Content="Vorschau" />
+                            </Grid>
+
+                            <TextBlock Text="{Binding PreviewMessage}" FontSize="10" TextWrapping="Wrap" />
+                            <Button Classes="elbwald-primary-button" Command="{Binding SaveCommand}" Content="In Elbwald speichern" IsVisible="{Binding HasPreview}" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding ResultMessage}" FontSize="10" TextWrapping="Wrap" IsVisible="{Binding HasResult}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="elbwald-card" Padding="16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Metadaten exportieren" Classes="elbwald-section-title" />
+                            <TextBlock Text="Die Elbwald-Datenbank bleibt die zentrale Quelle. Export ist immer optional und verwendet nur bereits gespeicherte Overrides." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+
+                            <Border Classes="elbwald-soft-card" Padding="10">
+                                <StackPanel Spacing="4">
+                                    <CheckBox IsChecked="{Binding ExportAsSidecar, Mode=TwoWay}" Content="Optionales XMP-Sidecar erzeugen" FontWeight="SemiBold" />
+                                    <TextBlock Text="Kompatibler Austausch ohne Änderung der Bibliotheksdatei. Standardmäßig bleibt alles nur in Elbwald; fremde XMP-Dateien werden nicht überschrieben." Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="10" CornerRadius="8" Background="#EDF5F1">
+                                <TextBlock Text="Eingebettete EXIF/XMP-Metadaten schreiben wir künftig primär beim Export neuer Kopien. Bibliotheks-Originale bleiben im normalen Workflow unangetastet."
+                                           Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="elbwald-secondary-button" Command="{Binding CreateExportPreviewCommand}" Content="Export prüfen" />
+                                <Button Classes="elbwald-primary-button" Command="{Binding ExportCommand}" Content="Exportieren" IsVisible="{Binding HasExportPreview}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ExportPreviewMessage}" FontSize="9" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding ExportResultMessage}" FontSize="9" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="elbwald-card" Padding="14">
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="Safety · DB-first" Classes="elbwald-section-title" />
+                            <TextBlock Text="• media-index.db bleibt die zentrale Quelle.&#10;• Bibliotheksdateien werden bei normaler Metadatenpflege nicht verändert.&#10;• XMP-Sidecars sind bewusst optional und standardmäßig aus.&#10;• Eingebettete Metadaten werden später im Export-Workflow in neu erzeugte Kopien geschrieben." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

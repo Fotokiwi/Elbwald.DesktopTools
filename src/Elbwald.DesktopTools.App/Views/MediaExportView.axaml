@@ -1,0 +1,250 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+             x:Class="Elbwald.DesktopTools.App.Views.MediaExportView"
+             x:DataType="vm:MediaExportViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.elbwald-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+        </Style>
+        <Style Selector="Border.elbwald-soft-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="CornerRadius" Value="13" />
+        </Style>
+        <Style Selector="TextBlock.elbwald-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="FontSize" Value="38" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.elbwald-section-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.elbwald-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="Button.elbwald-primary-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.elbwald-secondary-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="13,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.elbwald-chip">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldPageBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,0,7,7" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="34,26,34,42" MaxWidth="1420" Spacing="16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Exportieren" Classes="elbwald-title" />
+                <TextBlock Text="Neue Kopien aus Bibliotheksauswahl oder Projekt erzeugen – Originale bleiben unangetastet."
+                           Classes="elbwald-muted" FontSize="13" />
+            </StackPanel>
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <Border Grid.Column="0" Classes="elbwald-card" Padding="17" IsEnabled="{Binding IsInputEnabled}">
+                    <Grid ColumnDefinitions="38,*" ColumnSpacing="12">
+                        <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                            <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="7">
+                            <TextBlock Text="Quelle" FontWeight="SemiBold" FontSize="16" />
+                            <ComboBox ItemsSource="{Binding SourceModes}" SelectedItem="{Binding SelectedSourceMode, Mode=TwoWay}" />
+                            <TextBlock IsVisible="{Binding IsSelectionSource}" Text="{Binding SelectionSummary}" Classes="elbwald-muted" FontSize="10" />
+                            <ComboBox IsVisible="{Binding IsProjectSource}"
+                                      ItemsSource="{Binding ProjectOptions}"
+                                      SelectedItem="{Binding SelectedProject, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:MediaExportProjectOptionViewModel">
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Classes="elbwald-secondary-button" Content="Quellen aktualisieren" Command="{Binding RefreshSourcesCommand}" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Classes="elbwald-card" Padding="17">
+                    <Grid ColumnDefinitions="38,*,Auto" ColumnSpacing="12">
+                        <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                            <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="Exportziel" FontWeight="SemiBold" FontSize="16" />
+                            <TextBlock Text="{Binding TargetDirectory}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" MaxLines="3" />
+                            <TextBlock Text="Bestehende Dateien werden niemals überschrieben." Classes="elbwald-muted" FontSize="9" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding ChooseTargetCommand}" Content="Auswählen" VerticalAlignment="Top" />
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Classes="elbwald-card" Padding="17" IsEnabled="{Binding IsInputEnabled}">
+                    <Grid ColumnDefinitions="38,*" ColumnSpacing="12">
+                        <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                            <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="7">
+                            <TextBlock Text="Ausgabe" FontWeight="SemiBold" FontSize="16" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                <ComboBox Grid.Column="0" ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" />
+                                <ComboBox Grid.Column="1" IsEnabled="{Binding CanResize}" ItemsSource="{Binding MaxEdgeOptions}" SelectedItem="{Binding SelectedMaxEdge, Mode=TwoWay}" />
+                            </Grid>
+                            <Grid IsVisible="{Binding IsJpegExport}" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <TextBlock Text="JPEG-Qualität" VerticalAlignment="Center" Classes="elbwald-muted" FontSize="10" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding JpegQualityOptions}" SelectedItem="{Binding JpegQuality, Mode=TwoWay}" />
+                            </Grid>
+                            <CheckBox IsChecked="{Binding EmbedXmp, Mode=TwoWay}" Content="Elbwald-Metadaten als XMP einbetten" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Classes="elbwald-card" Padding="18" IsEnabled="{Binding IsInputEnabled}">
+                <StackPanel Spacing="13">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Zielstruktur &amp; Dateiname" Classes="elbwald-section-title" />
+                            <TextBlock Text="Dieselbe Rule Engine wie bei Sortieren und Umbenennen. Der Zielordner bleibt immer die feste Sicherheitsgrenze."
+                                       Classes="elbwald-muted" FontSize="11" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="elbwald-secondary-button" Content="Archiv" Command="{Binding ApplyPresetCommand}" CommandParameter="archive" />
+                            <Button Classes="elbwald-secondary-button" Content="Titel" Command="{Binding ApplyPresetCommand}" CommandParameter="project" />
+                            <Button Classes="elbwald-secondary-button" Content="Original" Command="{Binding ApplyPresetCommand}" CommandParameter="original" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <StackPanel Grid.Column="0" Spacing="7">
+                            <TextBlock Text="Unterordner-Regel" FontWeight="SemiBold" />
+                            <TextBox Text="{Binding DirectoryPattern, Mode=TwoWay}" Watermark="z. B. {year}/{month}" FontSize="14" Padding="11,9" />
+                            <WrapPanel>
+                                <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{year}" Content="Jahr" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{month}" Content="Monat" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{day}" Content="Tag" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{camera}" Content="Kamera" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{type}" Content="Typ" />
+                            </WrapPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Spacing="7">
+                            <TextBlock Text="Dateinamen-Regel" FontWeight="SemiBold" />
+                            <TextBox Text="{Binding FileNamePattern, Mode=TwoWay}" Watermark="z. B. {date:yyyy-MM-dd}_{original}" FontSize="14" Padding="11,9" />
+                            <WrapPanel>
+                                <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{date:yyyy-MM-dd}" Content="Datum" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{time:HHmmss}" Content="Zeit" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{title}" Content="Titel" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{original}" Content="Original" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{camera}" Content="Kamera" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{seq:000}" Content="Sequenz" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-card" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Exportvorschau" Classes="elbwald-section-title" />
+                            <TextBlock Text="Quelle und Ziel werden vor dem ersten Schreibzugriff erneut per SHA-256 und Konfliktprüfung verifiziert."
+                                       Classes="elbwald-muted" FontSize="10" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="elbwald-primary-button" Content="Vorschau erstellen" Command="{Binding BuildPreviewCommand}" />
+                    </Grid>
+
+                    <Grid IsVisible="{Binding HasPlan}" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <Border Grid.Column="0" Classes="elbwald-soft-card" Padding="11">
+                            <StackPanel><TextBlock Text="Bereit" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding ReadyCount}" FontSize="20" FontWeight="SemiBold" /></StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="11">
+                            <StackPanel><TextBlock Text="Blockiert" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding BlockedCount}" FontSize="20" FontWeight="SemiBold" /></StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="elbwald-soft-card" Padding="11">
+                            <StackPanel><TextBlock Text="Konservative Größe" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding EstimatedSizeText}" FontSize="20" FontWeight="SemiBold" /></StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border IsVisible="{Binding HasPlan}" Background="{DynamicResource ElbwaldPageBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1" CornerRadius="11" Padding="8">
+                        <ListBox ItemsSource="{Binding PlanItems}" MaxHeight="430" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MediaExportPlanItemViewModel">
+                                    <Border Padding="10" Margin="0,0,0,6" CornerRadius="9" Background="#FCFFFFFF" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1">
+                                        <Grid ColumnDefinitions="230,28,*,95,100" ColumnSpacing="9">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="{Binding SourceFileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding SourceDirectory}" Classes="elbwald-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="→" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="{Binding RelativeDestinationPath}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock IsVisible="{Binding IsBlocked}" Text="{Binding Issue}" Foreground="{DynamicResource ElbwaldDangerBrush}" FontSize="8" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="3" Text="{Binding SizeText}" Classes="elbwald-muted" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="4" Text="{Binding Status}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border IsVisible="{Binding HasPlan}" Classes="elbwald-card" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Sicher exportieren" Classes="elbwald-section-title" />
+                            <TextBlock Text="Neue Dateien · kein Überschreiben · Bibliotheksoriginale read-only · .partial/temporäre Dateien · Flush · SHA-256"
+                                       Classes="elbwald-muted" FontSize="10" />
+                        </StackPanel>
+                        <Button Grid.Column="1" IsVisible="{Binding IsBusy}" Classes="elbwald-secondary-button" Content="Abbrechen" Command="{Binding CancelCommand}" />
+                        <Button Grid.Column="2" Classes="elbwald-primary-button" Content="Export ausführen" Command="{Binding ExecuteCommand}" />
+                    </Grid>
+
+                    <ProgressBar IsVisible="{Binding IsBusy}" Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" Height="8" />
+                    <TextBlock IsVisible="{Binding IsBusy}" Text="{Binding ProgressText}" Classes="elbwald-muted" FontSize="9" />
+                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+                    <Border IsVisible="{Binding HasResult}" Padding="11" CornerRadius="10" Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                        <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                    </Border>
+
+                    <Expander Header="Metadaten- und Datenschutzdetails">
+                        <TextBlock Margin="8"
+                                   Classes="elbwald-muted"
+                                   FontSize="10"
+                                   TextWrapping="Wrap"
+                                   Text="Bei aktiviertem XMP exportiert Elbwald Aufnahmedatum, Titel, Beschreibung, GPS, Bewertung, Tags, Personen, Orte und Ereignisse aus der zentralen Datenbank. Bei einer bytegenauen Original-JPEG-Kopie bleiben vorhandene EXIF-Daten erhalten; ein XMP-Hinweis entfernt keine bereits eingebetteten EXIF-GPS-Daten. Für einen echten Metadaten-Neuexport inklusive Bereinigung JPEG als Ausgabeformat wählen." />
+                    </Expander>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

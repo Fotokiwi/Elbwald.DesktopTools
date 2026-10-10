@@ -172,27 +172,37 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavigationItemViewModel">
-                            <Grid ColumnDefinitions="30,*">
-                                <Grid
-                                    Width="20"
-                                    Height="20"
-                                    VerticalAlignment="Center">
+                            <Button
+                                Command="{Binding ActivateCommand}"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch">
+                                <Grid ColumnDefinitions="30,*">
+                                    <Grid
+                                        Width="20"
+                                        Height="20"
+                                        VerticalAlignment="Center">
 
-                                    <PathIcon IsVisible="{Binding IsHome}" Data="{StaticResource ElbwaldIconHome}" Width="17" Height="17" />
-                                    <PathIcon IsVisible="{Binding IsAnalyze}" Data="{StaticResource ElbwaldIconSearch}" Width="17" Height="17" />
-                                    <PathIcon IsVisible="{Binding IsOrganize}" Data="{StaticResource ElbwaldIconFolder}" Width="17" Height="17" />
-                                    <PathIcon IsVisible="{Binding IsEdit}" Data="{StaticResource ElbwaldIconEdit}" Width="17" Height="17" />
-                                    <PathIcon IsVisible="{Binding IsBackup}" Data="{StaticResource ElbwaldIconBackup}" Width="17" Height="17" />
-                                    <PathIcon IsVisible="{Binding IsTools}" Data="{StaticResource ElbwaldIconTool}" Width="17" Height="17" />
-                                    <PathIcon IsVisible="{Binding IsSettings}" Data="{StaticResource ElbwaldIconSettings}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsHome}" Data="{StaticResource ElbwaldIconHome}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsLibrary}" Data="{StaticResource ElbwaldIconCamera}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsAnalyze}" Data="{StaticResource ElbwaldIconSearch}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsOrganize}" Data="{StaticResource ElbwaldIconFolder}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsEdit}" Data="{StaticResource ElbwaldIconEdit}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsBackup}" Data="{StaticResource ElbwaldIconBackup}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsTools}" Data="{StaticResource ElbwaldIconTool}" Width="17" Height="17" />
+                                        <PathIcon IsVisible="{Binding IsSettings}" Data="{StaticResource ElbwaldIconSettings}" Width="17" Height="17" />
+                                    </Grid>
+
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Text="{Binding Name}"
+                                        VerticalAlignment="Center"
+                                        FontWeight="SemiBold" />
                                 </Grid>
-
-                                <TextBlock
-                                    Grid.Column="1"
-                                    Text="{Binding Name}"
-                                    VerticalAlignment="Center"
-                                    FontWeight="SemiBold" />
-                            </Grid>
+                            </Button>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

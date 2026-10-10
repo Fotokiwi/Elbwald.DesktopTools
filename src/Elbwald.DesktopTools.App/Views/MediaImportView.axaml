@@ -184,10 +184,126 @@
                     <TextBlock Text="Import-Ergebnis" Classes="elbwald-section-title" />
                     <TextBlock Text="{Binding ResultMessage}" FontSize="11" TextWrapping="Wrap" />
                     <TextBlock
-                        Text="Die Quelle wurde nicht bereinigt. Eine spätere Quellbereinigung wird als eigener destruktiver Workflow mit separater Bestätigung umgesetzt."
+                        Text="Die Quelle bleibt nach dem Import grundsätzlich unverändert. Eine Bereinigung ist nur als separater, mehrfach bestätigter Vorgang möglich."
                         Foreground="{DynamicResource ElbwaldAccentBrush}"
                         FontSize="10"
                         FontWeight="SemiBold"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border IsVisible="{Binding CleanupAvailable}" Classes="elbwald-card" Padding="18" BorderBrush="#C58B5C" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Optional · Importquelle bereinigen" Classes="elbwald-section-title" />
+                        <TextBlock
+                            Text="Nur Dateien, die in diesem Import neu kopiert und verifiziert wurden, können entfernt werden. Bereits vorhandene Dateien, Konflikte und übersprungene Dateien bleiben unangetastet."
+                            Classes="elbwald-muted"
+                            FontSize="11"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            Text="Vor einer Löschfreigabe werden Quelle und Zielkopie nochmals vollständig per SHA-256 geprüft."
+                            FontSize="10"
+                            FontWeight="SemiBold"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding PrepareCleanupCommand}"
+                            VerticalAlignment="Center"
+                            Content="Quellbereinigung prüfen" />
+                </Grid>
+            </Border>
+
+            <Border IsVisible="{Binding HasCleanupPlan}" Classes="elbwald-card" Padding="18" BorderBrush="#C58B5C" BorderThickness="1">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Quellbereinigung · Sicherheitsfreigabe" Classes="elbwald-section-title" />
+                        <TextBlock Text="{Binding CleanupStatus}" FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Border Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Freigegebene Dateien" Classes="elbwald-muted" FontSize="10" />
+                                <TextBlock Text="{Binding CleanupFileCount}" FontSize="19" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Gesamtgröße" Classes="elbwald-muted" FontSize="10" />
+                                <TextBlock Text="{Binding CleanupSize}" FontSize="19" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border IsVisible="{Binding HasCleanupIssues}" Background="#FFF3E8" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Bereinigung gesperrt" FontWeight="SemiBold" />
+                            <ItemsControl ItemsSource="{Binding CleanupIssues}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontSize="10" TextWrapping="Wrap" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <CheckBox IsChecked="{Binding RemoveEmptyDirectories}"
+                              Content="Leere Unterordner nach erfolgreicher Dateilöschung ebenfalls entfernen" />
+
+                    <Border Background="#FFF3E8" CornerRadius="8" Padding="14">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Bestätigung 1 von 2" FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="Ich verstehe, dass die oben freigegebenen Dateien nach einer letzten Sicherheitsprüfung dauerhaft von der Importquelle gelöscht werden. Die verifizierten Kopien in der Import-Wartehalle bleiben erhalten."
+                                FontSize="10"
+                                TextWrapping="Wrap" />
+                            <Button Classes="elbwald-secondary-button"
+                                    Command="{Binding ConfirmCleanupWarningCommand}"
+                                    HorizontalAlignment="Left"
+                                    Content="Ich verstehe – zweite Bestätigung" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border IsVisible="{Binding CleanupSecondConfirmationVisible}" Background="#FBE7E5" CornerRadius="8" Padding="14">
+                        <StackPanel Spacing="9">
+                            <TextBlock Text="Bestätigung 2 von 2" FontWeight="Bold" />
+                            <TextBlock
+                                Text="Tippe exakt QUELLE LEEREN ein. Erst danach wird die endgültige Löschaktion freigeschaltet."
+                                FontSize="10"
+                                TextWrapping="Wrap" />
+                            <TextBox Text="{Binding CleanupConfirmationText, Mode=TwoWay}"
+                                     Watermark="QUELLE LEEREN"
+                                     MaxWidth="360"
+                                     HorizontalAlignment="Left" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button Classes="elbwald-primary-button"
+                                        Command="{Binding ExecuteCleanupCommand}"
+                                        Content="Verifizierte Quelldateien löschen" />
+                                <Button Classes="elbwald-secondary-button"
+                                        Command="{Binding CancelCleanupCommand}"
+                                        Content="Nicht löschen" />
+                            </StackPanel>
+                            <TextBlock
+                                Text="Nach Beginn der destruktiven Phase wird ein Benutzerabbruch absichtlich ignoriert, damit kein künstlicher Teilzustand entsteht. Bei jeder Abweichung vor dem ersten Löschen wird vollständig blockiert."
+                                Classes="elbwald-muted"
+                                FontSize="9"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border IsVisible="{Binding HasCleanupResult}" Classes="elbwald-card" Padding="18" Background="#EEF7F1">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Quellbereinigungs-Report" Classes="elbwald-section-title" />
+                    <TextBlock Text="{Binding CleanupResultMessage}" FontSize="11" TextWrapping="Wrap" />
+                    <TextBlock
+                        Text="Jeder Löschlauf erhält eine eigene Report-ID und wird zusätzlich als flush-to-disk JSONL-Sicherheitsprotokoll im Diagnoseverzeichnis dokumentiert."
+                        Classes="elbwald-muted"
+                        FontSize="10"
                         TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

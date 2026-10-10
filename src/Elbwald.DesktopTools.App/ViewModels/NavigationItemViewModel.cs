@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Modules;
 
 namespace Elbwald.DesktopTools.App.ViewModels;
@@ -10,7 +11,8 @@ public sealed class NavigationItemViewModel
         string description,
         string icon,
         NavigationPageKind pageKind,
-        ToolModuleDescriptor? module)
+        ToolModuleDescriptor? module,
+        Action<string> activate)
     {
         Id = id;
         Name = name;
@@ -18,6 +20,7 @@ public sealed class NavigationItemViewModel
         Icon = icon;
         PageKind = pageKind;
         Module = module;
+        ActivateCommand = new RelayCommand(() => activate(Id));
     }
 
     public string Id { get; }
@@ -32,7 +35,11 @@ public sealed class NavigationItemViewModel
 
     public ToolModuleDescriptor? Module { get; }
 
+    public IRelayCommand ActivateCommand { get; }
+
     public bool IsHome => Id == "home";
+
+    public bool IsLibrary => Id == "library";
 
     public bool IsAnalyze => Id == "analyze";
 
@@ -46,7 +53,7 @@ public sealed class NavigationItemViewModel
 
     public bool IsSettings => Id == "settings";
 
-    public static NavigationItemViewModel CreateHome()
+    public static NavigationItemViewModel CreateHome(Action<string> activate)
     {
         return new NavigationItemViewModel(
             id: "home",
@@ -54,14 +61,16 @@ public sealed class NavigationItemViewModel
             description: "Übersicht und Schnellzugriff",
             icon: "Home",
             pageKind: NavigationPageKind.Home,
-            module: null);
+            module: null,
+            activate);
     }
 
     public static NavigationItemViewModel CreateSection(
         string id,
         string name,
         string description,
-        string icon)
+        string icon,
+        Action<string> activate)
     {
         return new NavigationItemViewModel(
             id,
@@ -69,7 +78,8 @@ public sealed class NavigationItemViewModel
             description,
             icon,
             NavigationPageKind.Section,
-            module: null);
+            module: null,
+            activate);
     }
 
     public static NavigationItemViewModel CreateModuleRoute(
@@ -77,7 +87,8 @@ public sealed class NavigationItemViewModel
         string name,
         string description,
         string icon,
-        ToolModuleDescriptor module)
+        ToolModuleDescriptor module,
+        Action<string> activate)
     {
         ArgumentNullException.ThrowIfNull(module);
 
@@ -87,6 +98,7 @@ public sealed class NavigationItemViewModel
             description,
             icon,
             NavigationPageKind.Module,
-            module);
+            module,
+            activate);
     }
 }

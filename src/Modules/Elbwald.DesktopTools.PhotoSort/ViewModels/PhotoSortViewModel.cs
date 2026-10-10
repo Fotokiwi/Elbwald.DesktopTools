@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -7,6 +8,8 @@ using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Dates;
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
 using Elbwald.DesktopTools.Contracts.Media.Sorting.Execution;
+using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.OperationHistory;
 using Elbwald.DesktopTools.UI.Formatting;
 
 namespace Elbwald.DesktopTools.PhotoSort.ViewModels;
@@ -23,6 +26,8 @@ public sealed class PhotoSortViewModel
     private readonly IMediaSortPlanner _sortPlanner;
     private readonly IMediaSortExecutionPlanner _executionPlanner;
     private readonly IMediaSortExecutionExecutor _executionExecutor;
+    private readonly IMediaIndexService _mediaIndex;
+    private readonly IOperationHistoryStore _operationHistory;
 
     private readonly Stopwatch _stopwatch = new();
     private readonly DispatcherTimer _durationTimer;
@@ -49,6 +54,12 @@ public sealed class PhotoSortViewModel
 
     private string _selectedRule =
         "Jahr / Monat";
+
+    private string _pathPattern =
+        "{year}/{month}";
+
+    private string _selectedPreviewFilter =
+        "Alle";
 
     private string _selectedOperation =
         "Kopieren";
@@ -109,19 +120,25 @@ public sealed class PhotoSortViewModel
         IMediaSourcePicker sourcePicker,
         IMediaSortPlanner sortPlanner,
         IMediaSortExecutionPlanner executionPlanner,
-        IMediaSortExecutionExecutor executionExecutor)
+        IMediaSortExecutionExecutor executionExecutor,
+        IMediaIndexService mediaIndex,
+        IOperationHistoryStore operationHistory)
     {
         ArgumentNullException.ThrowIfNull(mediaAnalyzer);
         ArgumentNullException.ThrowIfNull(sourcePicker);
         ArgumentNullException.ThrowIfNull(sortPlanner);
         ArgumentNullException.ThrowIfNull(executionPlanner);
         ArgumentNullException.ThrowIfNull(executionExecutor);
+        ArgumentNullException.ThrowIfNull(mediaIndex);
+        ArgumentNullException.ThrowIfNull(operationHistory);
 
         _mediaAnalyzer = mediaAnalyzer;
         _sourcePicker = sourcePicker;
         _sortPlanner = sortPlanner;
         _executionPlanner = executionPlanner;
         _executionExecutor = executionExecutor;
+        _mediaIndex = mediaIndex;
+        _operationHistory = operationHistory;
 
         _durationTimer =
             new DispatcherTimer
@@ -162,6 +179,28 @@ public sealed class PhotoSortViewModel
             new RelayCommand(
                 Cancel,
                 () => IsBusy);
+
+        UseYearMonthPresetCommand =
+            new RelayCommand(
+                () => PathPattern = "{year}/{month}");
+
+        UseYearEventPresetCommand =
+            new RelayCommand(
+                () => PathPattern = "{year}/{title}");
+
+        UseCameraPresetCommand =
+            new RelayCommand(
+                () => PathPattern = "{year}/{camera}/{month}");
+
+        InsertTokenCommand =
+            new RelayCommand<string>(
+                token =>
+                {
+                    if (!string.IsNullOrWhiteSpace(token))
+                    {
+                        PathPattern += token;
+                    }
+                });
     }
 
     public IAsyncRelayCommand ChooseSourceCommand { get; }
@@ -176,11 +215,28 @@ public sealed class PhotoSortViewModel
 
     public IRelayCommand CancelCommand { get; }
 
+    public IRelayCommand UseYearMonthPresetCommand { get; }
+
+    public IRelayCommand UseYearEventPresetCommand { get; }
+
+    public IRelayCommand UseCameraPresetCommand { get; }
+
+    public IRelayCommand<string> InsertTokenCommand { get; }
+
     public IReadOnlyList<string> RuleOptions { get; } =
         new[]
         {
             "Jahr / Monat",
             "Jahr / Kamera / Monat"
+        };
+
+    public IReadOnlyList<string> PreviewFilterOptions { get; } =
+        new[]
+        {
+            "Alle",
+            "Bereit",
+            "Datum prüfen",
+            "Konflikte"
         };
 
     public IReadOnlyList<string> OperationOptions { get; } =
@@ -255,6 +311,44 @@ public sealed class PhotoSortViewModel
             }
         }
     }
+
+    public string PathPattern
+    {
+        get => _pathPattern;
+        set
+        {
+            if (SetProperty(
+                    ref _pathPattern,
+                    value))
+            {
+                InvalidateDryRun();
+                BuildPreviewCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public string SelectedPreviewFilter
+    {
+        get => _selectedPreviewFilter;
+        set
+        {
+            if (SetProperty(
+                    ref _selectedPreviewFilter,
+                    value))
+            {
+                OnPropertyChanged(nameof(FilteredPreviewItems));
+            }
+        }
+    }
+
+    public IReadOnlyList<PhotoSortPlanItemViewModel> FilteredPreviewItems =>
+        SelectedPreviewFilter switch
+        {
+            "Bereit" => PreviewItems.Where(item => item.IsReady).ToArray(),
+            "Datum prüfen" => PreviewItems.Where(item => item.NeedsDateReview).ToArray(),
+            "Konflikte" => PreviewItems.Where(item => item.HasConflict).ToArray(),
+            _ => PreviewItems
+        };
 
     public string SelectedOperation
     {
@@ -573,9 +667,15 @@ public sealed class PhotoSortViewModel
     public IReadOnlyList<PhotoSortPlanItemViewModel> PreviewItems
     {
         get => _previewItems;
-        private set => SetProperty(
-            ref _previewItems,
-            value);
+        private set
+        {
+            if (SetProperty(
+                    ref _previewItems,
+                    value))
+            {
+                OnPropertyChanged(nameof(FilteredPreviewItems));
+            }
+        }
     }
 
     public IReadOnlyList<PhotoSortIssueViewModel> Issues
@@ -623,7 +723,8 @@ public sealed class PhotoSortViewModel
     {
         return !IsBusy
                && !string.IsNullOrWhiteSpace(SourcePath)
-               && !string.IsNullOrWhiteSpace(DestinationPath);
+               && !string.IsNullOrWhiteSpace(DestinationPath)
+               && !string.IsNullOrWhiteSpace(PathPattern);
     }
 
     private bool CanPrepareExecution()
@@ -763,13 +864,20 @@ public sealed class PhotoSortViewModel
             PlanState =
                 "Planung läuft";
 
+            var metadataBySourcePath =
+                await BuildTemplateMetadataAsync(
+                    analysis.Files,
+                    PathPattern,
+                    _cancellation.Token);
+
             var sortOptions =
                 new MediaSortOptions
                 {
-                    Rule =
-                        SelectedRule == "Jahr / Kamera / Monat"
-                            ? MediaSortRule.YearCameraMonth
-                            : MediaSortRule.YearMonth,
+                    PathPattern =
+                        PathPattern,
+
+                    MetadataBySourcePath =
+                        metadataBySourcePath,
 
                     OperationKind =
                         SelectedOperation == "Verschieben"
@@ -1058,6 +1166,14 @@ public sealed class PhotoSortViewModel
                     confirmation,
                     progress,
                     _cancellation.Token);
+
+            if (result.State == MediaSortLiveExecutionState.Completed
+                && result.CompletedOperationCount == result.TotalOperationCount)
+            {
+                await TryRecordOperationHistoryAsync(
+                    executionPlan,
+                    CancellationToken.None);
+            }
 
             ExecutionReport =
                 PhotoSortExecutionReportViewModel.FromResult(
@@ -1431,6 +1547,164 @@ public sealed class PhotoSortViewModel
 
         return "Nicht freigegeben: "
                + summary;
+    }
+
+    private async Task<IReadOnlyDictionary<string, MediaSortMetadataContext>> BuildTemplateMetadataAsync(
+        IReadOnlyList<MediaAnalyzedFile> files,
+        string pattern,
+        CancellationToken cancellationToken)
+    {
+        if (!pattern.Contains("{title", StringComparison.OrdinalIgnoreCase)
+            && !pattern.Contains("{description", StringComparison.OrdinalIgnoreCase))
+        {
+            return new Dictionary<string, MediaSortMetadataContext>(StringComparer.Ordinal);
+        }
+
+        var comparer =
+            OperatingSystem.IsWindows()
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
+
+        var result =
+            new Dictionary<string, MediaSortMetadataContext>(comparer);
+
+        foreach (var analyzed in files.Where(file => file.File.MediaType == MediaFileType.Image))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var hash =
+                await ComputeSha256Async(
+                    analyzed.File.FullPath,
+                    cancellationToken);
+
+            var item =
+                await _mediaIndex.FindByHashAsync(
+                    hash,
+                    analyzed.File.Length,
+                    cancellationToken);
+
+            if (item is null)
+            {
+                continue;
+            }
+
+            var metadata =
+                await _mediaIndex.GetMetadataAsync(
+                    item.Id,
+                    cancellationToken);
+
+            result[Path.GetFullPath(analyzed.File.FullPath)] =
+                new MediaSortMetadataContext(
+                    metadata.TitleOverridden
+                        ? metadata.Title
+                        : null,
+                    metadata.DescriptionOverridden
+                        ? metadata.Description
+                        : null);
+        }
+
+        return result;
+    }
+
+    private async Task TryRecordOperationHistoryAsync(
+        MediaSortExecutionPlan executionPlan,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var entries =
+                new List<OperationHistoryEntry>();
+
+            var batchId =
+                "sort-" + Guid.NewGuid().ToString("N");
+
+            var operationType =
+                IsMoveSelected
+                    ? "SortMove"
+                    : "SortCopy";
+
+            var completedUtc =
+                DateTimeOffset.UtcNow;
+
+            foreach (var operation in executionPlan.Groups.SelectMany(group => group.Operations))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!File.Exists(operation.DestinationPath))
+                {
+                    return;
+                }
+
+                var hash =
+                    await ComputeSha256Async(
+                        operation.DestinationPath,
+                        cancellationToken);
+
+                string? mediaItemId = null;
+
+                if (!operation.IsSidecar)
+                {
+                    var indexed =
+                        await _mediaIndex.FindByHashAsync(
+                            hash,
+                            operation.SourceSnapshot.Length,
+                            cancellationToken);
+
+                    mediaItemId =
+                        indexed?.Id;
+                }
+
+                entries.Add(
+                    new OperationHistoryEntry(
+                        batchId,
+                        operationType,
+                        operation.SourcePath,
+                        operation.DestinationPath,
+                        hash,
+                        operation.SourceSnapshot.Length,
+                        mediaItemId,
+                        completedUtc));
+            }
+
+            if (entries.Count > 0)
+            {
+                await _operationHistory.AppendBatchAsync(
+                    entries,
+                    cancellationToken);
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or CryptographicException
+                or InvalidOperationException)
+        {
+            ExecutionSafetyMessage +=
+                " Vorgang erfolgreich, aber Benutzer-Historie konnte nicht vollständig protokolliert werden: "
+                + exception.GetBaseException().Message;
+        }
+    }
+
+    private static async Task<string> ComputeSha256Async(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        await using var stream =
+            new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                1024 * 1024,
+                FileOptions.Asynchronous
+                | FileOptions.SequentialScan);
+
+        var hash =
+            await SHA256.HashDataAsync(
+                stream,
+                cancellationToken);
+
+        return Convert.ToHexString(hash);
     }
 
     private void ApplyPlan(

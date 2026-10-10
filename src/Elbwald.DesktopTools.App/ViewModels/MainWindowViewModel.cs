@@ -48,11 +48,15 @@ public partial class MainWindowViewModel : ObservableObject
                 group => group.First(),
                 StringComparer.OrdinalIgnoreCase);
 
-        NavigationItems = CreateNavigationItems();
+        NavigationItems = CreateNavigationItems(navigationService.NavigateTo);
 
         NavigateHomeCommand =
             new RelayCommand(
                 () => navigationService.NavigateTo("home"));
+
+        NavigateLibraryCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("library"));
 
         NavigateAnalyzeCommand =
             new RelayCommand(
@@ -98,6 +102,14 @@ public partial class MainWindowViewModel : ObservableObject
             new RelayCommand(
                 () => navigationService.NavigateTo("import"));
 
+        NavigateMetadataCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("metadata"));
+
+        NavigateRenameCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("rename"));
+
         OpenAboutCommand =
             new RelayCommand(
                 OpenAboutPage);
@@ -123,6 +135,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public IRelayCommand NavigateHomeCommand { get; }
 
+    public IRelayCommand NavigateLibraryCommand { get; }
+
     public IRelayCommand NavigateAnalyzeCommand { get; }
 
     public IRelayCommand NavigateOrganizeCommand { get; }
@@ -145,6 +159,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     public IRelayCommand NavigateImportCommand { get; }
 
+    public IRelayCommand NavigateMetadataCommand { get; }
+
+    public IRelayCommand NavigateRenameCommand { get; }
+
     public IRelayCommand OpenAboutCommand { get; }
 
     public IRelayCommand ExitCommand { get; }
@@ -160,7 +178,7 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentContent = GetOrCreatePage(value);
     }
 
-    private IReadOnlyList<NavigationItemViewModel> CreateNavigationItems()
+    private IReadOnlyList<NavigationItemViewModel> CreateNavigationItems(Action<string> activate)
     {
         var analyze = _modules.TryGetValue(
             MediaAnalyzerModuleId,
@@ -170,42 +188,55 @@ public partial class MainWindowViewModel : ObservableObject
                 "Analysieren",
                 "Bibliothek read-only prüfen",
                 "Search",
-                analyzerModule)
+                analyzerModule,
+                activate)
             : NavigationItemViewModel.CreateSection(
                 "analyze",
                 "Analysieren",
                 "Bibliothek read-only prüfen",
-                "Search");
+                "Search",
+                activate);
 
         return new[]
         {
-            NavigationItemViewModel.CreateHome(),
+            NavigationItemViewModel.CreateHome(activate),
+            NavigationItemViewModel.CreateSection(
+                "library",
+                "Bibliothek",
+                "Medien durchsuchen und auswählen",
+                "Camera",
+                activate),
             analyze,
             NavigationItemViewModel.CreateSection(
                 "organize",
                 "Organisieren",
                 "Importieren, sortieren und umbenennen",
-                "Folder"),
+                "Folder",
+                activate),
             NavigationItemViewModel.CreateSection(
                 "edit",
                 "Bearbeiten",
                 "Bilder, Audio und Video bearbeiten",
-                "Edit"),
+                "Edit",
+                activate),
             NavigationItemViewModel.CreateSection(
                 "backup",
                 "Sichern",
                 "Redundante Sicherungen prüfen und erstellen",
-                "Backup"),
+                "Backup",
+                activate),
             NavigationItemViewModel.CreateSection(
                 "tools",
                 "Werkzeuge",
                 "Metadaten und Konvertierung",
-                "Tools"),
+                "Tools",
+                activate),
             NavigationItemViewModel.CreateSection(
                 "settings",
                 "Einstellungen",
                 "Cache, Performance und Darstellung",
-                "Settings")
+                "Settings",
+                activate)
         };
     }
 
@@ -257,7 +288,12 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (primaryTarget is not null)
         {
+            // A primary navigation item can already be selected while a child page
+            // (for example Rename or Photo Sort) is currently displayed. In that
+            // case assigning SelectedItem again does not raise the generated
+            // change notification, so explicitly restore the section/root page.
             SelectedItem = primaryTarget;
+            CurrentContent = GetOrCreatePage(primaryTarget);
             return;
         }
 
@@ -282,6 +318,66 @@ public partial class MainWindowViewModel : ObservableObject
             }
 
             CurrentContent = importPage;
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "metadata",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var tools = NavigationItems.FirstOrDefault(
+                item => string.Equals(item.Id, "tools", StringComparison.OrdinalIgnoreCase));
+
+            if (tools is not null)
+            {
+                SelectedItem = tools;
+            }
+
+            const string cacheKey = "special:metadata";
+            if (!_pageCache.TryGetValue(cacheKey, out var metadataPage))
+            {
+                metadataPage = _contentFactory.CreateMetadataEditorPage();
+                _pageCache[cacheKey] = metadataPage;
+            }
+
+            CurrentContent = metadataPage;
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "export",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            // Export can be opened from the library or from the tools hub.
+            // Keep the current primary navigation highlight. A fresh page is intentional
+            // so the latest gallery selection/project state is reflected immediately.
+            CurrentContent = _contentFactory.CreateMediaExportPage();
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "rename",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var organize = NavigationItems.FirstOrDefault(
+                item => string.Equals(item.Id, "organize", StringComparison.OrdinalIgnoreCase));
+
+            if (organize is not null)
+            {
+                SelectedItem = organize;
+            }
+
+            const string cacheKey = "special:rename";
+            if (!_pageCache.TryGetValue(cacheKey, out var renamePage))
+            {
+                renamePage = _contentFactory.CreateRenamePage();
+                _pageCache[cacheKey] = renamePage;
+            }
+
+            CurrentContent = renamePage;
             return;
         }
 
@@ -377,6 +473,42 @@ public partial class MainWindowViewModel : ObservableObject
 
             CurrentContent =
                 libraryHealthPage;
+
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "operation-history",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var tools = NavigationItems.FirstOrDefault(
+                item => string.Equals(
+                    item.Id,
+                    "tools",
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (tools is not null)
+            {
+                SelectedItem = tools;
+            }
+
+            const string cacheKey =
+                "special:operation-history";
+
+            if (!_pageCache.TryGetValue(
+                    cacheKey,
+                    out var operationHistoryPage))
+            {
+                operationHistoryPage =
+                    _contentFactory.CreateOperationHistoryPage();
+
+                _pageCache[cacheKey] =
+                    operationHistoryPage;
+            }
+
+            CurrentContent =
+                operationHistoryPage;
 
             return;
         }

@@ -7,6 +7,12 @@ public interface IMediaThumbnailService
         int? width = null,
         CancellationToken cancellationToken = default);
 
+    Task<MediaThumbnailResult> GetIndexedThumbnailAsync(
+        string mediaItemId,
+        MediaFile file,
+        int? width = null,
+        CancellationToken cancellationToken = default);
+
     Task<MediaCacheStatistics> GetCacheStatisticsAsync(
         CancellationToken cancellationToken = default);
 

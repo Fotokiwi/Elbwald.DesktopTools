@@ -1,4 +1,7 @@
 using Elbwald.DesktopTools.Contracts.Storage;
+using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
+using Elbwald.DesktopTools.Contracts.Media.Knowledge;
 
 namespace Elbwald.DesktopTools.Contracts.MediaIndex;
 
@@ -24,7 +27,71 @@ public interface IMediaIndexService
         string mediaItemId,
         CancellationToken cancellationToken = default);
 
+    Task<MediaIndexItem> EnsureItemAsync(
+        string sha256,
+        long length,
+        MediaFileType mediaType,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaMetadataSnapshot> GetMetadataAsync(
+        string mediaItemId,
+        CancellationToken cancellationToken = default);
+
+    Task SaveMetadataBatchAsync(
+        IReadOnlyList<MediaMetadataUpdate> updates,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaIndexFacts?> GetFactsAsync(
+        string mediaItemId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaKnowledgeItem>> GetKnowledgeItemsAsync(
+        MediaKnowledgeKind kind,
+        string? searchText = null,
+        int limit = 24,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaKnowledgeItem> EnsureKnowledgeItemAsync(
+        MediaKnowledgeDraft draft,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaKnowledgeSnapshot> GetKnowledgeAsync(
+        string mediaItemId,
+        CancellationToken cancellationToken = default);
+
+    Task<int> AssignKnowledgeItemBatchAsync(
+        IReadOnlyList<string> mediaItemIds,
+        string knowledgeItemId,
+        CancellationToken cancellationToken = default);
+
+    Task<int> RemoveKnowledgeItemBatchAsync(
+        IReadOnlyList<string> mediaItemIds,
+        string knowledgeItemId,
+        CancellationToken cancellationToken = default);
+
+    Task SetRatingBatchAsync(
+        IReadOnlyList<string> mediaItemIds,
+        int rating,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateIdentityAfterControlledRewriteAsync(
+        string mediaItemId,
+        string expectedOldSha256,
+        long expectedOldLength,
+        string newSha256,
+        long newLength,
+        DateTime newLastWriteTimeUtc,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<MediaIndexSearchResult>> SearchAsync(
         MediaIndexSearchQuery query,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaIndexFolderFacet>> GetFolderFacetsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaIndexFolderNode>> GetFolderChildrenAsync(
+        string endpointId,
+        string? parentRelativeFolder = null,
         CancellationToken cancellationToken = default);
 }

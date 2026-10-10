@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+        x:Class="Elbwald.DesktopTools.App.Views.MediaViewerWindow"
+        x:DataType="vm:MediaViewerViewModel"
+        Title="Elbwald Digital – Großansicht"
+        Width="1280"
+        Height="820"
+        MinWidth="760"
+        MinHeight="520"
+        Background="#111614"
+        KeyDown="OnKeyDown"
+        Closed="OnClosed">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Padding="14,10" Background="#E91A211E" IsVisible="{Binding ShowControls}">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+                <Button Content="‹" FontSize="22" Width="44" Click="OnPreviousClick" IsEnabled="{Binding CanNavigate}" />
+                <Button Grid.Column="1" Content="›" FontSize="22" Width="44" Click="OnNextClick" IsEnabled="{Binding CanNavigate}" />
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{Binding Title}" Foreground="White" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Subtitle}" Foreground="#AFC2BA" FontSize="10" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <ComboBox Grid.Column="3" Width="82" ItemsSource="{Binding PresentationIntervals}" SelectedItem="{Binding SelectedIntervalSeconds}" />
+                <TextBlock Grid.Column="4" Text="Sek." Foreground="#CFD9D5" VerticalAlignment="Center" />
+                <CheckBox Grid.Column="5" Content="Zufällig" IsChecked="{Binding RandomOrder}" Foreground="White" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Präsentation" Click="OnPresentationClick" />
+                    <Button Content="Vollbild  F11" Click="OnFullscreenClick" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Background="#080B0A" PointerPressed="OnImageAreaPointerPressed">
+            <Image Source="{Binding Image}"
+                   Stretch="Uniform"
+                   Margin="12" />
+            <StackPanel IsVisible="{Binding HasNoImage}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+                <TextBlock Text="Keine Großansicht verfügbar" Foreground="White" FontSize="20" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding StatusText}" Foreground="#AFC2BA" TextWrapping="Wrap" MaxWidth="520" TextAlignment="Center" />
+            </StackPanel>
+
+            <Border IsVisible="{Binding IsPresentationRunning}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,22"
+                    Padding="14,8"
+                    CornerRadius="18"
+                    Background="#B3121715">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <TextBlock Text="Präsentation läuft" Foreground="White" VerticalAlignment="Center" />
+                    <Button Content="Pause  Leertaste" Click="OnPresentationClick" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Padding="14,8" Background="#E91A211E" IsVisible="{Binding ShowControls}">
+            <Grid ColumnDefinitions="*,Auto,*">
+                <TextBlock Text="{Binding StatusText}" Foreground="#AFC2BA" FontSize="11" />
+                <TextBlock Grid.Column="1" Text="{Binding PositionText}" Foreground="White" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="2" Text="←/→ wechseln · Leertaste Präsentation · F11 Vollbild · Esc zurück" Foreground="#AFC2BA" FontSize="10" HorizontalAlignment="Right" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

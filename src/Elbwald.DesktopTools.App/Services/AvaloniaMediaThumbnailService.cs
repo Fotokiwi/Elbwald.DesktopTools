@@ -21,21 +21,47 @@ public sealed class AvaloniaMediaThumbnailService
         ArgumentNullException.ThrowIfNull(rawPreviewExtractor);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.CacheDirectory);
 
-        _options = options with
-        {
-            CacheDirectory = Path.GetFullPath(options.CacheDirectory)
-        };
+        _options = options;
+        _options.Normalize();
 
         _rawPreviewExtractor = rawPreviewExtractor;
     }
 
-    public async Task<MediaThumbnailResult> GetThumbnailAsync(
+    public Task<MediaThumbnailResult> GetThumbnailAsync(
         MediaFile file,
         int? width = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(file);
+        return GetThumbnailCoreAsync(
+            file,
+            mediaItemId: null,
+            width,
+            cancellationToken);
+    }
 
+    public Task<MediaThumbnailResult> GetIndexedThumbnailAsync(
+        string mediaItemId,
+        MediaFile file,
+        int? width = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaItemId);
+        ArgumentNullException.ThrowIfNull(file);
+
+        return GetThumbnailCoreAsync(
+            file,
+            mediaItemId.Trim(),
+            width,
+            cancellationToken);
+    }
+
+    private async Task<MediaThumbnailResult> GetThumbnailCoreAsync(
+        MediaFile file,
+        string? mediaItemId,
+        int? width,
+        CancellationToken cancellationToken)
+    {
         if (file.MediaType != MediaFileType.Image)
         {
             return new MediaThumbnailResult(
@@ -48,10 +74,9 @@ public sealed class AvaloniaMediaThumbnailService
                 64,
                 _options.MaximumWidth);
 
-        var cachePath =
-            GetCachePath(
-                file,
-                targetWidth);
+        var cachePath = string.IsNullOrWhiteSpace(mediaItemId)
+            ? GetLegacyCachePath(file, targetWidth)
+            : GetIndexedCachePath(mediaItemId, targetWidth);
 
         var cached =
             await Task.Run(
@@ -128,7 +153,7 @@ public sealed class AvaloniaMediaThumbnailService
                     foreach (var path in Directory.EnumerateFiles(
                                  _options.CacheDirectory,
                                  "*",
-                                 SearchOption.TopDirectoryOnly))
+                                 SearchOption.AllDirectories))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
@@ -197,7 +222,7 @@ public sealed class AvaloniaMediaThumbnailService
                 foreach (var path in Directory.EnumerateFiles(
                              _options.CacheDirectory,
                              "*",
-                             SearchOption.TopDirectoryOnly))
+                             SearchOption.AllDirectories))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -396,7 +421,7 @@ public sealed class AvaloniaMediaThumbnailService
             "image/png");
     }
 
-    private string GetCachePath(
+    private string GetLegacyCachePath(
         MediaFile file,
         int targetWidth)
     {
@@ -418,6 +443,32 @@ public sealed class AvaloniaMediaThumbnailService
         return Path.Combine(
             _options.CacheDirectory,
             hash + ".png");
+    }
+
+    private string GetIndexedCachePath(
+        string mediaItemId,
+        int targetWidth)
+    {
+        var stableId = Guid.TryParseExact(
+            mediaItemId,
+            "N",
+            out var parsedId)
+            ? parsedId.ToString("N")
+            : Convert.ToHexString(
+                SHA256.HashData(
+                    Encoding.UTF8.GetBytes(mediaItemId)))
+                .ToLowerInvariant();
+
+        var shard = stableId.Length >= 2
+            ? stableId[..2]
+            : "00";
+
+        return Path.Combine(
+            _options.CacheDirectory,
+            "MediaIndex",
+            shard,
+            stableId,
+            $"thumb-{targetWidth}-v{ThumbnailCacheVersion}.png");
     }
 
     private static bool IsRawExtension(

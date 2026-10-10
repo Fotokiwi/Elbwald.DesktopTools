@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Threading;
+using Elbwald.DesktopTools.App.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Media;
@@ -14,6 +15,7 @@ public sealed class SettingsViewModel
 {
     private readonly IMediaAnalysisCache _analysisCache;
     private readonly IMediaThumbnailService _thumbnailService;
+    private readonly MediaThumbnailOptions _thumbnailOptions;
     private readonly IMediaSourcePicker _sourcePicker;
     private readonly IAppPaths _appPaths;
     private readonly IStorageSettingsStore _storageSettingsStore;
@@ -40,10 +42,14 @@ public sealed class SettingsViewModel
     private string _libraryLocationSummary = "Nicht konfiguriert";
     private string _libraryLocationDetails = "Noch keine Medienbibliothek festgelegt.";
     private string _libraryLocationVolumeId = string.Empty;
+    private int _selectedGridThumbnailWidth;
+    private int _selectedDetailThumbnailWidth;
+    private int _selectedViewerThumbnailWidth;
 
     public SettingsViewModel(
         IMediaAnalysisCache analysisCache,
         IMediaThumbnailService thumbnailService,
+        MediaThumbnailOptions thumbnailOptions,
         IMediaSourcePicker sourcePicker,
         IAppPaths appPaths,
         IStorageSettingsStore storageSettingsStore,
@@ -51,6 +57,7 @@ public sealed class SettingsViewModel
     {
         ArgumentNullException.ThrowIfNull(analysisCache);
         ArgumentNullException.ThrowIfNull(thumbnailService);
+        ArgumentNullException.ThrowIfNull(thumbnailOptions);
         ArgumentNullException.ThrowIfNull(sourcePicker);
         ArgumentNullException.ThrowIfNull(appPaths);
         ArgumentNullException.ThrowIfNull(storageSettingsStore);
@@ -58,10 +65,15 @@ public sealed class SettingsViewModel
 
         _analysisCache = analysisCache;
         _thumbnailService = thumbnailService;
+        _thumbnailOptions = thumbnailOptions;
         _sourcePicker = sourcePicker;
         _appPaths = appPaths;
         _storageSettingsStore = storageSettingsStore;
         _storageLocationResolver = storageLocationResolver;
+
+        _selectedGridThumbnailWidth = _thumbnailOptions.GridWidth;
+        _selectedDetailThumbnailWidth = _thumbnailOptions.DetailWidth;
+        _selectedViewerThumbnailWidth = _thumbnailOptions.ViewerWidth;
 
         _durationTimer =
             new DispatcherTimer
@@ -89,6 +101,11 @@ public sealed class SettingsViewModel
         ClearAllCachesCommand =
             new AsyncRelayCommand(
                 ClearAllCachesAsync,
+                CanManageSettings);
+
+        SaveThumbnailSettingsCommand =
+            new RelayCommand(
+                SaveThumbnailSettings,
                 CanManageSettings);
 
         RefreshStorageCommand =
@@ -123,6 +140,7 @@ public sealed class SettingsViewModel
     public IAsyncRelayCommand ClearAnalysisCacheCommand { get; }
     public IAsyncRelayCommand ClearThumbnailCacheCommand { get; }
     public IAsyncRelayCommand ClearAllCachesCommand { get; }
+    public IRelayCommand SaveThumbnailSettingsCommand { get; }
     public IAsyncRelayCommand RefreshStorageCommand { get; }
     public IAsyncRelayCommand SelectImportLocationCommand { get; }
     public IAsyncRelayCommand ClearImportLocationCommand { get; }
@@ -245,6 +263,31 @@ public sealed class SettingsViewModel
         private set => SetProperty(ref _libraryLocationVolumeId, value);
     }
 
+    public IReadOnlyList<int> GridThumbnailWidths { get; } = [128, 160, 168, 192, 256];
+    public IReadOnlyList<int> DetailThumbnailWidths { get; } = [480, 640, 720, 960, 1280];
+    public IReadOnlyList<int> ViewerThumbnailWidths { get; } = [1280, 1600, 1920, 2560, 3200, 3840];
+
+    public int SelectedGridThumbnailWidth
+    {
+        get => _selectedGridThumbnailWidth;
+        set => SetProperty(ref _selectedGridThumbnailWidth, value);
+    }
+
+    public int SelectedDetailThumbnailWidth
+    {
+        get => _selectedDetailThumbnailWidth;
+        set => SetProperty(ref _selectedDetailThumbnailWidth, value);
+    }
+
+    public int SelectedViewerThumbnailWidth
+    {
+        get => _selectedViewerThumbnailWidth;
+        set => SetProperty(ref _selectedViewerThumbnailWidth, value);
+    }
+
+    public string ThumbnailResolutionSummary =>
+        $"Galerie {_thumbnailOptions.GridWidth}px · Details {_thumbnailOptions.DetailWidth}px · Großansicht {_thumbnailOptions.ViewerWidth}px";
+
     public string AppDataMode =>
         _appPaths.IsPortable
             ? "Portable"
@@ -269,8 +312,8 @@ public sealed class SettingsViewModel
     public string PerformanceProfile => "Sicheres Standardprofil";
 
     public string PerformanceDetails =>
-        "Read-only Analyse · SQLite-Metadaten-Cache · lazy Thumbnails · "
-        + "max. 500 Inspector-Treffer · max. 12 Galerie-Vorschauen";
+        "Read-only Analyse · SQLite-Metadaten-Cache · lazy Media-ID-Thumbnails · "
+        + "auflösungsabhängiger Cache · max. 500 Inspector-Treffer";
 
     public string DataPolicy =>
         "Cache-Dateien sind vollständig wiederherstellbar und dürfen jederzeit "
@@ -542,6 +585,43 @@ public sealed class SettingsViewModel
         }
     }
 
+    private void SaveThumbnailSettings()
+    {
+        if (!CanManageSettings())
+        {
+            return;
+        }
+
+        BeginOperation("Vorschau-Auflösungen werden gespeichert …");
+
+        try
+        {
+            _thumbnailOptions.GridWidth = SelectedGridThumbnailWidth;
+            _thumbnailOptions.DetailWidth = SelectedDetailThumbnailWidth;
+            _thumbnailOptions.ViewerWidth = SelectedViewerThumbnailWidth;
+            _thumbnailOptions.Normalize();
+            _thumbnailOptions.Save();
+
+            SelectedGridThumbnailWidth = _thumbnailOptions.GridWidth;
+            SelectedDetailThumbnailWidth = _thumbnailOptions.DetailWidth;
+            SelectedViewerThumbnailWidth = _thumbnailOptions.ViewerWidth;
+
+            OnPropertyChanged(nameof(ThumbnailResolutionSummary));
+
+            EndOperation(
+                "Vorschau-Auflösungen gespeichert. Neue Varianten werden bei Bedarf erzeugt; "
+                + "bereits gecachte Größen bleiben bis zum Leeren des Thumbnail-Caches erhalten.");
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException
+                or NotSupportedException)
+        {
+            EndOperation("Vorschau-Auflösungen konnten nicht gespeichert werden: " + exception.Message);
+        }
+    }
+
     private async Task LoadStorageSettingsAsync()
     {
         _storageSettings = await _storageSettingsStore.LoadAsync();
@@ -671,6 +751,7 @@ public sealed class SettingsViewModel
         ClearAnalysisCacheCommand.NotifyCanExecuteChanged();
         ClearThumbnailCacheCommand.NotifyCanExecuteChanged();
         ClearAllCachesCommand.NotifyCanExecuteChanged();
+        SaveThumbnailSettingsCommand.NotifyCanExecuteChanged();
         RefreshStorageCommand.NotifyCanExecuteChanged();
         SelectImportLocationCommand.NotifyCanExecuteChanged();
         ClearImportLocationCommand.NotifyCanExecuteChanged();

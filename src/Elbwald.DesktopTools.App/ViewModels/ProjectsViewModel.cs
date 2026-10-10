@@ -21,9 +21,13 @@ public partial class ProjectsViewModel : ObservableObject
     [ObservableProperty] private string editKind = "Sammlung";
     [ObservableProperty] private string editLocation = string.Empty;
     [ObservableProperty] private string editNotes = string.Empty;
+    [ObservableProperty] private string editStartDateText = string.Empty;
+    [ObservableProperty] private string editEndDateText = string.Empty;
     [ObservableProperty] private string searchText = string.Empty;
     [ObservableProperty] private IReadOnlyList<ProjectSearchResultViewModel> searchResults = Array.Empty<ProjectSearchResultViewModel>();
     [ObservableProperty] private ProjectSearchResultViewModel? selectedSearchResult;
+    [ObservableProperty] private IReadOnlyList<ProjectSearchResultViewModel> suggestedMedia = Array.Empty<ProjectSearchResultViewModel>();
+    [ObservableProperty] private string findMediaStatus = "Projektzeitraum speichern und anschließend passende Medien finden.";
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string statusMessage = "Projekte werden geladen …";
     [ObservableProperty] private bool hasProjectMedia;
@@ -40,6 +44,8 @@ public partial class ProjectsViewModel : ObservableObject
         SearchCommand = new AsyncRelayCommand(SearchAsync, () => !IsBusy && SelectedProject is not null);
         AddSelectedMediaCommand = new AsyncRelayCommand(AddSelectedMediaAsync, () => !IsBusy && SelectedProject is not null && SelectedSearchResult is not null);
         RemoveMediaCommand = new AsyncRelayCommand(RemoveSelectedMediaAsync, () => !IsBusy && SelectedProject is not null && SelectedProjectMedia is not null);
+        FindMediaCommand = new AsyncRelayCommand(FindMediaAsync, () => !IsBusy && SelectedProject is not null);
+        AddSuggestedMediaCommand = new AsyncRelayCommand(AddSuggestedMediaAsync, () => !IsBusy && SelectedProject is not null && SuggestedMedia.Any(item => item.IsSelected));
 
         _ = RefreshAsync();
     }
@@ -52,17 +58,33 @@ public partial class ProjectsViewModel : ObservableObject
     public IAsyncRelayCommand SearchCommand { get; }
     public IAsyncRelayCommand AddSelectedMediaCommand { get; }
     public IAsyncRelayCommand RemoveMediaCommand { get; }
+    public IAsyncRelayCommand FindMediaCommand { get; }
+    public IAsyncRelayCommand AddSuggestedMediaCommand { get; }
 
     public bool HasProjects => Projects.Count > 0;
     public bool HasSelectedProject => SelectedProject is not null;
     public bool HasNoSelectedProject => SelectedProject is null;
     public bool HasSearchResults => SearchResults.Count > 0;
+    public bool HasSuggestedMedia => SuggestedMedia.Count > 0;
 
     partial void OnIsBusyChanged(bool value) => NotifyCommands();
     partial void OnNewProjectNameChanged(string value) => CreateProjectCommand.NotifyCanExecuteChanged();
     partial void OnEditNameChanged(string value) => SaveProjectCommand.NotifyCanExecuteChanged();
     partial void OnProjectsChanged(IReadOnlyList<ProjectListItemViewModel> value) => OnPropertyChanged(nameof(HasProjects));
     partial void OnSearchResultsChanged(IReadOnlyList<ProjectSearchResultViewModel> value) => OnPropertyChanged(nameof(HasSearchResults));
+    partial void OnSuggestedMediaChanged(IReadOnlyList<ProjectSearchResultViewModel> value)
+    {
+        OnPropertyChanged(nameof(HasSuggestedMedia));
+        foreach (var item in value)
+        {
+            item.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(ProjectSearchResultViewModel.IsSelected))
+                    AddSuggestedMediaCommand.NotifyCanExecuteChanged();
+            };
+        }
+        AddSuggestedMediaCommand.NotifyCanExecuteChanged();
+    }
     partial void OnSelectedSearchResultChanged(ProjectSearchResultViewModel? value) => AddSelectedMediaCommand.NotifyCanExecuteChanged();
     partial void OnSelectedProjectMediaChanged(ProjectMediaItemViewModel? value) => RemoveMediaCommand.NotifyCanExecuteChanged();
 
@@ -80,6 +102,10 @@ public partial class ProjectsViewModel : ObservableObject
             EditKind = "Sammlung";
             EditLocation = string.Empty;
             EditNotes = string.Empty;
+            EditStartDateText = string.Empty;
+            EditEndDateText = string.Empty;
+            SuggestedMedia = Array.Empty<ProjectSearchResultViewModel>();
+            FindMediaStatus = "Projektzeitraum speichern und anschließend passende Medien finden.";
             SetProjectMedia(Array.Empty<ProjectMediaItemViewModel>());
         }
         else
@@ -88,6 +114,12 @@ public partial class ProjectsViewModel : ObservableObject
             EditKind = value.Project.Kind;
             EditLocation = value.Project.Location ?? string.Empty;
             EditNotes = value.Project.Notes ?? string.Empty;
+            EditStartDateText = value.Project.StartDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+            EditEndDateText = value.Project.EndDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+            SuggestedMedia = Array.Empty<ProjectSearchResultViewModel>();
+            FindMediaStatus = value.Project.StartDate.HasValue && value.Project.EndDate.HasValue
+                ? $"Zeitraum {value.Project.StartDate:dd.MM.yyyy} – {value.Project.EndDate:dd.MM.yyyy}. Medien können gesucht werden."
+                : "Start- und Enddatum setzen, um Medien aus dem Zeitraum vorzuschlagen.";
             _ = LoadProjectMediaForSelectionAsync(value.Id, loadVersion);
         }
         NotifyCommands();
@@ -148,9 +180,21 @@ public partial class ProjectsViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            if (!TryParseOptionalDate(EditStartDateText, out var startDate)
+                || !TryParseOptionalDate(EditEndDateText, out var endDate))
+            {
+                StatusMessage = "Projektzeitraum bitte als YYYY-MM-DD eingeben.";
+                return;
+            }
+            if (startDate.HasValue && endDate.HasValue && endDate.Value < startDate.Value)
+            {
+                StatusMessage = "Das Projekt-Enddatum darf nicht vor dem Startdatum liegen.";
+                return;
+            }
+
             var updated = await _projectService.UpdateProjectAsync(
                 SelectedProject.Id,
-                new ProjectUpdateRequest(EditName, EditKind, Location: EditLocation, Notes: EditNotes));
+                new ProjectUpdateRequest(EditName, EditKind, startDate, endDate, EditLocation, EditNotes));
             await ReloadProjectsAndSelectAsync(updated.Id);
             StatusMessage = "Projekt gespeichert.";
         }
@@ -175,6 +219,112 @@ public partial class ProjectsViewModel : ObservableObject
         }
         catch (Exception exception) { StatusMessage = "Indexsuche fehlgeschlagen: " + exception.GetBaseException().Message; }
         finally { IsBusy = false; }
+    }
+
+    private async Task FindMediaAsync()
+    {
+        if (SelectedProject is null) return;
+        if (!TryParseOptionalDate(EditStartDateText, out var startDate)
+            || !TryParseOptionalDate(EditEndDateText, out var endDate)
+            || !startDate.HasValue
+            || !endDate.HasValue)
+        {
+            FindMediaStatus = "Für „Medien finden“ bitte Start- und Enddatum als YYYY-MM-DD setzen.";
+            return;
+        }
+        if (endDate.Value < startDate.Value)
+        {
+            FindMediaStatus = "Enddatum darf nicht vor dem Startdatum liegen.";
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var assignedIds = (await _projectService.GetMediaReferencesAsync(SelectedProject.Id))
+                .Select(reference => reference.MediaItemId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var all = new List<MediaIndexSearchResult>();
+            var offset = 0;
+            const int pageSize = 500;
+            const int maxSuggestions = 5000;
+            var from = startDate.Value.ToDateTime(TimeOnly.MinValue);
+            var to = endDate.Value.ToDateTime(TimeOnly.MaxValue);
+
+            while (all.Count < maxSuggestions)
+            {
+                var page = await _mediaIndexService.SearchAsync(new MediaIndexSearchQuery(
+                    PresentOnly: true,
+                    Limit: pageSize,
+                    Offset: offset,
+                    SortOrder: MediaIndexSortOrder.FileNameAscending,
+                    CaptureDateFrom: from,
+                    CaptureDateTo: to));
+                all.AddRange(page);
+                if (page.Count < pageSize) break;
+                offset += page.Count;
+            }
+
+            SuggestedMedia = all
+                .Where(result => !assignedIds.Contains(result.Item.Id))
+                .Select(result => new ProjectSearchResultViewModel(result, isSelected: true))
+                .ToArray();
+
+            FindMediaStatus = SuggestedMedia.Count == 0
+                ? "Keine noch nicht zugeordneten Medien im Projektzeitraum gefunden. Falls der Medienindex seit 0061 noch nicht aktualisiert wurde, bitte einmal neu indexieren, damit EXIF-Aufnahmedaten zentral erfasst werden."
+                : $"{SuggestedMedia.Count:N0} passende Medien im Zeitraum gefunden. Auswahl prüfen und gesammelt zuordnen.";
+        }
+        catch (Exception exception)
+        {
+            FindMediaStatus = "Medienvorschläge konnten nicht ermittelt werden: " + exception.GetBaseException().Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task AddSuggestedMediaAsync()
+    {
+        if (SelectedProject is null) return;
+        var selected = SuggestedMedia.Where(item => item.IsSelected).ToArray();
+        if (selected.Length == 0) return;
+
+        IsBusy = true;
+        try
+        {
+            var added = 0;
+            foreach (var item in selected)
+            {
+                if (await _projectService.AddMediaAsync(SelectedProject.Id, item.MediaItemId)) added++;
+            }
+
+            var projectId = SelectedProject.Id;
+            await RefreshSelectedProjectCountAsync(projectId);
+            await LoadProjectMediaForSelectionAsync(projectId, _projectMediaLoadVersion);
+            var selectedIds = selected.Select(item => item.MediaItemId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            SuggestedMedia = SuggestedMedia.Where(item => !selectedIds.Contains(item.MediaItemId)).ToArray();
+            FindMediaStatus = $"{added:N0} Medium/Medien dem Projekt zugeordnet. Dateien wurden nicht verändert.";
+        }
+        catch (Exception exception)
+        {
+            FindMediaStatus = "Projektzuordnung fehlgeschlagen: " + exception.GetBaseException().Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private static bool TryParseOptionalDate(string? text, out DateOnly? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(text)) return true;
+        if (!DateOnly.TryParseExact(text.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var parsed))
+            return false;
+        value = parsed;
+        return true;
     }
 
     private async Task AddSelectedMediaAsync()
@@ -320,5 +470,7 @@ public partial class ProjectsViewModel : ObservableObject
         SearchCommand.NotifyCanExecuteChanged();
         AddSelectedMediaCommand.NotifyCanExecuteChanged();
         RemoveMediaCommand.NotifyCanExecuteChanged();
+        FindMediaCommand.NotifyCanExecuteChanged();
+        AddSuggestedMediaCommand.NotifyCanExecuteChanged();
     }
 }

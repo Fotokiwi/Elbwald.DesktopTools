@@ -68,11 +68,11 @@ public sealed class SectionHubViewModel
             PrimaryGroupDescription = "Spezialfunktionen, die direkt an Medien und ihren Inhalten arbeiten.";
             SecondaryGroupTitle = "Bibliothek & Wartung";
             SecondaryGroupDescription = "Den logischen Medienbestand prüfen und technische Bibliotheksdienste verwalten.";
-            TertiaryGroupTitle = "Diagnose";
-            TertiaryGroupDescription = "Technische Ereignisse nachvollziehen, wenn etwas nicht wie erwartet läuft.";
+            TertiaryGroupTitle = "Verlauf & Diagnose";
+            TertiaryGroupDescription = "Benutzer-Dateioperationen nachvollziehen und technische Ereignisse bei Bedarf untersuchen.";
 
             PrimaryActions = Actions
-                .Where(action => action.Title is "Metadaten" or "Konvertieren")
+                .Where(action => action.Title is "Metadaten" or "Exportieren" or "Konvertieren")
                 .ToArray();
 
             SecondaryActions = Actions
@@ -80,7 +80,7 @@ public sealed class SectionHubViewModel
                 .ToArray();
 
             TertiaryActions = Actions
-                .Where(action => string.Equals(action.Title, "Protokoll", StringComparison.OrdinalIgnoreCase))
+                .Where(action => action.Title is "Vorgangsverlauf" or "Protokoll")
                 .ToArray();
         }
         else
@@ -172,9 +172,12 @@ public sealed class SectionHubViewModel
                     photoSortReady ? PhotoSortModuleId : null,
                     navigationService),
 
-                Planned(
+                new SectionActionViewModel(
                     "Umbenennen",
-                    "Dateien anhand von Datum, Kamera und Metadaten einheitlich benennen.",
+                    "Dateien anhand von Datum, Kamera und Elbwald-Metadaten einheitlich benennen.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "rename",
                     navigationService),
 
                 new SectionActionViewModel(
@@ -254,9 +257,20 @@ public sealed class SectionHubViewModel
             "Kleinere medienübergreifende Funktionen, die keinen eigenen Hauptbereich benötigen.",
             new[]
             {
-                Planned(
+                new SectionActionViewModel(
                     "Metadaten",
-                    "Metadaten prüfen, korrigieren oder sensible Informationen entfernen.",
+                    "Metadaten zentral in Elbwald pflegen und optional später in Dateien oder XMP exportieren.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "metadata",
+                    navigationService),
+
+                new SectionActionViewModel(
+                    "Exportieren",
+                    "Neue Kopien aus Bibliotheksauswahl oder Projekt erzeugen – mit Regeln, Skalierung und optional eingebettetem XMP.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "export",
                     navigationService),
 
                 Planned(
@@ -278,6 +292,14 @@ public sealed class SectionHubViewModel
                     "Bereit",
                     isAvailable: true,
                     navigationId: "media-index",
+                    navigationService),
+
+                new SectionActionViewModel(
+                    "Vorgangsverlauf",
+                    "Benutzer-Dateioperationen nachvollziehen und sichere Rename-Vorgänge geprüft rückgängig machen.",
+                    "Bereit",
+                    isAvailable: true,
+                    navigationId: "operation-history",
                     navigationService),
 
                 new SectionActionViewModel(

@@ -1,0 +1,550 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+             x:Class="Elbwald.DesktopTools.App.Views.MediaBrowserView"
+             x:DataType="vm:MediaBrowserViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="28,24,28,24">
+        <StackPanel Spacing="4" Margin="0,0,0,14">
+            <TextBlock Text="Bibliothek" FontSize="32" FontWeight="SemiBold" />
+            <TextBlock Text="Medien unabhängig vom Dateipfad durchsuchen, filtern und verwalten."
+                       Classes="elbwald-muted"
+                       FontSize="13" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto,*" MinHeight="520">
+            <Border Padding="14" CornerRadius="14"
+                    Background="#F7FFFCF8"
+                    BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                    BorderThickness="1">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="10">
+                    <Button Grid.Column="0"
+                            MinWidth="170"
+                            Content="Bibliothek durchsuchen"
+                            ToolTip.Tip="Logische Bibliotheksansicht öffnen"
+                            Command="{Binding ToggleNavigationCommand}" />
+                    <TextBox Grid.Column="1"
+                             Watermark="Dateiname, Titel, Tags, Personen, Orte, Pfad oder Media-ID …"
+                             Text="{Binding SearchText, Mode=TwoWay}"
+                             MinWidth="260" />
+                    <ComboBox Grid.Column="2"
+                              Width="135"
+                              ItemsSource="{Binding TypeFilters}"
+                              SelectedItem="{Binding SelectedTypeFilter, Mode=TwoWay}" />
+                    <ComboBox Grid.Column="3"
+                              Width="125"
+                              ItemsSource="{Binding RatingFilters}"
+                              SelectedItem="{Binding SelectedRatingFilter, Mode=TwoWay}" />
+                    <ComboBox Grid.Column="4"
+                              Width="165"
+                              ItemsSource="{Binding SortOptions}"
+                              SelectedItem="{Binding SelectedSort, Mode=TwoWay}" />
+                    <Button Grid.Column="5" Content="Suchen" Command="{Binding SearchCommand}" />
+                    <Button Grid.Column="6" Content="▦" Width="42" ToolTip.Tip="Galerie" Command="{Binding ShowGridCommand}" />
+                    <Button Grid.Column="7" Content="☰" Width="42" ToolTip.Tip="Liste" Command="{Binding ShowListCommand}" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="4,10,4,10" ColumnSpacing="10">
+                <ItemsControl Grid.Column="0" ItemsSource="{Binding NavigationBreadcrumbs}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:LibraryBreadcrumbItemViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock IsVisible="{Binding ShowSeparator}"
+                                           Text="›"
+                                           Classes="elbwald-muted"
+                                           VerticalAlignment="Center" />
+                                <Button IsVisible="{Binding CanNavigate}"
+                                        Content="{Binding Title}"
+                                        Command="{Binding NavigateCommand}"
+                                        Padding="4,2"
+                                        Background="Transparent"
+                                        BorderThickness="0" />
+                                <TextBlock IsVisible="{Binding IsCurrent}"
+                                           Text="{Binding Title}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusMessage}" Classes="elbwald-muted" />
+                    <TextBlock Text="{Binding SelectionText}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" />
+                </StackPanel>
+                <Button Grid.Column="2"
+                        IsVisible="{Binding HasSelection}"
+                        Content="Auswahl exportieren"
+                        Command="{Binding ExportSelectionCommand}" />
+                <Button Grid.Column="3" Content="Aktualisieren" Command="{Binding RefreshCommand}" />
+            </Grid>
+
+            <Grid Grid.Row="2" ColumnDefinitions="*,350" ColumnSpacing="12">
+                <Border Grid.Column="0"
+                        Padding="10"
+                        CornerRadius="14"
+                        Background="#F9FFFCFA"
+                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                        BorderThickness="1">
+                    <Grid RowDefinitions="*,Auto">
+                        <TextBlock IsVisible="{Binding HasNoItems}"
+                                   Text="Noch keine Medien im aktuellen Index gefunden."
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Classes="elbwald-muted"
+                                   FontSize="16" />
+
+                        <ListBox x:Name="GridList"
+                                 IsVisible="{Binding IsGridView}"
+                                 ItemsSource="{Binding Items}"
+                                 SelectionMode="Multiple"
+                                 SelectionChanged="OnSelectionChanged"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MediaBrowserItemViewModel">
+                                    <Border Width="160"
+                                            DoubleTapped="OnMediaDoubleTapped"
+                                            Margin="5"
+                                            Padding="7"
+                                            CornerRadius="10"
+                                            Background="#FCFFFFFF"
+                                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                            BorderThickness="1">
+                                        <StackPanel Spacing="6">
+                                            <Border Height="108"
+                                                    CornerRadius="8"
+                                                    Background="#EAF1EE"
+                                                    ClipToBounds="True">
+                                                <Grid>
+                                                    <Image IsVisible="{Binding HasThumbnail}"
+                                                           Source="{Binding Thumbnail}"
+                                                           Stretch="UniformToFill" />
+                                                    <StackPanel IsVisible="{Binding HasNoThumbnail}"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Spacing="4">
+                                                        <TextBlock Text="{Binding MediaType}"
+                                                                   FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="{Binding ThumbnailStatus}"
+                                                                   Classes="elbwald-muted"
+                                                                   FontSize="10"
+                                                                   TextAlignment="Center"
+                                                                   TextWrapping="Wrap"
+                                                                   MaxWidth="130" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="{Binding DisplayTitle}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxWidth="144" />
+                                            <TextBlock Text="{Binding FileName}"
+                                                       Classes="elbwald-muted"
+                                                       FontSize="10"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                                <TextBlock Text="{Binding CaptureDateText}"
+                                                           Classes="elbwald-muted"
+                                                           FontSize="9"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="1"
+                                                           IsVisible="{Binding HasRating}"
+                                                           Text="{Binding RatingText}"
+                                                           Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="2"
+                                                           IsVisible="{Binding HasMetadataOverride}"
+                                                           Text="DB"
+                                                           Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                           FontSize="9"
+                                                           FontWeight="SemiBold" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <ListBox x:Name="TableList"
+                                 IsVisible="{Binding IsListView}"
+                                 ItemsSource="{Binding Items}"
+                                 SelectionMode="Multiple"
+                                 SelectionChanged="OnSelectionChanged"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MediaBrowserItemViewModel">
+                                    <Grid ColumnDefinitions="56,2*,120,110,150,120"
+                                          DoubleTapped="OnMediaDoubleTapped"
+                                          ColumnSpacing="10"
+                                          Margin="4,3"
+                                          MinHeight="50">
+                                        <Border Width="52" Height="42" CornerRadius="5" Background="#EAF1EE" ClipToBounds="True">
+                                            <Grid>
+                                                <Image IsVisible="{Binding HasThumbnail}" Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                                                <TextBlock IsVisible="{Binding HasNoThumbnail}" Text="{Binding MediaType}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding RelativePath}" Classes="elbwald-muted" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding MediaType}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Text="{Binding SizeText}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="4" Text="{Binding EndpointName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="5" Text="{Binding LocationSummary}" VerticalAlignment="Center" Classes="elbwald-muted" FontSize="10" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Button Grid.Row="1"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Center"
+                                IsVisible="{Binding CanLoadMore}"
+                                Content="Weitere Medien laden"
+                                Command="{Binding LoadMoreCommand}" />
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Padding="12"
+                        CornerRadius="14"
+                        Background="#F7FFFCF8"
+                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                        BorderThickness="1">
+                    <ScrollViewer>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Details" FontSize="18" FontWeight="SemiBold" />
+
+                            <Border Height="235" CornerRadius="10" Background="#EAF1EE" ClipToBounds="True">
+                                <Grid>
+                                    <Image IsVisible="{Binding HasSingleSelection}"
+                                           Source="{Binding SelectedPreview}"
+                                           Stretch="Uniform" />
+                                    <TextBlock IsVisible="{Binding HasMultipleSelection}"
+                                               Text="Mehrfachauswahl"
+                                               FontSize="18"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock IsVisible="{Binding HasNoSelection}"
+                                               Text="Medium auswählen"
+                                               Classes="elbwald-muted"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+
+                            <Border IsVisible="{Binding HasSelection}"
+                                    Padding="12"
+                                    CornerRadius="10"
+                                    Background="#EDF5F1">
+                                <StackPanel Spacing="9">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Schnell bearbeiten" FontWeight="SemiBold" />
+                                            <TextBlock Text="Bewertung, Personen, Orte, Tags und Ereignisse wirken direkt auf die aktuelle Auswahl."
+                                                       Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding SelectedRatingText}"
+                                                   Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button Content="0" ToolTip.Tip="Bewertung entfernen" Command="{Binding SetRatingCommand}" CommandParameter="0" MinWidth="34" />
+                                        <Button Content="★" Command="{Binding SetRatingCommand}" CommandParameter="1" MinWidth="40" />
+                                        <Button Content="★★" Command="{Binding SetRatingCommand}" CommandParameter="2" MinWidth="50" />
+                                        <Button Content="★★★" Command="{Binding SetRatingCommand}" CommandParameter="3" MinWidth="62" />
+                                    </StackPanel>
+
+                                    <Grid ColumnDefinitions="94,*,Auto" ColumnSpacing="7">
+                                        <ComboBox ItemsSource="{Binding QuickKnowledgeKinds}"
+                                                  SelectedItem="{Binding QuickKnowledgeKind, Mode=TwoWay}" />
+                                        <TextBox Grid.Column="1"
+                                                 Text="{Binding QuickKnowledgeText, Mode=TwoWay}"
+                                                 Watermark="Neu anlegen oder zuweisen …" />
+                                        <Button Grid.Column="2"
+                                                Content="Zuweisen"
+                                                Command="{Binding AddQuickKnowledgeCommand}" />
+                                    </Grid>
+
+                                    <TextBlock Text="Zuletzt / häufig verwendet" Classes="elbwald-muted" FontSize="9" />
+
+                                    <ItemsControl ItemsSource="{Binding QuickKnowledgeItems}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:QuickKnowledgeItemViewModel">
+                                                <Button Margin="0,0,6,6"
+                                                        Padding="8,4"
+                                                        Command="{Binding ApplyCommand}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="10" />
+                                                        <TextBlock Text="{Binding UsageText}" Classes="elbwald-muted" FontSize="8" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="{Binding SelectedKnowledgeSummary}" FontSize="9" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding QuickKnowledgeStatus}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="{Binding SelectedTitle}"
+                                       FontSize="19"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding SelectedSubTitle}"
+                                       Classes="elbwald-muted"
+                                       FontSize="10"
+                                       TextWrapping="Wrap" />
+
+                            <Button IsVisible="{Binding HasSingleSelection}"
+                                    Content="Großansicht öffnen"
+                                    HorizontalAlignment="Stretch"
+                                    Click="OnOpenSelectedViewer" />
+
+                            <Border IsVisible="{Binding HasSingleSelection}"
+                                    Padding="12"
+                                    CornerRadius="10"
+                                    Background="#EDF5F1">
+                                <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                                    <TextBlock Grid.Row="0" Text="Media-ID" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedMediaId}" TextWrapping="Wrap" FontSize="10" />
+                                    <TextBlock Grid.Row="1" Text="Datei" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedFileName}" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="Typ / Größe" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedType}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="95,0,0,0" Text="{Binding SelectedSize}" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="3" Text="Aufnahme" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedCaptureDate}" />
+                                    <TextBlock Grid.Row="4" Text="Kamera" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedCamera}" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="5" Text="Abmessungen" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedDimensions}" />
+                                    <TextBlock Grid.Row="6" Text="GPS" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedGps}" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="7" Text="Projekte" Classes="elbwald-muted" />
+                                    <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedProjects}" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+
+                            <StackPanel IsVisible="{Binding HasSingleSelection}" Spacing="5">
+                                <TextBlock Text="Beschreibung" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding SelectedDescription}" TextWrapping="Wrap" Classes="elbwald-muted" />
+                            </StackPanel>
+
+                            <StackPanel IsVisible="{Binding HasSingleSelection}" Spacing="6">
+                                <TextBlock Text="Speicherorte" FontWeight="SemiBold" />
+                                <ItemsControl ItemsSource="{Binding SelectedLocations}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:MediaIndexLocationItemViewModel">
+                                            <Border Padding="8" Margin="0,2" CornerRadius="7" Background="#EDF5F1">
+                                                <StackPanel Spacing="2">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding EndpointName}" FontWeight="SemiBold" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding RelativePath}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding LastSeen}" Classes="elbwald-muted" FontSize="9" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding DetailStatus}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Modale Bibliotheksnavigation: klassischer, lazy geladener Ordnerbaum. -->
+        <Grid Grid.RowSpan="2"
+              IsVisible="{Binding IsNavigationOpen}"
+              Background="#70000000">
+            <Button Background="Transparent"
+                    BorderThickness="0"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    Command="{Binding ToggleNavigationCommand}" />
+
+            <Border Width="940"
+                    MaxWidth="1100"
+                    Height="680"
+                    MaxHeight="780"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="22"
+                    CornerRadius="18"
+                    Background="#FFFBF8"
+                    BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                    BorderThickness="1">
+                <Grid RowDefinitions="Auto,Auto,*">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Bibliothek durchsuchen" FontSize="24" FontWeight="SemiBold" />
+                            <TextBlock Text="Ordner wie gewohnt auf- und zuklappen. Geladen wird immer nur der gerade benötigte Teil der Bibliothek."
+                                       Classes="elbwald-muted" FontSize="12" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="Schließen"
+                                Command="{Binding ToggleNavigationCommand}" />
+                    </Grid>
+
+                    <Border Grid.Row="1" Margin="0,16,0,14" Padding="12" CornerRadius="10" Background="#EDF5F1">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <Button Content="Alle Medien" Command="{Binding ShowAllMediaCommand}" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Aktuelle Position" Classes="elbwald-muted" FontSize="10" />
+                                <TextBlock Text="{Binding NavigationTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="2.2*,1*" ColumnSpacing="16">
+                        <Border Padding="12"
+                                CornerRadius="12"
+                                Background="#F6FAF8"
+                                BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                BorderThickness="1">
+                            <Grid RowDefinitions="Auto,*">
+                                <Grid ColumnDefinitions="*,Auto" Margin="2,0,2,10">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Ordner" FontSize="17" FontWeight="SemiBold" />
+                                        <TextBlock Text="Indexierte Bibliotheksstruktur – keine direkte Dateisystemnavigation."
+                                                   Classes="elbwald-muted" FontSize="10" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="▸ aufklappen · Ordnername öffnen"
+                                               Classes="elbwald-muted"
+                                               FontSize="10"
+                                               VerticalAlignment="Bottom" />
+                                </Grid>
+
+                                <Border Grid.Row="1"
+                                        CornerRadius="8"
+                                        Background="#FCFFFFFF"
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="1">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding FolderTreeItems}" Margin="6">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:LibraryFolderTreeNodeViewModel">
+                                                    <Grid ColumnDefinitions="Auto,30,*,Auto"
+                                                          MinHeight="34"
+                                                          Margin="0,1">
+                                                        <Border Width="{Binding Indent}" />
+                                                        <Button Grid.Column="1"
+                                                                IsVisible="{Binding HasChildren}"
+                                                                Content="{Binding ExpandGlyph}"
+                                                                Command="{Binding ToggleCommand}"
+                                                                Width="28"
+                                                                Height="28"
+                                                                Padding="0"
+                                                                Background="Transparent"
+                                                                BorderThickness="0" />
+                                                        <Button Grid.Column="2"
+                                                                HorizontalContentAlignment="Stretch"
+                                                                Command="{Binding SelectCommand}"
+                                                                Padding="6,4"
+                                                                Background="Transparent"
+                                                                BorderThickness="0">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                                                                <TextBlock Text="📁" VerticalAlignment="Center" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding Title}"
+                                                                           FontWeight="SemiBold"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           VerticalAlignment="Center" />
+                                                                <TextBlock Grid.Column="2"
+                                                                           Text="{Binding CountText}"
+                                                                           Classes="elbwald-muted"
+                                                                           FontSize="10"
+                                                                           VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </Button>
+                                                        <TextBlock Grid.Column="3"
+                                                                   IsVisible="{Binding IsSelected}"
+                                                                   Text="●"
+                                                                   Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                   Margin="6,0"
+                                                                   VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Spacing="14">
+                            <Border Padding="14" CornerRadius="12" Background="#F6FAF8" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Projekte" FontSize="17" FontWeight="SemiBold" />
+                                    <ScrollViewer MaxHeight="210">
+                                        <ItemsControl ItemsSource="{Binding ProjectNavigationItems}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:LibraryNavigationItemViewModel">
+                                                    <Button HorizontalContentAlignment="Left"
+                                                            Margin="0,2"
+                                                            Content="{Binding Title}"
+                                                            Command="{Binding SelectCommand}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="14" CornerRadius="12" Background="#F6FAF8" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Medientyp" FontSize="17" FontWeight="SemiBold" />
+                                    <ItemsControl ItemsSource="{Binding TypeNavigationItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:LibraryNavigationItemViewModel">
+                                                <Button HorizontalContentAlignment="Left" Margin="0,2" Content="{Binding Title}" Command="{Binding SelectCommand}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="12" CornerRadius="10" Background="#EDF5F1">
+                                <TextBlock Text="Die zuletzt gewählte Ordnerposition bleibt erhalten. Beim erneuten Öffnen wird genau dieser Pfad im Baum wieder aufgeklappt."
+                                           TextWrapping="Wrap"
+                                           Classes="elbwald-muted"
+                                           FontSize="10" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
