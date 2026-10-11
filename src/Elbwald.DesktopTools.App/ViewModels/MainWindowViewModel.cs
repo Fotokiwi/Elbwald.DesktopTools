@@ -16,10 +16,15 @@ public partial class MainWindowViewModel : ObservableObject
     private const string PhotoSortModuleId = "elbwald.photosort";
 
     private readonly INavigationContentFactory _contentFactory;
+    private readonly INavigationService _navigationService;
+    private readonly IModuleRegistry _moduleRegistry;
+    private readonly IExtensionRegistry _extensionRegistry;
     private readonly Dictionary<string, object> _pageCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly IReadOnlyDictionary<string, ToolModuleDescriptor> _modules;
+    private IReadOnlyDictionary<string, ToolModuleDescriptor> _modules =
+        new Dictionary<string, ToolModuleDescriptor>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<NavigationItemViewModel> _navigationItems = [];
 
     [ObservableProperty]
     private NavigationItemViewModel? selectedItem;
@@ -29,25 +34,21 @@ public partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel(
         IModuleRegistry moduleRegistry,
+        IExtensionRegistry extensionRegistry,
         INavigationContentFactory contentFactory,
         INavigationService navigationService)
     {
         ArgumentNullException.ThrowIfNull(moduleRegistry);
+        ArgumentNullException.ThrowIfNull(extensionRegistry);
         ArgumentNullException.ThrowIfNull(contentFactory);
         ArgumentNullException.ThrowIfNull(navigationService);
 
+        _moduleRegistry = moduleRegistry;
+        _extensionRegistry = extensionRegistry;
         _contentFactory = contentFactory;
+        _navigationService = navigationService;
 
-        _modules = moduleRegistry.Modules
-            .Select(module => module.GetDescriptor())
-            .GroupBy(
-                descriptor => descriptor.Id,
-                StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.First(),
-                StringComparer.OrdinalIgnoreCase);
-
+        RefreshActiveModules();
         NavigationItems = CreateNavigationItems(navigationService.NavigateTo);
 
         NavigateHomeCommand =
@@ -119,6 +120,7 @@ public partial class MainWindowViewModel : ObservableObject
                 ExitApplication);
 
         navigationService.NavigateRequested += NavigateTo;
+        _extensionRegistry.ActivationChanged += OnExtensionActivationChanged;
 
         SelectedItem = NavigationItems[0];
     }
@@ -131,7 +133,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     public string PrivacySummary => "Lokal verarbeitet · Keine Cloud";
 
-    public IReadOnlyList<NavigationItemViewModel> NavigationItems { get; }
+    public IReadOnlyList<NavigationItemViewModel> NavigationItems
+    {
+        get => _navigationItems;
+        private set => SetProperty(ref _navigationItems, value);
+    }
 
     public IRelayCommand NavigateHomeCommand { get; }
 
@@ -176,6 +182,56 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         CurrentContent = GetOrCreatePage(value);
+    }
+
+    private void OnExtensionActivationChanged(
+        object? sender,
+        ExtensionActivationChangedEventArgs args)
+    {
+        var selectedId = SelectedItem?.Id;
+
+        RefreshActiveModules();
+        NavigationItems = CreateNavigationItems(_navigationService.NavigateTo);
+
+        _pageCache.Remove("primary:home");
+        _pageCache.Remove("primary:analyze");
+        _pageCache.Remove("primary:organize");
+        _pageCache.Remove($"module:{args.ExtensionId}");
+
+        if (selectedId is null)
+        {
+            return;
+        }
+
+        var replacement = NavigationItems.FirstOrDefault(
+            item => string.Equals(
+                item.Id,
+                selectedId,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (replacement is null)
+        {
+            return;
+        }
+
+        // Keep the current content alive while the settings page toggles an
+        // extension. Replacing SelectedItem through its property would recreate
+        // the current settings page in the middle of the click.
+        selectedItem = replacement;
+        OnPropertyChanged(nameof(SelectedItem));
+    }
+
+    private void RefreshActiveModules()
+    {
+        _modules = _moduleRegistry.Modules
+            .Select(module => module.GetDescriptor())
+            .GroupBy(
+                descriptor => descriptor.Id,
+                StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private IReadOnlyList<NavigationItemViewModel> CreateNavigationItems(Action<string> activate)

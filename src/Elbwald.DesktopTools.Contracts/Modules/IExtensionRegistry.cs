@@ -6,9 +6,16 @@ namespace Elbwald.DesktopTools.Contracts.Modules;
 /// </summary>
 public interface IExtensionRegistry
 {
+    /// <summary>
+    /// Raised after the persisted activation state of a loaded extension changed.
+    /// </summary>
+    event EventHandler<ExtensionActivationChangedEventArgs>? ActivationChanged;
+
     IReadOnlyCollection<ExtensionDescriptor> Extensions { get; }
 
     IReadOnlyCollection<ExtensionCapabilityProviderRegistration> ProviderRegistrations { get; }
+
+    bool IsEnabled(string extensionId);
 
     bool HasCapability(string capabilityId);
 

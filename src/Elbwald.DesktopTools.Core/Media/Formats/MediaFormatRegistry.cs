@@ -5,16 +5,15 @@ using Elbwald.DesktopTools.Contracts.Modules;
 namespace Elbwald.DesktopTools.Core.Media.Formats;
 
 /// <summary>
-/// Immutable runtime registry that combines host-owned compatibility formats
-/// with validated extension format providers. Multiple providers may recognize
-/// the same extension. Detection only returns a media type when all matching
-/// providers agree on that type.
+/// Runtime registry combining host-owned compatibility formats with active
+/// extension format providers. Extension activation changes rebuild the immutable
+/// lookup snapshot immediately, so scanners see the new state without restart.
 /// </summary>
 public sealed class MediaFormatRegistry : IMediaFormatRegistry
 {
-    private readonly IMediaFormatProvider[] _providers;
-    private readonly IReadOnlyDictionary<string, IMediaFormatProvider[]> _providersByExtension;
-    private readonly IReadOnlyDictionary<string, IMediaFormatProvider[]> _providersByFormatId;
+    private readonly IExtensionRegistry _extensionRegistry;
+    private readonly IMediaFormatProvider[] _builtInProviders;
+    private RegistrySnapshot _snapshot;
 
     public MediaFormatRegistry(
         IExtensionRegistry extensionRegistry,
@@ -23,26 +22,16 @@ public sealed class MediaFormatRegistry : IMediaFormatRegistry
         ArgumentNullException.ThrowIfNull(extensionRegistry);
         ArgumentNullException.ThrowIfNull(builtInProviders);
 
-        var extensionProviders = extensionRegistry
-            .GetProviders<IMediaFormatProvider>(MediaCapabilityIds.FormatProvider);
-
-        _providers = builtInProviders
-            .Concat(extensionProviders)
+        _extensionRegistry = extensionRegistry;
+        _builtInProviders = builtInProviders
             .Select(ValidateProvider)
-            .OrderBy(provider => provider.FormatId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(provider => provider.GetType().FullName, StringComparer.Ordinal)
             .ToArray();
 
-        _providersByExtension = BuildExtensionIndex(_providers);
-        _providersByFormatId = _providers
-            .GroupBy(provider => provider.FormatId.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.ToArray(),
-                StringComparer.OrdinalIgnoreCase);
+        _snapshot = BuildSnapshot();
+        _extensionRegistry.ActivationChanged += OnActivationChanged;
     }
 
-    public IReadOnlyList<IMediaFormatProvider> Providers => _providers;
+    public IReadOnlyList<IMediaFormatProvider> Providers => _snapshot.Providers;
 
     public IReadOnlyList<IMediaFormatProvider> FindByFilePath(string filePath)
     {
@@ -55,7 +44,9 @@ public sealed class MediaFormatRegistry : IMediaFormatRegistry
             return [];
         }
 
-        return _providersByExtension.TryGetValue(extension, out var providers)
+        var snapshot = _snapshot;
+
+        return snapshot.ProvidersByExtension.TryGetValue(extension, out var providers)
             ? providers
             : [];
     }
@@ -64,7 +55,9 @@ public sealed class MediaFormatRegistry : IMediaFormatRegistry
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(formatId);
 
-        return _providersByFormatId.TryGetValue(formatId.Trim(), out var providers)
+        var snapshot = _snapshot;
+
+        return snapshot.ProvidersByFormatId.TryGetValue(formatId.Trim(), out var providers)
             ? providers
             : [];
     }
@@ -87,6 +80,39 @@ public sealed class MediaFormatRegistry : IMediaFormatRegistry
         return mediaTypes.Length == 1
             ? mediaTypes[0]
             : MediaFileType.Unknown;
+    }
+
+    private void OnActivationChanged(
+        object? sender,
+        ExtensionActivationChangedEventArgs args)
+    {
+        _snapshot = BuildSnapshot();
+    }
+
+    private RegistrySnapshot BuildSnapshot()
+    {
+        var extensionProviders = _extensionRegistry
+            .GetProviders<IMediaFormatProvider>(MediaCapabilityIds.FormatProvider);
+
+        var providers = _builtInProviders
+            .Concat(extensionProviders)
+            .Select(ValidateProvider)
+            .OrderBy(provider => provider.FormatId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(provider => provider.GetType().FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        var providersByExtension = BuildExtensionIndex(providers);
+        var providersByFormatId = providers
+            .GroupBy(provider => provider.FormatId.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return new RegistrySnapshot(
+            providers,
+            providersByExtension,
+            providersByFormatId);
     }
 
     private static IReadOnlyDictionary<string, IMediaFormatProvider[]> BuildExtensionIndex(
@@ -177,4 +203,9 @@ public sealed class MediaFormatRegistry : IMediaFormatRegistry
 
         return normalized.ToLowerInvariant();
     }
+
+    private sealed record RegistrySnapshot(
+        IMediaFormatProvider[] Providers,
+        IReadOnlyDictionary<string, IMediaFormatProvider[]> ProvidersByExtension,
+        IReadOnlyDictionary<string, IMediaFormatProvider[]> ProvidersByFormatId);
 }

@@ -6,6 +6,7 @@ using Elbwald.DesktopTools.App.ViewModels;
 using Elbwald.DesktopTools.App.Views;
 using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Core.Modules;
+using Elbwald.DesktopTools.Core.Paths;
 using Microsoft.Extensions.DependencyInjection;
 using System.Threading;
 
@@ -29,7 +30,11 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         var services = new ServiceCollection();
-        var moduleRegistry = new ModuleRegistry();
+        var appPaths = new AppPaths();
+        var extensionActivationService =
+            new JsonExtensionActivationService(appPaths);
+        var moduleRegistry =
+            new ModuleRegistry(extensionActivationService.IsEnabled);
         var moduleLoader = new ModuleLoader(moduleRegistry);
         var moduleLoadReport = new ModuleLoadReport();
 
@@ -41,7 +46,9 @@ public partial class App : Application
         services.AddDesktopTools(
             moduleRegistry,
             moduleLoader,
-            moduleLoadReport);
+            moduleLoadReport,
+            appPaths,
+            extensionActivationService);
 
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<MainWindow>();

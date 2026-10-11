@@ -18,6 +18,24 @@ public sealed class ModuleRegistryTests
         Assert.Same(module, registered);
     }
 
+
+    [Fact]
+    public void Modules_ActivationFilter_HidesAndRestoresRegisteredModule()
+    {
+        var enabled = true;
+        var registry = new ModuleRegistry(_ => enabled);
+        var module = new FakeModule("elbwald.test.toggle");
+        registry.Register(module);
+
+        Assert.Single(registry.Modules);
+
+        enabled = false;
+        Assert.Empty(registry.Modules);
+
+        enabled = true;
+        Assert.Single(registry.Modules);
+    }
+
     [Fact]
     public void Register_DuplicateId_Throws()
     {

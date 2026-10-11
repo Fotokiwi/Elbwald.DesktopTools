@@ -4,6 +4,7 @@ using Elbwald.DesktopTools.App.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Modules;
 using Elbwald.DesktopTools.Contracts.Paths;
 using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.UI.Formatting;
@@ -53,7 +54,9 @@ public sealed class SettingsViewModel
         IMediaSourcePicker sourcePicker,
         IAppPaths appPaths,
         IStorageSettingsStore storageSettingsStore,
-        IStorageLocationResolver storageLocationResolver)
+        IStorageLocationResolver storageLocationResolver,
+        IExtensionRegistry extensionRegistry,
+        IExtensionActivationService extensionActivationService)
     {
         ArgumentNullException.ThrowIfNull(analysisCache);
         ArgumentNullException.ThrowIfNull(thumbnailService);
@@ -62,6 +65,8 @@ public sealed class SettingsViewModel
         ArgumentNullException.ThrowIfNull(appPaths);
         ArgumentNullException.ThrowIfNull(storageSettingsStore);
         ArgumentNullException.ThrowIfNull(storageLocationResolver);
+        ArgumentNullException.ThrowIfNull(extensionRegistry);
+        ArgumentNullException.ThrowIfNull(extensionActivationService);
 
         _analysisCache = analysisCache;
         _thumbnailService = thumbnailService;
@@ -70,6 +75,15 @@ public sealed class SettingsViewModel
         _appPaths = appPaths;
         _storageSettingsStore = storageSettingsStore;
         _storageLocationResolver = storageLocationResolver;
+
+        Extensions = extensionRegistry.Extensions
+            .Select(
+                descriptor =>
+                    new ExtensionSettingsItemViewModel(
+                        descriptor,
+                        extensionActivationService))
+            .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
 
         _selectedGridThumbnailWidth = _thumbnailOptions.GridWidth;
         _selectedDetailThumbnailWidth = _thumbnailOptions.DetailWidth;
@@ -146,6 +160,10 @@ public sealed class SettingsViewModel
     public IAsyncRelayCommand ClearImportLocationCommand { get; }
     public IAsyncRelayCommand SelectLibraryLocationCommand { get; }
     public IAsyncRelayCommand ClearLibraryLocationCommand { get; }
+
+    public IReadOnlyList<ExtensionSettingsItemViewModel> Extensions { get; }
+
+    public bool HasExtensions => Extensions.Count > 0;
 
     public bool IsBusy
     {

@@ -47,11 +47,15 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IModuleRegistry? moduleRegistry = null,
         IModuleLoader? moduleLoader = null,
-        IModuleLoadReport? moduleLoadReport = null)
+        IModuleLoadReport? moduleLoadReport = null,
+        IAppPaths? appPaths = null,
+        IExtensionActivationService? extensionActivationService = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        moduleRegistry ??= new ModuleRegistry();
+        appPaths ??= new AppPaths();
+        extensionActivationService ??= new JsonExtensionActivationService(appPaths);
+        moduleRegistry ??= new ModuleRegistry(extensionActivationService.IsEnabled);
         moduleLoader ??= new ModuleLoader(moduleRegistry);
         moduleLoadReport ??= new ModuleLoadReport();
 
@@ -60,9 +64,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModuleRegistry>(moduleRegistry);
         services.AddSingleton<IModuleLoader>(moduleLoader);
         services.AddSingleton<IModuleLoadReport>(moduleLoadReport);
+        services.AddSingleton<IExtensionActivationService>(extensionActivationService);
         services.AddSingleton<IExtensionRegistry, ExtensionRegistry>();
 
-        services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<IAppPaths>(appPaths);
         services.AddSingleton<WindowPlacementStore>();
 
         services.AddSingleton<IStorageVolumeProvider>(

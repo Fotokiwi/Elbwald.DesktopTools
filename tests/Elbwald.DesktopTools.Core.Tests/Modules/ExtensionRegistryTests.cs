@@ -64,6 +64,37 @@ public sealed class ExtensionRegistryTests
         Assert.Equal("B", providers[1].Name);
     }
 
+
+    [Fact]
+    public void DisabledExtension_IsHiddenFromCapabilitiesAndProviders()
+    {
+        var activation = new TestActivationService();
+        var provider = new ProviderA(new TestProvider("A"));
+        var extension = CreateExtension("elbwald.a", "test.read");
+        var registry = new ExtensionRegistry(
+            new DictionaryServiceProvider((typeof(ProviderA), provider)),
+            [extension],
+            [
+                new ExtensionCapabilityProviderRegistration(
+                    extension.Id,
+                    "test.read",
+                    typeof(ITestProvider),
+                    typeof(ProviderA),
+                    ServiceLifetime.Singleton)
+            ],
+            activation);
+
+        Assert.True(registry.HasCapability("test.read"));
+        Assert.Single(registry.GetProviders<ITestProvider>("test.read"));
+
+        activation.SetEnabled(extension.Id, false);
+
+        Assert.False(registry.HasCapability("test.read"));
+        Assert.Empty(registry.FindExtensionsByCapability("test.read"));
+        Assert.Empty(registry.GetProviders<ITestProvider>("test.read"));
+        Assert.Single(registry.Extensions);
+    }
+
     [Fact]
     public void GetProviders_NoTypedProvider_ReturnsEmptyList()
     {
@@ -129,6 +160,31 @@ public sealed class ExtensionRegistryTests
     private sealed class ProviderB(TestProvider provider) : ITestProvider
     {
         public string Name => provider.Name;
+    }
+
+    private sealed class TestActivationService : IExtensionActivationService
+    {
+        private readonly HashSet<string> _disabled = new(StringComparer.OrdinalIgnoreCase);
+
+        public event EventHandler<ExtensionActivationChangedEventArgs>? ActivationChanged;
+
+        public bool IsEnabled(string extensionId) => !_disabled.Contains(extensionId);
+
+        public bool SetEnabled(string extensionId, bool enabled)
+        {
+            var changed = enabled
+                ? _disabled.Remove(extensionId)
+                : _disabled.Add(extensionId);
+
+            if (changed)
+            {
+                ActivationChanged?.Invoke(
+                    this,
+                    new ExtensionActivationChangedEventArgs(extensionId, enabled));
+            }
+
+            return changed;
+        }
     }
 
     private sealed class DictionaryServiceProvider : IServiceProvider
