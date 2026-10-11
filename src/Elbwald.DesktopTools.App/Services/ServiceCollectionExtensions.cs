@@ -4,6 +4,7 @@ using Elbwald.DesktopTools.Contracts.Journaling;
 using Elbwald.DesktopTools.Contracts.LibraryHealth;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Importing;
+using Elbwald.DesktopTools.Contracts.Media.Formats;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.MetadataExporting;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
@@ -23,6 +24,7 @@ using Elbwald.DesktopTools.Core.Journaling;
 using Elbwald.DesktopTools.Core.LibraryHealth;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.Media.Importing;
+using Elbwald.DesktopTools.Core.Media.Formats;
 using Elbwald.DesktopTools.Core.Media.MetadataEditing;
 using Elbwald.DesktopTools.Core.Media.MetadataExporting;
 using Elbwald.DesktopTools.Core.MediaIndex;
@@ -82,6 +84,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStorageLocationResolver, StorageLocationResolver>();
         services.AddSingleton<IStorageSettingsStore, JsonStorageSettingsStore>();
 
+        services.AddSingleton<CoreImageFormatProvider>();
+        services.AddSingleton<IMediaFormatRegistry>(
+            serviceProvider =>
+                new MediaFormatRegistry(
+                    serviceProvider.GetRequiredService<IExtensionRegistry>(),
+                    [serviceProvider.GetRequiredService<CoreImageFormatProvider>()]));
         services.AddSingleton<IMediaTypeDetector, ExtensionMediaTypeDetector>();
         services.AddSingleton<IMediaScanner, FileSystemMediaScanner>();
 

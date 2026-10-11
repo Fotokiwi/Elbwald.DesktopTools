@@ -1,5 +1,6 @@
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Core.Media;
+using Elbwald.DesktopTools.Core.Tests.Support;
 using Xunit;
 
 namespace Elbwald.DesktopTools.Core.Tests.Media;
@@ -101,7 +102,7 @@ public sealed class FileSystemMediaScannerTests
             "one");
 
         directory.CreateFile(
-            "nested/deeper/two.webp",
+            "nested/deeper/two.tiff",
             "two");
 
         var result =
@@ -289,7 +290,7 @@ public sealed class FileSystemMediaScannerTests
     private static FileSystemMediaScanner CreateScanner()
     {
         return new FileSystemMediaScanner(
-            new ExtensionMediaTypeDetector());
+            TestMediaFormatServices.CreateMediaTypeDetector());
     }
 
     private sealed class CapturingProgress

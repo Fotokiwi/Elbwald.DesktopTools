@@ -1,5 +1,8 @@
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.Media.Knowledge;
+using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
+using Elbwald.DesktopTools.Contracts.MediaIndex.Collections;
 using Elbwald.DesktopTools.Contracts.Projects;
 using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Core.Projects;
@@ -96,7 +99,115 @@ public sealed class ProjectServiceTests : IDisposable
             Task.FromResult(_items.Values.FirstOrDefault(item => item.Sha256 == sha256 && item.Length == length));
         public Task<IReadOnlyList<MediaIndexLocation>> GetLocationsAsync(string mediaItemId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MediaIndexLocation>>(Array.Empty<MediaIndexLocation>());
-        public Task<IReadOnlyList<MediaIndexSearchResult>> SearchAsync(MediaIndexSearchQuery query, CancellationToken cancellationToken = default) =>
+        public Task<MediaIndexItem> EnsureItemAsync(
+            string sha256,
+            long length,
+            MediaFileType mediaType,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaMetadataSnapshot> GetMetadataAsync(
+            string mediaItemId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SaveMetadataBatchAsync(
+            IReadOnlyList<MediaMetadataUpdate> updates,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaIndexFacts?> GetFactsAsync(
+            string mediaItemId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaKnowledgeItem>> GetKnowledgeItemsAsync(
+            MediaKnowledgeKind kind,
+            string? searchText = null,
+            int limit = 24,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaKnowledgeItem> EnsureKnowledgeItemAsync(
+            MediaKnowledgeDraft draft,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaKnowledgeSnapshot> GetKnowledgeAsync(
+            string mediaItemId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<int> AssignKnowledgeItemBatchAsync(
+            IReadOnlyList<string> mediaItemIds,
+            string knowledgeItemId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<int> RemoveKnowledgeItemBatchAsync(
+            IReadOnlyList<string> mediaItemIds,
+            string knowledgeItemId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetRatingBatchAsync(
+            IReadOnlyList<string> mediaItemIds,
+            int rating,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task UpdateIdentityAfterControlledRewriteAsync(
+            string mediaItemId,
+            string expectedOldSha256,
+            long expectedOldLength,
+            string newSha256,
+            long newLength,
+            DateTime newLastWriteTimeUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaIndexSearchResult>> SearchAsync(
+            MediaIndexSearchQuery query,
+            CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MediaIndexSearchResult>>(Array.Empty<MediaIndexSearchResult>());
+
+        public Task<IReadOnlyList<MediaIndexFolderFacet>> GetFolderFacetsAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaIndexFolderNode>> GetFolderChildrenAsync(
+            string endpointId,
+            string? parentRelativeFolder = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineYearsAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineMonthsAsync(
+            int year,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineDaysAsync(
+            int year,
+            int month,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MediaSmartCollection>> GetSmartCollectionsAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaSmartCollection> SaveSmartCollectionAsync(
+            MediaSmartCollectionDraft draft,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task DeleteSmartCollectionAsync(
+            string collectionId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

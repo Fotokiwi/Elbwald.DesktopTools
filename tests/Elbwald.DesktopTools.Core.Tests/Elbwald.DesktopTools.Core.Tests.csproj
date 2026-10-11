@@ -10,6 +10,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
         <PackageReference Include="xunit" Version="2.9.3" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -20,6 +21,8 @@
         <ProjectReference Include="../../src/Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
         <ProjectReference Include="../../src/Elbwald.DesktopTools.Core/Elbwald.DesktopTools.Core.csproj" />
         <ProjectReference Include="../../src/Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj" />
+        <ProjectReference Include="../../src/Modules/Elbwald.DesktopTools.Image.WebP/Elbwald.DesktopTools.Image.WebP.csproj"
+                          ReferenceOutputAssembly="false" />
         <ProjectReference Include="../Fixtures/Elbwald.DesktopTools.TestModule/Elbwald.DesktopTools.TestModule.csproj"
                           ReferenceOutputAssembly="false" />
     </ItemGroup>
@@ -28,17 +31,26 @@
         <PropertyGroup>
             <TestModuleOutput>$(MSBuildProjectDirectory)/../Fixtures/Elbwald.DesktopTools.TestModule/bin/$(Configuration)/$(TargetFramework)/</TestModuleOutput>
             <TestModuleDestination>$(TargetDir)TestModules/TestModule/</TestModuleDestination>
+            <WebpModuleOutput>$(MSBuildProjectDirectory)/../../src/Modules/Elbwald.DesktopTools.Image.WebP/bin/$(Configuration)/$(TargetFramework)/</WebpModuleOutput>
+            <WebpModuleDestination>$(TargetDir)TestModules/Image.WebP/</WebpModuleDestination>
         </PropertyGroup>
 
         <ItemGroup>
             <TestModuleFiles Include="$(TestModuleOutput)**/*" />
+            <WebpModuleFiles Include="$(WebpModuleOutput)**/*" />
         </ItemGroup>
 
         <MakeDir Directories="$(TestModuleDestination)" />
+        <MakeDir Directories="$(WebpModuleDestination)" />
 
         <Copy
             SourceFiles="@(TestModuleFiles)"
             DestinationFiles="@(TestModuleFiles->'$(TestModuleDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true" />
+
+        <Copy
+            SourceFiles="@(WebpModuleFiles)"
+            DestinationFiles="@(WebpModuleFiles->'$(WebpModuleDestination)%(RecursiveDir)%(Filename)%(Extension)')"
             SkipUnchangedFiles="true" />
     </Target>
 

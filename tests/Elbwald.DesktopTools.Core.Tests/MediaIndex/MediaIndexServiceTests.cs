@@ -4,6 +4,7 @@ using Elbwald.DesktopTools.Contracts.MediaIndex;
 using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.MediaIndex;
+using Elbwald.DesktopTools.Core.Tests.Support;
 
 namespace Elbwald.DesktopTools.Core.Tests.MediaIndex;
 
@@ -150,7 +151,7 @@ public sealed class MediaIndexServiceTests
         var filePath = Path.Combine(root, "photo.jpg");
         await File.WriteAllBytesAsync(filePath, new byte[] { 4, 2, 4, 2 });
 
-        var normalScanner = new FileSystemMediaScanner(new ExtensionMediaTypeDetector());
+        var normalScanner = new FileSystemMediaScanner(TestMediaFormatServices.CreateMediaTypeDetector());
         var resolver = new TestStorageResolver();
         var service = new MediaIndexService(
             normalScanner,
@@ -191,7 +192,7 @@ public sealed class MediaIndexServiceTests
 
     private static MediaIndexService CreateService(string databasePath) =>
         new(
-            new FileSystemMediaScanner(new ExtensionMediaTypeDetector()),
+            new FileSystemMediaScanner(TestMediaFormatServices.CreateMediaTypeDetector()),
             new TestStorageResolver(),
             new MediaIndexOptions { DatabasePath = databasePath });
 

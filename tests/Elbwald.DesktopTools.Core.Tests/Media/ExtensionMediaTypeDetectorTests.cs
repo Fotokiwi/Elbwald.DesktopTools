@@ -1,18 +1,18 @@
 using Elbwald.DesktopTools.Contracts.Media;
-using Elbwald.DesktopTools.Core.Media;
+using Elbwald.DesktopTools.Core.Tests.Support;
 using Xunit;
 
 namespace Elbwald.DesktopTools.Core.Tests.Media;
 
 public sealed class ExtensionMediaTypeDetectorTests
 {
-    private readonly ExtensionMediaTypeDetector _detector = new();
+    private readonly Elbwald.DesktopTools.Core.Media.ExtensionMediaTypeDetector _detector =
+        TestMediaFormatServices.CreateMediaTypeDetector();
 
     [Theory]
     [InlineData("photo.jpg")]
     [InlineData("photo.JPEG")]
     [InlineData("photo.png")]
-    [InlineData("photo.webp")]
     [InlineData("photo.tiff")]
     [InlineData("photo.HEIC")]
     [InlineData("photo.dng")]
@@ -22,8 +22,7 @@ public sealed class ExtensionMediaTypeDetectorTests
     public void Detect_KnownImageExtension_ReturnsImage(
         string fileName)
     {
-        var result =
-            _detector.Detect(fileName);
+        var result = _detector.Detect(fileName);
 
         Assert.Equal(
             MediaFileType.Image,
@@ -35,12 +34,12 @@ public sealed class ExtensionMediaTypeDetectorTests
     [InlineData("archive.zip")]
     [InlineData("video.mp4")]
     [InlineData("audio.mp3")]
+    [InlineData("photo.webp")]
     [InlineData("README")]
     public void Detect_UnsupportedExtension_ReturnsUnknown(
         string fileName)
     {
-        var result =
-            _detector.Detect(fileName);
+        var result = _detector.Detect(fileName);
 
         Assert.Equal(
             MediaFileType.Unknown,

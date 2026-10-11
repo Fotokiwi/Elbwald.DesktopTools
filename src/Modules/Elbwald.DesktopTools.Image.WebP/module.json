@@ -1,0 +1,16 @@
+{
+  "id": "elbwald.image.webp",
+  "name": "WebP-Unterstützung",
+  "description": "Erweitert Elbwald um die Erkennung von WebP-Bilddateien.",
+  "version": "0.1.0",
+  "apiVersion": 2,
+  "minimumHostVersion": "0.0.1",
+  "assembly": "Elbwald.DesktopTools.Image.WebP.dll",
+  "enabled": true,
+  "capabilities": [
+    "media.format.provider",
+    "media.image.webp.detect"
+  ],
+  "permissions": [],
+  "dependencies": []
+}

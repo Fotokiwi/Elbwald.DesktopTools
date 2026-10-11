@@ -1,48 +1,25 @@
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Formats;
 
 namespace Elbwald.DesktopTools.Core.Media;
 
-public sealed class ExtensionMediaTypeDetector
-    : IMediaTypeDetector
+/// <summary>
+/// Media type detection backed by the central media format registry. The
+/// scanner therefore no longer owns a hard-coded list of supported formats.
+/// </summary>
+public sealed class ExtensionMediaTypeDetector : IMediaTypeDetector
 {
-    private static readonly HashSet<string> ImageExtensions =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".webp",
-            ".tif",
-            ".tiff",
-            ".heic",
-            ".heif",
-            ".dng",
-            ".cr2",
-            ".cr3",
-            ".nef",
-            ".arw",
-            ".raf",
-            ".orf",
-            ".rw2",
-            ".pef"
-        };
+    private readonly IMediaFormatRegistry _formatRegistry;
 
-    public MediaFileType Detect(
-        string filePath)
+    public ExtensionMediaTypeDetector(IMediaFormatRegistry formatRegistry)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(
-            filePath);
+        ArgumentNullException.ThrowIfNull(formatRegistry);
+        _formatRegistry = formatRegistry;
+    }
 
-        var extension =
-            Path.GetExtension(filePath);
-
-        if (string.IsNullOrWhiteSpace(extension))
-        {
-            return MediaFileType.Unknown;
-        }
-
-        return ImageExtensions.Contains(extension)
-            ? MediaFileType.Image
-            : MediaFileType.Unknown;
+    public MediaFileType Detect(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        return _formatRegistry.DetectMediaType(filePath);
     }
 }
