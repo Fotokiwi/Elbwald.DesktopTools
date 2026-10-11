@@ -1456,9 +1456,9 @@ public sealed class MediaSortExecutionExecutorTests
             new MediaSortExecutionGroup(
                 "group-1",
                 "Testgruppe",
-                IsCompanionGroup:
+                isCompanionGroup:
                     atomicGroup,
-                RequiresAtomicExecution:
+                requiresAtomicExecution:
                     atomicGroup,
                 operations);
 
@@ -1520,8 +1520,8 @@ public sealed class MediaSortExecutionExecutorTests
                         return new MediaSortExecutionGroup(
                             $"group-{index + 1}",
                             $"Testgruppe {index + 1}",
-                            IsCompanionGroup: false,
-                            RequiresAtomicExecution: false,
+                            isCompanionGroup: false,
+                            requiresAtomicExecution: false,
                             new[]
                             {
                                 operation

@@ -156,6 +156,7 @@ public sealed class MediaIndexServiceTests
         var service = new MediaIndexService(
             normalScanner,
             resolver,
+            new NoOpImageMetadataReader(),
             new MediaIndexOptions { DatabasePath = fixture.DatabasePath });
         var settings = new StorageSettings(new[]
         {
@@ -179,6 +180,7 @@ public sealed class MediaIndexServiceTests
         var failingService = new MediaIndexService(
             failingScanner,
             resolver,
+            new NoOpImageMetadataReader(),
             new MediaIndexOptions { DatabasePath = fixture.DatabasePath });
 
         var result = await failingService.IndexAsync(settings);
@@ -194,6 +196,7 @@ public sealed class MediaIndexServiceTests
         new(
             new FileSystemMediaScanner(TestMediaFormatServices.CreateMediaTypeDetector()),
             new TestStorageResolver(),
+            new NoOpImageMetadataReader(),
             new MediaIndexOptions { DatabasePath = databasePath });
 
     private static StorageEndpoint Endpoint(
@@ -210,6 +213,21 @@ public sealed class MediaIndexServiceTests
                 string.Empty,
                 absolutePath,
                 absolutePath));
+
+
+    private sealed class NoOpImageMetadataReader : IImageMetadataReader
+    {
+        public Task<ImageMetadataReadResult> ReadAsync(
+            MediaFile file,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult(
+                new ImageMetadataReadResult(
+                    ImageMetadataReadState.UnsupportedFormat));
+        }
+    }
 
     private sealed class TestStorageResolver : IStorageLocationResolver
     {

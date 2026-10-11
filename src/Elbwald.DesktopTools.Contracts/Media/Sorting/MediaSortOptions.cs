@@ -13,9 +13,10 @@ public sealed record MediaSortOptions
     /// <summary>
     /// Relative Zielstruktur. Freier Text und dieselben Platzhalter wie beim Umbenennen sind erlaubt.
     /// Pfadsegmente werden mit / getrennt, z. B. {year}/{month}/{camera}.
+    /// Leer bedeutet: Das Standardmuster wird aus <see cref="Rule"/> abgeleitet.
     /// </summary>
     public string PathPattern { get; init; } =
-        "{year}/{month}";
+        string.Empty;
 
     /// <summary>
     /// Optionale, bereits aufgelöste Elbwald-Metadaten je normalisiertem Quellpfad.
