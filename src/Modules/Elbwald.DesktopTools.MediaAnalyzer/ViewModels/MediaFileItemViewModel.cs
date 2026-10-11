@@ -49,7 +49,7 @@ public sealed class MediaFileItemViewModel
                 ? capturedAt.ToString(
                     "dd.MM.yyyy HH:mm:ss",
                     CultureInfo.CurrentCulture)
-                : "nicht vorhanden";
+                : "nicht gefunden";
 
         Camera =
             BuildCameraLabel(
@@ -58,7 +58,7 @@ public sealed class MediaFileItemViewModel
         Resolution =
             metadata?.HasDimensions == true
                 ? $"{metadata.PixelWidth:N0} × {metadata.PixelHeight:N0}"
-                : "nicht verfügbar";
+                : "nicht erkannt";
 
         Orientation =
             metadata?.DisplayOrientation switch
@@ -127,10 +127,24 @@ public sealed class MediaFileItemViewModel
             HasProblem
                 ? "Problem"
                 : HasWarning
-                    ? "Warnung"
+                    ? "Hinweis"
                     : HasInfo
                         ? "Hinweis"
                         : "OK";
+
+        StatusHeading =
+            HasProblem
+                ? "Bitte prüfen"
+                : HasWarning || HasInfo
+                    ? "Hinweis vorhanden"
+                    : "Alles in Ordnung";
+
+        StatusDescription =
+            HasProblem
+                ? "Bei dieser Datei wurde ein Problem gefunden, das du vor dem Import ansehen solltest."
+                : HasWarning || HasInfo
+                    ? "Die Datei ist lesbar, aber einige zusätzliche Informationen sind unvollständig oder fehlen."
+                    : "Für diese Datei wurden keine Probleme gefunden.";
 
         IssueCount =
             issues.Count;
@@ -184,6 +198,10 @@ public sealed class MediaFileItemViewModel
 
     public string StatusLabel { get; }
 
+    public string StatusHeading { get; }
+
+    public string StatusDescription { get; }
+
     public int IssueCount { get; }
 
     private static string BuildCameraLabel(
@@ -191,7 +209,7 @@ public sealed class MediaFileItemViewModel
     {
         if (metadata is null)
         {
-            return "nicht verfügbar";
+            return "keine Information gefunden";
         }
 
         var make =
@@ -203,7 +221,7 @@ public sealed class MediaFileItemViewModel
         if (string.IsNullOrWhiteSpace(make))
         {
             return string.IsNullOrWhiteSpace(model)
-                ? "nicht verfügbar"
+                ? "keine Information gefunden"
                 : model;
         }
 

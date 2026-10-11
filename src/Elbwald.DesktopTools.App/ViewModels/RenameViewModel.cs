@@ -4,14 +4,18 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Importing;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
 using Elbwald.DesktopTools.Contracts.Media.Naming;
 using Elbwald.DesktopTools.Contracts.OperationHistory;
+using Elbwald.DesktopTools.Contracts.Storage;
 
 namespace Elbwald.DesktopTools.App.ViewModels;
 
 public partial class RenameViewModel : ObservableObject
 {
+    private const string ReadablePresetPattern = "{date:yyyy-MM-dd}_{time:HH-mm-ss}";
+    private const string ArchivePresetPattern = "{date:yyyyMMdd}_{time:HHmmss}_{seq:000}";
     private readonly IMediaSourcePicker _sourcePicker;
     private readonly IMediaScanner _mediaScanner;
     private readonly IImageMetadataReader _metadataReader;
@@ -20,10 +24,13 @@ public partial class RenameViewModel : ObservableObject
     private readonly IFileOperationExecutor _fileOperationExecutor;
     private readonly IMediaNamingTemplateEngine _namingTemplateEngine;
     private readonly IOperationHistoryStore _operationHistory;
+    private readonly IMediaImportHistoryStore _importHistoryStore;
+    private readonly IStorageSettingsStore _storageSettingsStore;
+    private readonly IStorageLocationResolver _storageLocationResolver;
 
     [ObservableProperty] private string sourcePath = string.Empty;
     [ObservableProperty] private bool includeSubdirectories = true;
-    [ObservableProperty] private string pattern = "{date:yyyyMMdd}_{time:HHmmss}_{seq:000}";
+    [ObservableProperty] private string pattern = ReadablePresetPattern;
     [ObservableProperty] private IReadOnlyList<RenamePlanItemViewModel> items = Array.Empty<RenamePlanItemViewModel>();
     [ObservableProperty] private string statusMessage = "Ordner auswählen und eine Umbenennungsregel festlegen.";
     [ObservableProperty] private string resultMessage = string.Empty;
@@ -31,7 +38,11 @@ public partial class RenameViewModel : ObservableObject
     [ObservableProperty] private bool hasPreview;
     [ObservableProperty] private int progressPercent;
 
+    private string _sourceContextText = "Quelle auswählen";
+
     private string? _previewFingerprint;
+    private MediaNamingContext? _exampleNamingContext;
+    private string _exampleExtension = ".jpg";
 
     public RenameViewModel(
         IMediaSourcePicker sourcePicker,
@@ -41,7 +52,10 @@ public partial class RenameViewModel : ObservableObject
         IFileOperationPlanner fileOperationPlanner,
         IFileOperationExecutor fileOperationExecutor,
         IMediaNamingTemplateEngine namingTemplateEngine,
-        IOperationHistoryStore operationHistory)
+        IOperationHistoryStore operationHistory,
+        IMediaImportHistoryStore importHistoryStore,
+        IStorageSettingsStore storageSettingsStore,
+        IStorageLocationResolver storageLocationResolver)
     {
         _sourcePicker = sourcePicker;
         _mediaScanner = mediaScanner;
@@ -51,13 +65,18 @@ public partial class RenameViewModel : ObservableObject
         _fileOperationExecutor = fileOperationExecutor;
         _namingTemplateEngine = namingTemplateEngine;
         _operationHistory = operationHistory;
+        _importHistoryStore = importHistoryStore;
+        _storageSettingsStore = storageSettingsStore;
+        _storageLocationResolver = storageLocationResolver;
 
         ChooseFolderCommand = new AsyncRelayCommand(ChooseFolderAsync, () => !IsBusy);
         CreatePreviewCommand = new AsyncRelayCommand(CreatePreviewAsync, CanCreatePreview);
         ExecuteCommand = new AsyncRelayCommand(ExecuteAsync, CanExecute);
-        UseArchivePresetCommand = new RelayCommand(() => Pattern = "{date:yyyyMMdd}_{time:HHmmss}_{seq:000}");
-        UseReadablePresetCommand = new RelayCommand(() => Pattern = "Foto_{date:yyyy-MM-dd}_{title}_{seq:000}");
-        UseOriginalPresetCommand = new RelayCommand(() => Pattern = "{original}_{date:yyyyMMdd}");
+        UseArchivePresetCommand = new RelayCommand(() => Pattern = ArchivePresetPattern);
+        UseReadablePresetCommand = new RelayCommand(() => Pattern = ReadablePresetPattern);
+        UseOriginalPresetCommand = new RelayCommand(() => Pattern = "{date:yyyy-MM-dd}_{original}");
+        UseCameraPresetCommand = new RelayCommand(() => Pattern = "{date:yyyy-MM-dd}_{camera}_{seq:000}");
+        UseTitlePresetCommand = new RelayCommand(() => Pattern = "{date:yyyy-MM-dd}_{title}_{seq:000}");
         InsertTokenCommand = new RelayCommand<string>(
             token =>
             {
@@ -66,6 +85,8 @@ public partial class RenameViewModel : ObservableObject
                     Pattern += token;
                 }
             });
+
+        _ = LoadSuggestedSourceAsync();
     }
 
     public IAsyncRelayCommand ChooseFolderCommand { get; }
@@ -74,20 +95,93 @@ public partial class RenameViewModel : ObservableObject
     public IRelayCommand UseArchivePresetCommand { get; }
     public IRelayCommand UseReadablePresetCommand { get; }
     public IRelayCommand UseOriginalPresetCommand { get; }
+    public IRelayCommand UseCameraPresetCommand { get; }
+    public IRelayCommand UseTitlePresetCommand { get; }
     public IRelayCommand<string> InsertTokenCommand { get; }
 
     public int ReadyCount => Items.Count(x => x.IsReady);
     public int ConflictCount => Items.Count(x => string.Equals(x.Status, "Konflikt", StringComparison.Ordinal));
     public int UnchangedCount => Items.Count(x => string.Equals(x.Status, "Unverändert", StringComparison.Ordinal));
-    public string ReadyText => $"Bereit: {ReadyCount:N0}";
+    public string ReadyText => $"Wird umbenannt: {ReadyCount:N0}";
     public string ConflictText => $"Konflikte: {ConflictCount:N0}";
-    public string UnchangedText => $"Unverändert: {UnchangedCount:N0}";
+    public string UnchangedText => $"Bleibt unverändert: {UnchangedCount:N0}";
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultMessage);
     public bool CanRun => HasPreview && ReadyCount > 0 && ConflictCount == 0 && !IsBusy;
 
-    partial void OnSourcePathChanged(string value) => InvalidatePreview();
+    public string SourceContextText
+    {
+        get => _sourceContextText;
+        private set => SetProperty(ref _sourceContextText, value);
+    }
+
+    public string RuleName => Pattern switch
+    {
+        ArchivePresetPattern => "Archiv · Datum + Nummer",
+        ReadablePresetPattern => "Datum + Uhrzeit",
+        "{date:yyyy-MM-dd}_{original}" => "Datum + Originalname",
+        "{date:yyyy-MM-dd}_{camera}_{seq:000}" => "Datum + Kamera",
+        "{date:yyyy-MM-dd}_{title}_{seq:000}" => "Datum + Titel",
+        _ => "Eigene Regel"
+    };
+
+    public string ExampleFileName
+    {
+        get
+        {
+            if (HasPreview)
+            {
+                var previewItem = Items.FirstOrDefault(item => !item.IsCompanion);
+                if (previewItem is not null)
+                {
+                    return previewItem.TargetName;
+                }
+            }
+
+            if (_exampleNamingContext is null)
+            {
+                return "Vorschau erstellen – dann siehst du ein echtes Beispiel aus deiner Quelle";
+            }
+
+            try
+            {
+                var stem = _namingTemplateEngine.RenderFileStem(
+                    Pattern,
+                    _exampleNamingContext);
+
+                return stem + _exampleExtension;
+            }
+            catch
+            {
+                return "Regel bitte prüfen";
+            }
+        }
+    }
+
+    public bool NeedsPreview => !HasPreview;
+
+    public string PreviewActionText => HasPreview ? "Vorschau aktualisieren" : "Vorschau erstellen";
+
+    public string ExecuteActionText => ReadyCount switch
+    {
+        0 => "Dateien umbenennen",
+        1 => "1 Datei umbenennen",
+        _ => $"{ReadyCount:N0} Dateien umbenennen"
+    };
+
+    partial void OnSourcePathChanged(string value)
+    {
+        _exampleNamingContext = null;
+        _exampleExtension = ".jpg";
+        OnPropertyChanged(nameof(ExampleFileName));
+        InvalidatePreview();
+    }
     partial void OnIncludeSubdirectoriesChanged(bool value) => InvalidatePreview();
-    partial void OnPatternChanged(string value) => InvalidatePreview();
+    partial void OnPatternChanged(string value)
+    {
+        InvalidatePreview();
+        OnPropertyChanged(nameof(RuleName));
+        OnPropertyChanged(nameof(ExampleFileName));
+    }
     partial void OnResultMessageChanged(string value) => OnPropertyChanged(nameof(HasResult));
 
     partial void OnItemsChanged(IReadOnlyList<RenamePlanItemViewModel> value)
@@ -98,6 +192,9 @@ public partial class RenameViewModel : ObservableObject
     partial void OnHasPreviewChanged(bool value)
     {
         NotifySummaryChanged();
+        OnPropertyChanged(nameof(PreviewActionText));
+        OnPropertyChanged(nameof(NeedsPreview));
+        OnPropertyChanged(nameof(ExampleFileName));
         ExecuteCommand.NotifyCanExecuteChanged();
     }
 
@@ -107,6 +204,52 @@ public partial class RenameViewModel : ObservableObject
         CreatePreviewCommand.NotifyCanExecuteChanged();
         ExecuteCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(ExecuteActionText));
+    }
+
+    private async Task LoadSuggestedSourceAsync()
+    {
+        try
+        {
+            var lastImport = await _importHistoryStore.LoadLastAsync();
+            var settings = await _storageSettingsStore.LoadAsync();
+            var importEndpoint = settings.Find(StorageEndpoint.DefaultImportId);
+
+            string? importRoot = null;
+            if (importEndpoint is not null)
+            {
+                var resolution = _storageLocationResolver.Resolve(importEndpoint.Location);
+                if (resolution.IsAvailable)
+                {
+                    importRoot = resolution.ResolvedPath;
+                }
+            }
+
+            if (lastImport is not null
+                && !string.IsNullOrWhiteSpace(lastImport.DestinationPath)
+                && Directory.Exists(lastImport.DestinationPath))
+            {
+                SourcePath = lastImport.DestinationPath;
+                SourceContextText = "Zuletzt importierter Ordner";
+                StatusMessage = "Der zuletzt importierte Ordner ist bereits ausgewählt. Wähle einen Namensstil und erstelle eine Vorschau.";
+            }
+            else if (!string.IsNullOrWhiteSpace(importRoot)
+                     && Directory.Exists(importRoot))
+            {
+                SourcePath = importRoot;
+                SourceContextText = "Import-Wartehalle";
+                StatusMessage = "Die Import-Wartehalle ist ausgewählt. Du kannst jederzeit auch einen anderen Ordner verwenden.";
+            }
+            else
+            {
+                SourceContextText = "Quelle auswählen";
+            }
+        }
+        catch
+        {
+            SourceContextText = "Quelle auswählen";
+            StatusMessage = "Der vorgeschlagene Ordner konnte nicht geladen werden. Du kannst die Quelle manuell auswählen.";
+        }
     }
 
     private async Task ChooseFolderAsync()
@@ -115,7 +258,8 @@ public partial class RenameViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(folder))
         {
             SourcePath = Path.GetFullPath(folder);
-            StatusMessage = "Quelle gewählt. Vorschau erstellen, bevor etwas geändert wird.";
+            SourceContextText = "Eigener Ordner";
+            StatusMessage = "Quelle gewählt. Die Vorschau zeigt dir vorab jeden neuen Dateinamen.";
         }
     }
 
@@ -188,27 +332,51 @@ public partial class RenameViewModel : ObservableObject
             var requests = new List<FileOperationRequest>();
             var requestItems = new List<RenamePlanItemViewModel>();
             var sequence = 1;
+            var reservedTargetPaths = new HashSet<string>(GetPathComparer());
 
             foreach (var group in groups)
             {
                 var members = group.OrderBy(x => x.FileName, GetPathComparer()).ToArray();
                 var metadataContext = await LoadMetadataContextAsync(members[0]);
                 var originalStem = Path.GetFileNameWithoutExtension(members[0].FileName);
+                var namingContext = new MediaNamingContext(
+                    metadataContext.CaptureDate,
+                    originalStem,
+                    members[0].Extension,
+                    members[0].MediaType.ToString(),
+                    Path.GetFileName(members[0].DirectoryPath),
+                    metadataContext.CameraMake,
+                    metadataContext.CameraModel,
+                    metadataContext.Title,
+                    metadataContext.Description,
+                    metadataContext.Width,
+                    metadataContext.Height,
+                    sequence);
+
+                if (_exampleNamingContext is null)
+                {
+                    _exampleNamingContext = namingContext;
+                    _exampleExtension = members[0].Extension;
+                    OnPropertyChanged(nameof(ExampleFileName));
+                }
+
                 var targetStem = _namingTemplateEngine.RenderFileStem(
                     Pattern,
-                    new MediaNamingContext(
-                        metadataContext.CaptureDate,
-                        originalStem,
-                        members[0].Extension,
-                        members[0].MediaType.ToString(),
-                        Path.GetFileName(members[0].DirectoryPath),
-                        metadataContext.CameraMake,
-                        metadataContext.CameraModel,
-                        metadataContext.Title,
-                        metadataContext.Description,
-                        metadataContext.Width,
-                        metadataContext.Height,
-                        sequence));
+                    namingContext);
+
+                if (string.Equals(Pattern, ReadablePresetPattern, StringComparison.Ordinal))
+                {
+                    targetStem = ResolveReadablePresetCollision(
+                        targetStem,
+                        members,
+                        reservedTargetPaths);
+                }
+
+                foreach (var member in members)
+                {
+                    reservedTargetPaths.Add(Path.GetFullPath(
+                        Path.Combine(member.DirectoryPath, targetStem + member.Extension)));
+                }
 
                 foreach (var member in members)
                 {
@@ -256,8 +424,8 @@ public partial class RenameViewModel : ObservableObject
             NotifySummaryChanged();
 
             StatusMessage = ConflictCount > 0
-                ? $"Vorschau erstellt: {ReadyCount:N0} bereit, {ConflictCount:N0} Konflikte. Ausführung bleibt blockiert."
-                : $"Vorschau erstellt: {ReadyCount:N0} Änderungen, {UnchangedCount:N0} unverändert.";
+                ? $"Vorschau erstellt: {ReadyCount:N0} Dateien würden umbenannt, {ConflictCount:N0} Konflikte müssen vorher geklärt werden."
+                : $"Vorschau erstellt: {ReadyCount:N0} Dateien werden umbenannt, {UnchangedCount:N0} bleiben unverändert.";
         }
         catch (Exception exception) when (
             exception is IOException
@@ -368,8 +536,8 @@ public partial class RenameViewModel : ObservableObject
                 await _operationHistory.AppendBatchAsync(historyEntries);
 
                 ProgressPercent = 100;
-                ResultMessage = $"Umbenennung abgeschlossen: {result.CompletedCount:N0} Dateioperationen. Transaktion: {result.TransactionId}. Vorgang wurde in der Benutzer-Historie protokolliert.";
-                StatusMessage = "Fertig. Der Medienindex übernimmt die neuen Pfade beim nächsten Indexlauf als Wiederfund/Relocation.";
+                ResultMessage = $"Umbenennung abgeschlossen: {result.CompletedCount:N0} Dateien wurden sicher umbenannt.";
+                StatusMessage = "Fertig. Die Bibliothek erkennt die Dateien beim nächsten Aktualisieren automatisch wieder.";
                 HasPreview = false;
                 _previewFingerprint = null;
                 return;
@@ -539,6 +707,45 @@ public partial class RenameViewModel : ObservableObject
         }
     }
 
+    private static string ResolveReadablePresetCollision(
+        string baseStem,
+        IReadOnlyList<MediaFile> members,
+        ISet<string> reservedTargetPaths)
+    {
+        var sourcePaths = new HashSet<string>(
+            members.Select(member => Path.GetFullPath(member.FullPath)),
+            GetPathComparer());
+
+        for (var candidateNumber = 1; candidateNumber < 10000; candidateNumber++)
+        {
+            var candidateStem = candidateNumber == 1
+                ? baseStem
+                : $"{baseStem}_{candidateNumber:000}";
+
+            var hasCollision = members.Any(member =>
+            {
+                var targetPath = Path.GetFullPath(
+                    Path.Combine(member.DirectoryPath, candidateStem + member.Extension));
+
+                if (reservedTargetPaths.Contains(targetPath))
+                {
+                    return true;
+                }
+
+                return File.Exists(targetPath)
+                    && !sourcePaths.Contains(targetPath);
+            });
+
+            if (!hasCollision)
+            {
+                return candidateStem;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Für den vorgeschlagenen Dateinamen konnte kein freier Name gefunden werden.");
+    }
+
     private static IReadOnlyList<XmpCompanion> FindXmpCompanions(
         IReadOnlyList<MediaFile> members,
         string originalStem)
@@ -640,6 +847,7 @@ public partial class RenameViewModel : ObservableObject
         OnPropertyChanged(nameof(ConflictText));
         OnPropertyChanged(nameof(UnchangedText));
         OnPropertyChanged(nameof(CanRun));
+        OnPropertyChanged(nameof(ExecuteActionText));
         ExecuteCommand.NotifyCanExecuteChanged();
     }
 

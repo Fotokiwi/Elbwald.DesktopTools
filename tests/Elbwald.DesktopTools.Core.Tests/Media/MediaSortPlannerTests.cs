@@ -3,6 +3,7 @@ using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
 using Elbwald.DesktopTools.Core.FileOperations;
 using Elbwald.DesktopTools.Core.Media;
+using Elbwald.DesktopTools.Core.Media.Naming;
 using Xunit;
 
 namespace Elbwald.DesktopTools.Core.Tests.Media;
@@ -964,13 +965,120 @@ public sealed class MediaSortPlannerTests
                 destinationRoot));
     }
 
+    [Fact]
+    public void CreatePlan_MissingDate_WithUserDateDecision_UsesChosenDate()
+    {
+        using var directory = new TestDirectory();
+
+        var sourceRoot = directory.CreateDirectory("source");
+        var destinationRoot = directory.CreateDirectory("target");
+        var sourcePath = directory.CreateFile("source/no-date.jpg", "photo");
+        var file = CreateAnalyzedImage(sourcePath, null, "Sony", "ILCE-6400");
+
+        var options = new MediaSortOptions
+        {
+            DateDecisionsBySourcePath =
+                new Dictionary<string, MediaSortDateDecision>
+                {
+                    [Path.GetFullPath(sourcePath)] =
+                        MediaSortDateDecision.UseDate(
+                            new DateTime(2021, 5, 16, 9, 27, 0))
+                }
+        };
+
+        var plan = CreatePlanner().CreatePlan(
+            sourceRoot,
+            destinationRoot,
+            new[] { file },
+            options);
+
+        var item = Assert.Single(plan.Items);
+
+        Assert.Equal(
+            Path.Combine("2021", "05"),
+            item.RelativeDirectory);
+
+        Assert.DoesNotContain(
+            plan.Issues,
+            issue => issue.Kind is MediaSortIssueKind.MissingCaptureDate or MediaSortIssueKind.DateReview);
+    }
+
+    [Fact]
+    public void CreatePlan_MissingDate_SortAsUnclear_UsesSafeCollectionFolder()
+    {
+        using var directory = new TestDirectory();
+
+        var sourceRoot = directory.CreateDirectory("source");
+        var destinationRoot = directory.CreateDirectory("target");
+        var sourcePath = directory.CreateFile("source/no-date.jpg", "photo");
+        var file = CreateAnalyzedImage(sourcePath, null, "Sony", "ILCE-6400");
+
+        var options = new MediaSortOptions
+        {
+            DateDecisionsBySourcePath =
+                new Dictionary<string, MediaSortDateDecision>
+                {
+                    [Path.GetFullPath(sourcePath)] =
+                        MediaSortDateDecision.SortAsUnclear()
+                }
+        };
+
+        var plan = CreatePlanner().CreatePlan(
+            sourceRoot,
+            destinationRoot,
+            new[] { file },
+            options);
+
+        var item = Assert.Single(plan.Items);
+
+        Assert.Equal("Datum unklar", item.RelativeDirectory);
+        Assert.EndsWith(
+            Path.Combine("Datum unklar", "no-date.jpg"),
+            item.DestinationPath);
+    }
+
+    [Fact]
+    public void CreatePlan_UserSkipDecision_DoesNotPlanFile()
+    {
+        using var directory = new TestDirectory();
+
+        var sourceRoot = directory.CreateDirectory("source");
+        var destinationRoot = directory.CreateDirectory("target");
+        var sourcePath = directory.CreateFile("source/photo.jpg", "photo");
+        var file = CreateAnalyzedImage(
+            sourcePath,
+            new DateTime(2021, 5, 16, 9, 27, 0),
+            "Sony",
+            "ILCE-6400");
+
+        var options = new MediaSortOptions
+        {
+            DateDecisionsBySourcePath =
+                new Dictionary<string, MediaSortDateDecision>
+                {
+                    [Path.GetFullPath(sourcePath)] =
+                        MediaSortDateDecision.Skip()
+                }
+        };
+
+        var plan = CreatePlanner().CreatePlan(
+            sourceRoot,
+            destinationRoot,
+            new[] { file },
+            options);
+
+        Assert.Empty(plan.Items);
+        Assert.Empty(plan.OperationPlan.Operations);
+    }
+
     private static MediaSortPlanner CreatePlanner()
     {
         return new MediaSortPlanner(
             new FileOperationPlanner(),
             new MediaDateResolver(),
             new MediaDateContextAnalyzer(),
-            new MediaCompanionPlanner());
+            new MediaCompanionPlanner(),
+            new MediaNamingTemplateEngine());
     }
 
     private static MediaAnalyzedFile CreateAnalyzedUnknown(

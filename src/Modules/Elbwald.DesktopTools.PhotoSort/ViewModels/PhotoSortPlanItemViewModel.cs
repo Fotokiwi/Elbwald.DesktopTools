@@ -206,6 +206,9 @@ public sealed class PhotoSortPlanItemViewModel
             MediaDateSource.FileSystemLastWriteUtc =>
                 "Datei geändert",
 
+            MediaDateSource.UserOverride =>
+                "Deine Auswahl",
+
             _ =>
                 "Unbekannt"
         };

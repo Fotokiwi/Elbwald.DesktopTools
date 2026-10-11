@@ -12,7 +12,8 @@ public sealed class NavigationItemViewModel
         string icon,
         NavigationPageKind pageKind,
         ToolModuleDescriptor? module,
-        Action<string> activate)
+        Action<string> activate,
+        bool showSeparatorBefore)
     {
         Id = id;
         Name = name;
@@ -20,6 +21,7 @@ public sealed class NavigationItemViewModel
         Icon = icon;
         PageKind = pageKind;
         Module = module;
+        ShowSeparatorBefore = showSeparatorBefore;
         ActivateCommand = new RelayCommand(() => activate(Id));
     }
 
@@ -35,11 +37,15 @@ public sealed class NavigationItemViewModel
 
     public ToolModuleDescriptor? Module { get; }
 
+    public bool ShowSeparatorBefore { get; }
+
     public IRelayCommand ActivateCommand { get; }
 
     public bool IsHome => Id == "home";
 
     public bool IsLibrary => Id == "library";
+
+    public bool IsProjects => Id == "projects";
 
     public bool IsAnalyze => Id == "analyze";
 
@@ -62,7 +68,8 @@ public sealed class NavigationItemViewModel
             icon: "Home",
             pageKind: NavigationPageKind.Home,
             module: null,
-            activate);
+            activate,
+            showSeparatorBefore: false);
     }
 
     public static NavigationItemViewModel CreateSection(
@@ -70,7 +77,8 @@ public sealed class NavigationItemViewModel
         string name,
         string description,
         string icon,
-        Action<string> activate)
+        Action<string> activate,
+        bool showSeparatorBefore = false)
     {
         return new NavigationItemViewModel(
             id,
@@ -79,7 +87,8 @@ public sealed class NavigationItemViewModel
             icon,
             NavigationPageKind.Section,
             module: null,
-            activate);
+            activate,
+            showSeparatorBefore);
     }
 
     public static NavigationItemViewModel CreateModuleRoute(
@@ -88,7 +97,8 @@ public sealed class NavigationItemViewModel
         string description,
         string icon,
         ToolModuleDescriptor module,
-        Action<string> activate)
+        Action<string> activate,
+        bool showSeparatorBefore = false)
     {
         ArgumentNullException.ThrowIfNull(module);
 
@@ -99,6 +109,7 @@ public sealed class NavigationItemViewModel
             icon,
             NavigationPageKind.Module,
             module,
-            activate);
+            activate,
+            showSeparatorBefore);
     }
 }

@@ -15,7 +15,6 @@ public sealed class SectionActionViewModel
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
-        ArgumentException.ThrowIfNullOrWhiteSpace(status);
         ArgumentNullException.ThrowIfNull(navigationService);
 
         Title = title;
@@ -41,6 +40,8 @@ public sealed class SectionActionViewModel
     public string Description { get; }
 
     public string Status { get; }
+
+    public bool HasStatus => !string.IsNullOrWhiteSpace(Status);
 
     public bool IsAvailable { get; }
 

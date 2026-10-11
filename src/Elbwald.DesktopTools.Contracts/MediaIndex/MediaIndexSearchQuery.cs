@@ -15,4 +15,5 @@ public sealed record MediaIndexSearchQuery(
     DateTime? CaptureDateFrom = null,
     DateTime? CaptureDateTo = null,
     int? MinimumRating = null,
-    string? KnowledgeItemId = null);
+    string? KnowledgeItemId = null,
+    IReadOnlyList<string>? KnowledgeItemIds = null);

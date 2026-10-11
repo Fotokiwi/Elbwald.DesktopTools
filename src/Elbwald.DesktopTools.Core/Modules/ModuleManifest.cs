@@ -27,4 +27,13 @@ public sealed record ModuleManifest
 
     [JsonPropertyName("enabled")]
     public bool Enabled { get; init; } = true;
+
+    [JsonPropertyName("capabilities")]
+    public string[] Capabilities { get; init; } = [];
+
+    [JsonPropertyName("permissions")]
+    public string[] Permissions { get; init; } = [];
+
+    [JsonPropertyName("dependencies")]
+    public ModuleDependencyManifest[] Dependencies { get; init; } = [];
 }

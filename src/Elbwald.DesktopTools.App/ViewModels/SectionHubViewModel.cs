@@ -51,16 +51,9 @@ public sealed class SectionHubViewModel
         {
             PrimaryGroupTitle = "Dateien organisieren";
             PrimaryGroupDescription = "Medien sicher übernehmen, physisch strukturieren und einheitlich benennen.";
-            SecondaryGroupTitle = "Sammlungen & Vorhaben";
-            SecondaryGroupDescription = "Medien logisch zusammenstellen, ohne ihre physische Ablage zu verändern.";
-
-            PrimaryActions = Actions
-                .Where(action => !string.Equals(action.Title, "Projekte", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-
-            SecondaryActions = Actions
-                .Where(action => string.Equals(action.Title, "Projekte", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
+            PrimaryActions = Actions;
+            SecondaryActions = Array.Empty<SectionActionViewModel>();
+            TertiaryActions = Array.Empty<SectionActionViewModel>();
         }
         else if (string.Equals(sectionId, "tools", StringComparison.OrdinalIgnoreCase))
         {
@@ -153,13 +146,13 @@ public sealed class SectionHubViewModel
 
         return (
             "Organisieren",
-            "Medien sicher übernehmen, physisch ordnen und logisch zu Sammlungen zusammenstellen.",
+            "Medien sicher übernehmen, physisch ordnen und einheitlich benennen.",
             new[]
             {
                 new SectionActionViewModel(
                     "Importieren",
                     "Kamera, Smartphone, SD-Karte oder Ordner sicher in die Import-Wartehalle übernehmen.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "import",
                     navigationService),
@@ -167,7 +160,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Sortieren",
                     "Fotos und später Videos nach nachvollziehbaren Regeln strukturieren.",
-                    photoSortReady ? "Bereit" : "Modul nicht geladen",
+                    photoSortReady ? string.Empty : "Modul nicht geladen",
                     photoSortReady,
                     photoSortReady ? PhotoSortModuleId : null,
                     navigationService),
@@ -175,18 +168,10 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Umbenennen",
                     "Dateien anhand von Datum, Kamera und Elbwald-Metadaten einheitlich benennen.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "rename",
                     navigationService),
-
-                new SectionActionViewModel(
-                    "Projekte",
-                    "Medien logisch zu Sammlungen und Vorhaben zusammenstellen – unabhängig vom aktuellen Dateipfad.",
-                    "Bereit",
-                    isAvailable: true,
-                    navigationId: "projects",
-                    navigationService)
             });
     }
 
@@ -260,7 +245,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Metadaten",
                     "Metadaten zentral in Elbwald pflegen und optional später in Dateien oder XMP exportieren.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "metadata",
                     navigationService),
@@ -268,7 +253,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Exportieren",
                     "Neue Kopien aus Bibliotheksauswahl oder Projekt erzeugen – mit Regeln, Skalierung und optional eingebettetem XMP.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "export",
                     navigationService),
@@ -281,7 +266,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Bibliotheksstatus",
                     "Read-only Überblick über konfigurierte Speicherorte, Verfügbarkeit und erste Auffälligkeiten.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "library-health",
                     navigationService),
@@ -289,7 +274,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Medienindex",
                     "Lokalen logischen Medienindex aktualisieren und Indexzustand prüfen.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "media-index",
                     navigationService),
@@ -297,7 +282,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Vorgangsverlauf",
                     "Benutzer-Dateioperationen nachvollziehen und sichere Rename-Vorgänge geprüft rückgängig machen.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "operation-history",
                     navigationService),
@@ -305,7 +290,7 @@ public sealed class SectionHubViewModel
                 new SectionActionViewModel(
                     "Protokoll",
                     "Strukturierte Warnungen und Fehler aus Datenträger-, Dateioperations- und Recovery-Pfaden durchsuchen.",
-                    "Bereit",
+                    string.Empty,
                     isAvailable: true,
                     navigationId: "diagnostics",
                     navigationService)

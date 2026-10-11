@@ -18,10 +18,10 @@ public sealed class AnalysisIssueViewModel
                 "Dateisystem",
 
             MediaAnalysisIssueKind.MetadataError =>
-                "Metadaten",
+                "Dateiinformationen",
 
             MediaAnalysisIssueKind.MetadataWarning =>
-                "Parser",
+                "Dateiinformationen",
 
             _ =>
                 issue.Kind.ToString()

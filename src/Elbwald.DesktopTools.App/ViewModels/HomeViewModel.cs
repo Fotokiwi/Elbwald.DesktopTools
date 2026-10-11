@@ -1,7 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Avalonia.Media.Imaging;
 using Elbwald.DesktopTools.App.Services;
 using Elbwald.DesktopTools.Contracts.Journaling;
+using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Importing;
+using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Core.Modules;
 
@@ -12,6 +17,41 @@ public sealed class HomeViewModel : ObservableObject
     private readonly IStartupRecoveryService _startupRecoveryService;
     private readonly IFileOperationRecoveryCoordinator _recoveryCoordinator;
     private readonly IOperationJournalMaintenance _journalMaintenance;
+    private readonly IMediaIndexService _mediaIndexService;
+    private readonly IStorageSettingsStore _storageSettingsStore;
+    private readonly IStorageLocationResolver _storageLocationResolver;
+    private readonly IMediaThumbnailService _thumbnailService;
+    private readonly MediaThumbnailOptions _thumbnailOptions;
+    private readonly IMediaAnalysisHistoryStore _analysisHistoryStore;
+    private readonly IMediaImportHistoryStore _importHistoryStore;
+
+    private bool _isDashboardBusy;
+    private string _galleryMediaCountText = "0";
+    private string _galleryFolderCountText = "0";
+    private string _galleryLastUpdatedText = "Noch nicht indexiert";
+    private string _analyzeHintText = "Wähle einen neuen Ordner für eine read-only Prüfung.";
+    private string _lastAnalysisPathText = "Noch kein Prüfpfad gespeichert";
+    private string _lastAnalysisAgeText = "–";
+    private string _lastAnalysisSummaryText = "Noch keine Analyse gespeichert";
+    private string _lastImportDestinationText = "Noch kein Import durchgeführt";
+    private string _lastImportAgeText = "–";
+    private string _lastImportSummaryText = "Importverlauf ist noch leer";
+    private string _organizeHintText = "Ordner und Sammlungen erscheinen hier automatisch.";
+    private string _latestMediaTitle = "Noch keine Medien";
+    private string _latestMediaSubtitle = "Importiere deine ersten Medien";
+    private string _latestMediaAgeText = string.Empty;
+    private string _latestFolderTitle = "Noch kein Import";
+    private string _latestFolderSubtitle = "Der letzte Importordner erscheint hier";
+    private string _latestFolderAgeText = string.Empty;
+    private string _latestLibraryTitle = "Hauptbibliothek";
+    private string _latestLibrarySubtitle = "Noch keine Medien im Index";
+    private string _latestLibraryAgeText = string.Empty;
+
+    private Bitmap? _galleryPreviewPrimary;
+    private Bitmap? _galleryPreviewSecondary1;
+    private Bitmap? _galleryPreviewSecondary2;
+    private Bitmap? _galleryPreviewSecondary3;
+    private Bitmap? _galleryPreviewSecondary4;
 
     private string _recoveryStatusTitle = string.Empty;
     private string _recoveryStatusMessage = string.Empty;
@@ -42,7 +82,14 @@ public sealed class HomeViewModel : ObservableObject
         INavigationService navigationService,
         IStartupRecoveryService startupRecoveryService,
         IFileOperationRecoveryCoordinator recoveryCoordinator,
-        IOperationJournalMaintenance journalMaintenance)
+        IOperationJournalMaintenance journalMaintenance,
+        IMediaIndexService mediaIndexService,
+        IStorageSettingsStore storageSettingsStore,
+        IStorageLocationResolver storageLocationResolver,
+        IMediaThumbnailService thumbnailService,
+        MediaThumbnailOptions thumbnailOptions,
+        IMediaAnalysisHistoryStore analysisHistoryStore,
+        IMediaImportHistoryStore importHistoryStore)
     {
         ArgumentNullException.ThrowIfNull(moduleRegistry);
         ArgumentNullException.ThrowIfNull(moduleLoadReport);
@@ -50,10 +97,24 @@ public sealed class HomeViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(startupRecoveryService);
         ArgumentNullException.ThrowIfNull(recoveryCoordinator);
         ArgumentNullException.ThrowIfNull(journalMaintenance);
+        ArgumentNullException.ThrowIfNull(mediaIndexService);
+        ArgumentNullException.ThrowIfNull(storageSettingsStore);
+        ArgumentNullException.ThrowIfNull(storageLocationResolver);
+        ArgumentNullException.ThrowIfNull(thumbnailService);
+        ArgumentNullException.ThrowIfNull(thumbnailOptions);
+        ArgumentNullException.ThrowIfNull(analysisHistoryStore);
+        ArgumentNullException.ThrowIfNull(importHistoryStore);
 
         _startupRecoveryService = startupRecoveryService;
         _recoveryCoordinator = recoveryCoordinator;
         _journalMaintenance = journalMaintenance;
+        _mediaIndexService = mediaIndexService;
+        _storageSettingsStore = storageSettingsStore;
+        _storageLocationResolver = storageLocationResolver;
+        _thumbnailService = thumbnailService;
+        _thumbnailOptions = thumbnailOptions;
+        _analysisHistoryStore = analysisHistoryStore;
+        _importHistoryStore = importHistoryStore;
 
         Modules = moduleRegistry.Modules
             .Select(module => new HomeModuleItemViewModel(
@@ -84,6 +145,15 @@ public sealed class HomeViewModel : ObservableObject
 
         OpenBackupCommand = new RelayCommand(
             () => navigationService.NavigateTo("backup"));
+
+        OpenLibraryCommand = new RelayCommand(
+            () => navigationService.NavigateTo("library"));
+
+        OpenImportCommand = new RelayCommand(
+            () => navigationService.NavigateTo("import"));
+
+        OpenMetadataCommand = new RelayCommand(
+            () => navigationService.NavigateTo("metadata"));
 
         OpenLibraryHealthCommand = new RelayCommand(
             () => navigationService.NavigateTo("library-health"));
@@ -122,6 +192,12 @@ public sealed class HomeViewModel : ObservableObject
 
     public IRelayCommand OpenBackupCommand { get; }
 
+    public IRelayCommand OpenLibraryCommand { get; }
+
+    public IRelayCommand OpenImportCommand { get; }
+
+    public IRelayCommand OpenMetadataCommand { get; }
+
     public IRelayCommand OpenLibraryHealthCommand { get; }
 
     public IAsyncRelayCommand RunSafeRecoveryCommand { get; }
@@ -129,6 +205,162 @@ public sealed class HomeViewModel : ObservableObject
     public IAsyncRelayCommand RefreshRecoveryCommand { get; }
 
     public IAsyncRelayCommand RepairJournalCommand { get; }
+
+    public bool IsDashboardBusy
+    {
+        get => _isDashboardBusy;
+        private set => SetProperty(ref _isDashboardBusy, value);
+    }
+
+    public string GalleryMediaCountText
+    {
+        get => _galleryMediaCountText;
+        private set => SetProperty(ref _galleryMediaCountText, value);
+    }
+
+    public string GalleryFolderCountText
+    {
+        get => _galleryFolderCountText;
+        private set => SetProperty(ref _galleryFolderCountText, value);
+    }
+
+    public string GalleryLastUpdatedText
+    {
+        get => _galleryLastUpdatedText;
+        private set => SetProperty(ref _galleryLastUpdatedText, value);
+    }
+
+    public string AnalyzeHintText
+    {
+        get => _analyzeHintText;
+        private set => SetProperty(ref _analyzeHintText, value);
+    }
+
+    public string LastAnalysisPathText
+    {
+        get => _lastAnalysisPathText;
+        private set => SetProperty(ref _lastAnalysisPathText, value);
+    }
+
+    public string LastAnalysisAgeText
+    {
+        get => _lastAnalysisAgeText;
+        private set => SetProperty(ref _lastAnalysisAgeText, value);
+    }
+
+    public string LastAnalysisSummaryText
+    {
+        get => _lastAnalysisSummaryText;
+        private set => SetProperty(ref _lastAnalysisSummaryText, value);
+    }
+
+    public string LastImportDestinationText
+    {
+        get => _lastImportDestinationText;
+        private set => SetProperty(ref _lastImportDestinationText, value);
+    }
+
+    public string LastImportAgeText
+    {
+        get => _lastImportAgeText;
+        private set => SetProperty(ref _lastImportAgeText, value);
+    }
+
+    public string LastImportSummaryText
+    {
+        get => _lastImportSummaryText;
+        private set => SetProperty(ref _lastImportSummaryText, value);
+    }
+
+    public string OrganizeHintText
+    {
+        get => _organizeHintText;
+        private set => SetProperty(ref _organizeHintText, value);
+    }
+
+    public string LatestMediaTitle
+    {
+        get => _latestMediaTitle;
+        private set => SetProperty(ref _latestMediaTitle, value);
+    }
+
+    public string LatestMediaSubtitle
+    {
+        get => _latestMediaSubtitle;
+        private set => SetProperty(ref _latestMediaSubtitle, value);
+    }
+
+    public string LatestMediaAgeText
+    {
+        get => _latestMediaAgeText;
+        private set => SetProperty(ref _latestMediaAgeText, value);
+    }
+
+    public string LatestFolderTitle
+    {
+        get => _latestFolderTitle;
+        private set => SetProperty(ref _latestFolderTitle, value);
+    }
+
+    public string LatestFolderSubtitle
+    {
+        get => _latestFolderSubtitle;
+        private set => SetProperty(ref _latestFolderSubtitle, value);
+    }
+
+    public string LatestFolderAgeText
+    {
+        get => _latestFolderAgeText;
+        private set => SetProperty(ref _latestFolderAgeText, value);
+    }
+
+    public string LatestLibraryTitle
+    {
+        get => _latestLibraryTitle;
+        private set => SetProperty(ref _latestLibraryTitle, value);
+    }
+
+    public string LatestLibrarySubtitle
+    {
+        get => _latestLibrarySubtitle;
+        private set => SetProperty(ref _latestLibrarySubtitle, value);
+    }
+
+    public string LatestLibraryAgeText
+    {
+        get => _latestLibraryAgeText;
+        private set => SetProperty(ref _latestLibraryAgeText, value);
+    }
+
+    public Bitmap? GalleryPreviewPrimary
+    {
+        get => _galleryPreviewPrimary;
+        private set => ReplacePreview(ref _galleryPreviewPrimary, value, nameof(GalleryPreviewPrimary));
+    }
+
+    public Bitmap? GalleryPreviewSecondary1
+    {
+        get => _galleryPreviewSecondary1;
+        private set => ReplacePreview(ref _galleryPreviewSecondary1, value, nameof(GalleryPreviewSecondary1));
+    }
+
+    public Bitmap? GalleryPreviewSecondary2
+    {
+        get => _galleryPreviewSecondary2;
+        private set => ReplacePreview(ref _galleryPreviewSecondary2, value, nameof(GalleryPreviewSecondary2));
+    }
+
+    public Bitmap? GalleryPreviewSecondary3
+    {
+        get => _galleryPreviewSecondary3;
+        private set => ReplacePreview(ref _galleryPreviewSecondary3, value, nameof(GalleryPreviewSecondary3));
+    }
+
+    public Bitmap? GalleryPreviewSecondary4
+    {
+        get => _galleryPreviewSecondary4;
+        private set => ReplacePreview(ref _galleryPreviewSecondary4, value, nameof(GalleryPreviewSecondary4));
+    }
 
     public string RecoveryStatusTitle
     {
@@ -298,6 +530,467 @@ public sealed class HomeViewModel : ObservableObject
 
     public bool HasRecoveryResults =>
         RecoveryResults.Count > 0;
+
+    public async Task RefreshDashboardAsync()
+    {
+        if (IsDashboardBusy)
+        {
+            return;
+        }
+
+        IsDashboardBusy = true;
+
+        try
+        {
+            var settingsTask = _storageSettingsStore.LoadAsync();
+            var analysisHistoryTask = _analysisHistoryStore.LoadLastAsync();
+            var importHistoryTask = _importHistoryStore.LoadLastAsync();
+            var summaryTask = _mediaIndexService.GetSummaryAsync();
+            var foldersTask = _mediaIndexService.GetFolderFacetsAsync();
+            var galleryTask = _mediaIndexService.SearchAsync(
+                new MediaIndexSearchQuery(
+                    PresentOnly: true,
+                    Limit: 48,
+                    MediaType: MediaFileType.Image,
+                    SortOrder: MediaIndexSortOrder.FirstSeenDescending));
+            var latestTask = _mediaIndexService.SearchAsync(
+                new MediaIndexSearchQuery(
+                    PresentOnly: true,
+                    Limit: 1,
+                    SortOrder: MediaIndexSortOrder.FirstSeenDescending));
+
+            await Task.WhenAll(
+                settingsTask,
+                analysisHistoryTask,
+                importHistoryTask,
+                summaryTask,
+                foldersTask,
+                galleryTask,
+                latestTask);
+
+            var settings = await settingsTask;
+            var lastAnalysis = await analysisHistoryTask;
+            var lastImport = await importHistoryTask;
+            var summary = await summaryTask;
+            var folders = await foldersTask;
+            var galleryCandidates = await galleryTask;
+            var latestItems = await latestTask;
+
+            GalleryMediaCountText = summary.ItemCount.ToString("N0");
+            GalleryFolderCountText = folders.Count.ToString("N0");
+            GalleryLastUpdatedText = FormatLastIndexed(summary.LastIndexedUtc);
+
+            ApplyLastAnalysis(lastAnalysis);
+            ApplyLastImport(lastImport);
+
+            AnalyzeHintText = lastAnalysis is null
+                ? "Wähle einen neuen Ordner für eine read-only Prüfung."
+                : "Letzten Prüfpfad erneut analysieren oder eine neue Quelle wählen.";
+
+            OrganizeHintText = folders.Count > 0
+                ? $"{folders.Count:N0} Ordner bilden aktuell deine Bibliotheksstruktur."
+                : "Ordner und Sammlungen erscheinen hier automatisch.";
+
+            var endpointNames = settings.Endpoints
+                .GroupBy(endpoint => endpoint.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.First().Name,
+                    StringComparer.OrdinalIgnoreCase);
+
+            var endpointRoots = BuildEndpointRoots(settings);
+
+            await LoadRepresentativePreviewsAsync(
+                SelectRepresentativeImages(galleryCandidates, 18),
+                endpointRoots);
+
+            ApplyRecentActivity(
+                latestItems.FirstOrDefault(),
+                endpointNames,
+                summary);
+        }
+        catch (Exception exception)
+        {
+            GalleryLastUpdatedText = "Status nicht verfügbar";
+            LatestMediaSubtitle = "Bibliotheksdaten konnten nicht geladen werden";
+            LatestMediaAgeText = string.Empty;
+            LatestFolderAgeText = string.Empty;
+            LatestLibraryAgeText = string.Empty;
+            Console.Error.WriteLine(
+                $"Startseiten-Dashboard konnte nicht aktualisiert werden: {exception}");
+        }
+        finally
+        {
+            IsDashboardBusy = false;
+        }
+    }
+
+    private Dictionary<string, string> BuildEndpointRoots(StorageSettings settings)
+    {
+        var roots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var endpoint in settings.Endpoints.Where(endpoint => endpoint.Enabled))
+        {
+            try
+            {
+                var resolution = _storageLocationResolver.Resolve(endpoint.Location);
+                if (!resolution.IsAvailable || string.IsNullOrWhiteSpace(resolution.ResolvedPath))
+                {
+                    continue;
+                }
+
+                roots[endpoint.Id] = Path.GetFullPath(resolution.ResolvedPath);
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or NotSupportedException
+                    or ArgumentException)
+            {
+                Console.Error.WriteLine(
+                    $"Bibliothekspfad '{endpoint.Id}' konnte für die Startseite nicht aufgelöst werden: {exception.Message}");
+            }
+        }
+
+        return roots;
+    }
+
+    private async Task LoadRepresentativePreviewsAsync(
+        IReadOnlyList<MediaIndexSearchResult> items,
+        IReadOnlyDictionary<string, string> endpointRoots)
+    {
+        var previews = new Bitmap?[5];
+
+        var slot = 0;
+        foreach (var item in items)
+        {
+            if (slot >= previews.Length)
+            {
+                break;
+            }
+
+            var file = TryResolveMediaFile(item, endpointRoots);
+            if (file is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                var width = slot == 0
+                    ? Math.Max(_thumbnailOptions.GridWidth * 3, 480)
+                    : Math.Max(_thumbnailOptions.GridWidth * 2, 320);
+
+                var thumbnail = await _thumbnailService.GetIndexedThumbnailAsync(
+                    item.Item.Id,
+                    file,
+                    width);
+
+                if (!thumbnail.IsSuccessful || thumbnail.EncodedImage is not { Length: > 0 })
+                {
+                    continue;
+                }
+
+                using var stream = new MemoryStream(thumbnail.EncodedImage, writable: false);
+                previews[slot] = new Bitmap(stream);
+                slot++;
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine(
+                    $"Startseiten-Vorschau für '{item.Item.Id}' konnte nicht geladen werden: {exception.Message}");
+            }
+        }
+
+        GalleryPreviewPrimary = previews[0];
+        GalleryPreviewSecondary1 = previews[1];
+        GalleryPreviewSecondary2 = previews[2];
+        GalleryPreviewSecondary3 = previews[3];
+        GalleryPreviewSecondary4 = previews[4];
+    }
+
+    private static IReadOnlyList<MediaIndexSearchResult> SelectRepresentativeImages(
+        IReadOnlyList<MediaIndexSearchResult> candidates,
+        int limit)
+    {
+        var selected = new List<MediaIndexSearchResult>(limit);
+        var selectedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var candidate in candidates)
+        {
+            if (!candidate.RepresentativeIsPresent
+                || string.IsNullOrWhiteSpace(candidate.RepresentativeEndpointId)
+                || string.IsNullOrWhiteSpace(candidate.RepresentativeRelativePath))
+            {
+                continue;
+            }
+
+            var directory = Path.GetDirectoryName(candidate.RepresentativeRelativePath) ?? string.Empty;
+            var folderKey = $"{candidate.RepresentativeEndpointId}|{directory}";
+            if (!seenFolders.Add(folderKey))
+            {
+                continue;
+            }
+
+            selected.Add(candidate);
+            selectedIds.Add(candidate.Item.Id);
+            if (selected.Count >= limit)
+            {
+                return selected;
+            }
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (!candidate.RepresentativeIsPresent
+                || !selectedIds.Add(candidate.Item.Id))
+            {
+                continue;
+            }
+
+            selected.Add(candidate);
+            if (selected.Count >= limit)
+            {
+                break;
+            }
+        }
+
+        return selected;
+    }
+
+    private static MediaFile? TryResolveMediaFile(
+        MediaIndexSearchResult result,
+        IReadOnlyDictionary<string, string> endpointRoots)
+    {
+        if (!result.RepresentativeIsPresent
+            || string.IsNullOrWhiteSpace(result.RepresentativeEndpointId)
+            || string.IsNullOrWhiteSpace(result.RepresentativeRelativePath)
+            || !endpointRoots.TryGetValue(result.RepresentativeEndpointId, out var root))
+        {
+            return null;
+        }
+
+        try
+        {
+            var relative = result.RepresentativeRelativePath;
+            if (Path.IsPathRooted(relative))
+            {
+                return null;
+            }
+
+            var fullRoot = Path.GetFullPath(root);
+            var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relative));
+            var rootPrefix = fullRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? fullRoot
+                : fullRoot + Path.DirectorySeparatorChar;
+
+            if (!fullPath.StartsWith(rootPrefix, StringComparison.Ordinal)
+                || !File.Exists(fullPath))
+            {
+                return null;
+            }
+
+            var info = new FileInfo(fullPath);
+            return new MediaFile(
+                fullPath,
+                info.Name,
+                info.Extension,
+                info.Length,
+                info.CreationTimeUtc,
+                info.LastWriteTimeUtc,
+                result.Item.MediaType,
+                (info.Attributes & FileAttributes.ReparsePoint) != 0);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or NotSupportedException
+                or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private void ApplyLastAnalysis(MediaAnalysisHistoryEntry? entry)
+    {
+        if (entry is null)
+        {
+            LastAnalysisPathText = "Noch kein Prüfpfad gespeichert";
+            LastAnalysisAgeText = "–";
+            LastAnalysisSummaryText = "Noch keine Analyse gespeichert";
+            return;
+        }
+
+        LastAnalysisPathText = entry.SourcePath;
+        LastAnalysisAgeText = FormatAge(entry.CompletedUtc);
+
+        var problemText = entry.ProblemCount switch
+        {
+            0 => "keine Probleme",
+            1 => "1 Problem",
+            _ => $"{entry.ProblemCount:N0} Probleme"
+        };
+
+        LastAnalysisSummaryText =
+            $"{entry.MediaCount:N0} Medien · {problemText}";
+    }
+
+    private void ApplyLastImport(MediaImportHistoryEntry? entry)
+    {
+        if (entry is null)
+        {
+            LastImportDestinationText = "Noch kein Import durchgeführt";
+            LastImportAgeText = "–";
+            LastImportSummaryText = "Importverlauf ist noch leer";
+            return;
+        }
+
+        LastImportDestinationText = string.IsNullOrWhiteSpace(entry.DestinationSubfolderName)
+            ? entry.DestinationPath
+            : entry.DestinationSubfolderName;
+        LastImportAgeText = FormatAge(entry.CompletedUtc);
+
+        var detailParts = new List<string>();
+        if (entry.CopiedCount > 0)
+        {
+            detailParts.Add($"{entry.CopiedCount:N0} kopiert");
+        }
+        if (entry.AlreadyImportedCount > 0)
+        {
+            detailParts.Add($"{entry.AlreadyImportedCount:N0} bereits vorhanden");
+        }
+        if (entry.ConflictCount > 0)
+        {
+            detailParts.Add($"{entry.ConflictCount:N0} Konflikte");
+        }
+
+        LastImportSummaryText = detailParts.Count > 0
+            ? string.Join(" · ", detailParts)
+            : "Import abgeschlossen";
+    }
+
+    private void ApplyRecentActivity(
+        MediaIndexSearchResult? latest,
+        IReadOnlyDictionary<string, string> endpointNames,
+        MediaIndexSummary summary)
+    {
+        LatestLibrarySubtitle = summary.ItemCount > 0
+            ? $"{summary.ItemCount:N0} Medien im Index"
+            : "Noch keine Medien im Index";
+        LatestLibraryAgeText = summary.LastIndexedUtc.HasValue
+            ? FormatAge(summary.LastIndexedUtc.Value)
+            : string.Empty;
+
+        if (latest is null)
+        {
+            LatestMediaTitle = "Noch keine Medien";
+            LatestMediaSubtitle = "Importiere deine ersten Medien";
+            LatestMediaAgeText = string.Empty;
+            LatestFolderTitle = "Noch kein Import";
+            LatestFolderSubtitle = "Der letzte Importordner erscheint hier";
+            LatestFolderAgeText = string.Empty;
+            LatestLibraryTitle = endpointNames.Values.FirstOrDefault() ?? "Hauptbibliothek";
+            return;
+        }
+
+        var relativePath = latest.RepresentativeRelativePath ?? string.Empty;
+        var fileName = string.IsNullOrWhiteSpace(relativePath)
+            ? latest.Item.Id
+            : Path.GetFileName(relativePath);
+
+        LatestMediaTitle = !string.IsNullOrWhiteSpace(latest.Title)
+            ? latest.Title.Trim()
+            : Path.GetFileNameWithoutExtension(fileName);
+        LatestMediaSubtitle = fileName;
+        LatestMediaAgeText = FormatAge(latest.Item.FirstSeenUtc);
+
+        var folder = Path.GetDirectoryName(relativePath);
+        LatestFolderTitle = string.IsNullOrWhiteSpace(folder)
+            ? "Bibliothekswurzel"
+            : folder.Replace(Path.DirectorySeparatorChar, '/');
+        LatestFolderSubtitle = "Zuletzt hinzugefügter Ordner";
+        LatestFolderAgeText = FormatAge(latest.Item.FirstSeenUtc);
+
+        LatestLibraryTitle = latest.RepresentativeEndpointId is not null
+            && endpointNames.TryGetValue(latest.RepresentativeEndpointId, out var endpointName)
+                ? endpointName
+                : latest.RepresentativeEndpointId ?? "Hauptbibliothek";
+    }
+
+    private static string FormatLastIndexed(DateTimeOffset? timestamp)
+    {
+        if (!timestamp.HasValue)
+        {
+            return "Noch nicht indexiert";
+        }
+
+        var local = timestamp.Value.ToLocalTime();
+        var today = DateTimeOffset.Now.Date;
+
+        if (local.Date == today)
+        {
+            return $"Heute, {local:HH:mm} Uhr";
+        }
+
+        if (local.Date == today.AddDays(-1))
+        {
+            return $"Gestern, {local:HH:mm} Uhr";
+        }
+
+        return local.ToString("dd.MM.yyyy, HH:mm");
+    }
+
+    private static string FormatAge(DateTimeOffset timestamp)
+    {
+        var age = DateTimeOffset.UtcNow - timestamp.ToUniversalTime();
+        if (age < TimeSpan.Zero)
+        {
+            age = TimeSpan.Zero;
+        }
+
+        if (age < TimeSpan.FromMinutes(1))
+        {
+            return "Gerade eben";
+        }
+
+        if (age < TimeSpan.FromHours(1))
+        {
+            var minutes = Math.Max(1, (int)Math.Floor(age.TotalMinutes));
+            return $"Vor {minutes} Min.";
+        }
+
+        if (age < TimeSpan.FromDays(1))
+        {
+            var hours = Math.Max(1, (int)Math.Floor(age.TotalHours));
+            return hours == 1 ? "Vor 1 Stunde" : $"Vor {hours} Stunden";
+        }
+
+        if (age < TimeSpan.FromDays(2))
+        {
+            return "Gestern";
+        }
+
+        var days = Math.Max(2, (int)Math.Floor(age.TotalDays));
+        return days < 14
+            ? $"Vor {days} Tagen"
+            : timestamp.ToLocalTime().ToString("dd.MM.yyyy");
+    }
+
+    private void ReplacePreview(
+        ref Bitmap? field,
+        Bitmap? value,
+        string propertyName)
+    {
+        if (ReferenceEquals(field, value))
+        {
+            return;
+        }
+
+        field?.Dispose();
+        field = value;
+        OnPropertyChanged(propertyName);
+    }
 
     private bool CanRunSafeRecovery()
     {

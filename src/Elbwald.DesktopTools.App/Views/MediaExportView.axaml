@@ -142,7 +142,7 @@
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" Spacing="7">
                             <TextBlock Text="Unterordner-Regel" FontWeight="SemiBold" />
-                            <TextBox Text="{Binding DirectoryPattern, Mode=TwoWay}" Watermark="z. B. {year}/{month}" FontSize="14" Padding="11,9" />
+                            <TextBox Text="{Binding DirectoryPattern, Mode=TwoWay}" PlaceholderText="z. B. {year}/{month}" FontSize="14" Padding="11,9" />
                             <WrapPanel>
                                 <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{year}" Content="Jahr" />
                                 <Button Classes="elbwald-chip" Command="{Binding InsertDirectoryTokenCommand}" CommandParameter="{}{month}" Content="Monat" />
@@ -154,7 +154,7 @@
 
                         <StackPanel Grid.Column="1" Spacing="7">
                             <TextBlock Text="Dateinamen-Regel" FontWeight="SemiBold" />
-                            <TextBox Text="{Binding FileNamePattern, Mode=TwoWay}" Watermark="z. B. {date:yyyy-MM-dd}_{original}" FontSize="14" Padding="11,9" />
+                            <TextBox Text="{Binding FileNamePattern, Mode=TwoWay}" PlaceholderText="z. B. {date:yyyy-MM-dd}_{original}" FontSize="14" Padding="11,9" />
                             <WrapPanel>
                                 <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{date:yyyy-MM-dd}" Content="Datum" />
                                 <Button Classes="elbwald-chip" Command="{Binding InsertFileTokenCommand}" CommandParameter="{}{time:HHmmss}" Content="Zeit" />
@@ -195,7 +195,7 @@
                         <ListBox ItemsSource="{Binding PlanItems}" MaxHeight="430" Background="Transparent" BorderThickness="0">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MediaExportPlanItemViewModel">
-                                    <Border Padding="10" Margin="0,0,0,6" CornerRadius="9" Background="#FCFFFFFF" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1">
+                                    <Border Padding="10" Margin="0,0,0,6" CornerRadius="9" Background="{DynamicResource ElbwaldSurfaceStrongBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1">
                                         <Grid ColumnDefinitions="230,28,*,95,100" ColumnSpacing="9">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="{Binding SourceFileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />

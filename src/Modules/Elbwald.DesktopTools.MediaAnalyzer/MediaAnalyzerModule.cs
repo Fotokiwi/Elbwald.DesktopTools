@@ -16,7 +16,7 @@ public sealed class MediaAnalyzerModule
             Id: Id,
             Name: "Analysieren",
             Description:
-                "Fotos und Medien read-only prüfen und auswerten.",
+                "Ordner und Medien prüfen, bevor sie importiert oder bearbeitet werden.",
             Icon: "Search",
             ViewModelType:
                 typeof(MediaAnalyzerViewModel),

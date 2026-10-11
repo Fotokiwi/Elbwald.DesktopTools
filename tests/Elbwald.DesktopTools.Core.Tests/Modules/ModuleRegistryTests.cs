@@ -31,6 +31,17 @@ public sealed class ModuleRegistryTests
         Assert.Contains("already registered", exception.Message);
     }
 
+    [Fact]
+    public void Register_DuplicateId_IsCaseInsensitive()
+    {
+        var registry = new ModuleRegistry();
+
+        registry.Register(new FakeModule("elbwald.test.duplicate"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => registry.Register(new FakeModule("ELBWALD.TEST.DUPLICATE")));
+    }
+
     private sealed class FakeModule : IToolModule
     {
         public FakeModule(string id)

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.MediaIndex.Collections;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.Knowledge;
 using Elbwald.DesktopTools.Contracts.Storage;
@@ -366,6 +367,36 @@ public sealed class MediaIndexService : IMediaIndexService
         string? parentRelativeFolder = null,
         CancellationToken cancellationToken = default) =>
         _store.GetFolderChildrenAsync(endpointId, parentRelativeFolder, cancellationToken);
+
+
+    public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineYearsAsync(
+        CancellationToken cancellationToken = default) =>
+        _store.GetTimelineYearsAsync(cancellationToken);
+
+    public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineMonthsAsync(
+        int year,
+        CancellationToken cancellationToken = default) =>
+        _store.GetTimelineMonthsAsync(year, cancellationToken);
+
+    public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineDaysAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default) =>
+        _store.GetTimelineDaysAsync(year, month, cancellationToken);
+
+    public Task<IReadOnlyList<MediaSmartCollection>> GetSmartCollectionsAsync(
+        CancellationToken cancellationToken = default) =>
+        _store.GetSmartCollectionsAsync(cancellationToken);
+
+    public Task<MediaSmartCollection> SaveSmartCollectionAsync(
+        MediaSmartCollectionDraft draft,
+        CancellationToken cancellationToken = default) =>
+        _store.SaveSmartCollectionAsync(draft, cancellationToken);
+
+    public Task DeleteSmartCollectionAsync(
+        string collectionId,
+        CancellationToken cancellationToken = default) =>
+        _store.DeleteSmartCollectionAsync(collectionId, cancellationToken);
 
     private async Task EnsureFactsAsync(
         string mediaItemId,

@@ -37,7 +37,7 @@
         </Style>
 
         <Style Selector="Border.analyzer-soft">
-            <Setter Property="Background" Value="#F4F8F5F2" />
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAnalyzerOverlayBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
@@ -59,7 +59,7 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="Analysieren" Classes="elbwald-title" />
                     <TextBlock
-                        Text="Bestand erfassen, Metadaten prüfen und Auffälligkeiten finden – lokal und read-only."
+                        Text="Ordner prüfen, bevor du Dateien importierst oder bearbeitest."
                         Classes="elbwald-muted"
                         FontSize="13"
                         TextWrapping="Wrap" />
@@ -84,7 +84,7 @@
                     <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                         <TextBox
                             Text="{Binding SelectedPath, Mode=TwoWay}"
-                            Watermark="Datei oder Ordner auswählen …"
+                            PlaceholderText="Datei oder Ordner auswählen …"
                             VerticalContentAlignment="Center" />
 
                         <Button
@@ -103,7 +103,7 @@
                             Grid.Column="3"
                             Classes="analyzer-primary"
                             Command="{Binding AnalyzeCommand}"
-                            Content="Analysieren" />
+                            Content="Prüfen" />
                     </Grid>
 
                     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -144,14 +144,61 @@
                 </Grid>
             </Border>
 
-            <TabControl IsVisible="{Binding HasResult}">
+            <TabControl
+                IsVisible="{Binding HasResult}"
+                SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+
                 <TabItem Header="Übersicht">
                     <StackPanel Margin="0,14,0,0" Spacing="14">
+                        <Border
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                            BorderBrush="{DynamicResource ElbwaldAccentSoftStrongBrush}"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="18">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                                <StackPanel Spacing="5">
+                                    <TextBlock
+                                        Text="{Binding ResultHeadline}"
+                                        Foreground="{DynamicResource ElbwaldTextBrush}"
+                                        FontSize="18"
+                                        FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="{Binding ResultSummary}"
+                                        Classes="elbwald-muted"
+                                        FontSize="11.5"
+                                        LineHeight="17"
+                                        TextWrapping="Wrap"
+                                        MaxWidth="760" />
+                                </StackPanel>
+
+                                <StackPanel
+                                    Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    VerticalAlignment="Center">
+                                    <Button
+                                        Classes="analyzer-secondary"
+                                        Command="{Binding ShowFilesCommand}"
+                                        Content="Dateien ansehen" />
+                                    <Button
+                                        IsVisible="{Binding HasAttentionItems}"
+                                        Classes="analyzer-secondary"
+                                        Command="{Binding ShowHintsCommand}"
+                                        Content="Hinweise prüfen" />
+                                    <Button
+                                        Classes="analyzer-primary"
+                                        Command="{Binding PrepareImportCommand}"
+                                        Content="Import vorbereiten" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
                         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
                             <Border Classes="analyzer-stat">
                                 <StackPanel Spacing="3">
                                     <TextBlock Text="{Binding TotalFiles}" FontSize="24" FontWeight="SemiBold" />
-                                    <TextBlock Text="Medien / Dateien" Classes="elbwald-muted" FontSize="11" />
+                                    <TextBlock Text="Dateien geprüft" Classes="elbwald-muted" FontSize="11" />
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Classes="analyzer-stat">
@@ -169,7 +216,7 @@
                             <Border Grid.Column="3" Classes="analyzer-stat">
                                 <StackPanel Spacing="3">
                                     <TextBlock Text="{Binding ProblemCount}" Foreground="{DynamicResource ElbwaldDangerBrush}" FontSize="24" FontWeight="SemiBold" />
-                                    <TextBlock Text="echte Probleme" Classes="elbwald-muted" FontSize="11" />
+                                    <TextBlock Text="Probleme gefunden" Classes="elbwald-muted" FontSize="11" />
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -194,15 +241,15 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Spacing="9">
-                                            <TextBlock Text="Metadaten" FontWeight="SemiBold" />
+                                            <TextBlock Text="Dateiinformationen" FontWeight="SemiBold" />
                                             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
-                                                <TextBlock Text="EXIF vorhanden" FontSize="11" />
+                                                <TextBlock Text="Kamera-Informationen" FontSize="11" />
                                                 <TextBlock Grid.Column="1" Text="{Binding ExifCount}" FontSize="11" FontWeight="SemiBold" />
-                                                <TextBlock Grid.Row="1" Text="Aufnahmedatum" FontSize="11" />
+                                                <TextBlock Grid.Row="1" Text="Aufnahmedatum gefunden" FontSize="11" />
                                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CaptureDateCount}" FontSize="11" FontWeight="SemiBold" />
-                                                <TextBlock Grid.Row="2" Text="ohne Aufnahmedatum" FontSize="11" />
+                                                <TextBlock Grid.Row="2" Text="Aufnahmedatum fehlt" FontSize="11" />
                                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MissingCaptureDateCount}" FontSize="11" FontWeight="SemiBold" />
-                                                <TextBlock Grid.Row="3" Text="GPS vorhanden" FontSize="11" />
+                                                <TextBlock Grid.Row="3" Text="Standort vorhanden" FontSize="11" />
                                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GpsCount}" FontSize="11" FontWeight="SemiBold" />
                                             </Grid>
                                         </StackPanel>
@@ -214,7 +261,7 @@
                                 <StackPanel Spacing="10">
                                     <TextBlock Text="Bildbestand" Classes="elbwald-section-title" />
                                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="7">
-                                        <TextBlock Text="mit Auflösung" FontSize="11" />
+                                        <TextBlock Text="Auflösung erkannt" FontSize="11" />
                                         <TextBlock Grid.Column="1" Text="{Binding DimensionCount}" FontSize="11" FontWeight="SemiBold" />
                                         <TextBlock Grid.Row="1" Text="Querformat" FontSize="11" />
                                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LandscapeCount}" FontSize="11" FontWeight="SemiBold" />
@@ -226,39 +273,19 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
-
-                        <Border Classes="elbwald-card" Padding="18">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="Größte Dateien" Classes="elbwald-section-title" />
-                                <ItemsControl ItemsSource="{Binding LargestFiles}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:LargestFileViewModel">
-                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16" Margin="0,3">
-                                                <StackPanel Spacing="1">
-                                                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="11" />
-                                                    <TextBlock Text="{Binding FullPath}" Classes="elbwald-muted" FontSize="9" TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" />
-                                                <TextBlock Grid.Column="2" Text="{Binding Size}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </TabItem>
 
                 <TabItem Header="Dateien">
                     <StackPanel Margin="0,14,0,0" Spacing="12">
                         <Border Classes="elbwald-card" Padding="14">
-                            <Grid ColumnDefinitions="*,Auto,Auto,Auto,150" ColumnSpacing="10">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto,170" ColumnSpacing="10">
                                 <TextBox
                                     Text="{Binding SearchText, Mode=TwoWay}"
-                                    Watermark="Dateiname, Pfad, Format oder Kamera suchen …" />
-                                <CheckBox Grid.Column="1" Content="nur Probleme" IsChecked="{Binding OnlyProblems}" VerticalAlignment="Center" />
-                                <CheckBox Grid.Column="2" Content="ohne Aufnahmedatum" IsChecked="{Binding OnlyMissingCaptureDate}" VerticalAlignment="Center" />
-                                <CheckBox Grid.Column="3" Content="nur RAW" IsChecked="{Binding OnlyRaw}" VerticalAlignment="Center" />
+                                    PlaceholderText="Dateiname, Pfad, Format oder Kamera suchen …" />
+                                <CheckBox Grid.Column="1" Content="nur mit Problemen" IsChecked="{Binding OnlyProblems}" VerticalAlignment="Center" />
+                                <CheckBox Grid.Column="2" Content="Aufnahmedatum fehlt" IsChecked="{Binding OnlyMissingCaptureDate}" VerticalAlignment="Center" />
+                                <CheckBox Grid.Column="3" Content="nur Kamera-Rohdateien" IsChecked="{Binding OnlyRaw}" VerticalAlignment="Center" />
                                 <ComboBox Grid.Column="4" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SelectedSortOption, Mode=TwoWay}" />
                             </Grid>
                         </Border>
@@ -283,7 +310,7 @@
                                                         <Grid>
                                                             <Image IsVisible="{Binding HasThumbnail}" Source="{Binding Thumbnail}" Stretch="UniformToFill" />
                                                             <TextBlock IsVisible="{Binding !HasThumbnail}" Text="{Binding FormatLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" Classes="elbwald-muted" FontSize="10" />
-                                                            <Border VerticalAlignment="Bottom" Background="#DFFFFFFF" Padding="6,4">
+                                                            <Border VerticalAlignment="Bottom" Background="{DynamicResource ElbwaldAnalyzerCaptionBrush}" Padding="6,4">
                                                                 <TextBlock Text="{Binding FileName}" FontSize="9" TextTrimming="CharacterEllipsis" />
                                                             </Border>
                                                         </Grid>
@@ -303,9 +330,13 @@
                                     <TextBlock Grid.Column="1" Text="{Binding InspectorSummary}" Classes="elbwald-muted" FontSize="10" />
                                 </Grid>
 
-                                <Grid Grid.Row="1" ColumnDefinitions="1.1*,0.9*" ColumnSpacing="12" MinHeight="430">
+                                <Grid Grid.Row="1" ColumnDefinitions="1.1*,0.9*" ColumnSpacing="12" Height="560">
                                     <Border Classes="analyzer-soft" Padding="6">
-                                        <ListBox ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFileItem, Mode=TwoWay}">
+                                        <ListBox
+                                            ItemsSource="{Binding VisibleFiles}"
+                                            SelectedItem="{Binding SelectedFileItem, Mode=TwoWay}"
+                                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate x:DataType="vm:MediaFileItemViewModel">
                                                     <Grid ColumnDefinitions="*,Auto,70" ColumnSpacing="10" Margin="6,5">
@@ -332,7 +363,14 @@
 
                                             <TextBlock Text="{Binding PreviewFileName}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
 
-                                            <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5">
+                                            <Border Background="{DynamicResource ElbwaldAccentSoftBrush}" CornerRadius="9" Padding="10,8">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="{Binding SelectedFileItem.StatusHeading}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="11" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SelectedFileItem.StatusDescription}" Classes="elbwald-muted" FontSize="9.5" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Grid ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5">
                                                 <TextBlock Text="Format" Classes="elbwald-muted" FontSize="10" />
                                                 <TextBlock Grid.Column="1" Text="{Binding SelectedFileItem.Extension}" FontSize="10" />
                                                 <TextBlock Grid.Row="1" Text="Größe" Classes="elbwald-muted" FontSize="10" />
@@ -341,34 +379,68 @@
                                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedFileItem.Resolution}" FontSize="10" />
                                                 <TextBlock Grid.Row="3" Text="Ausrichtung" Classes="elbwald-muted" FontSize="10" />
                                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedFileItem.Orientation}" FontSize="10" />
-                                                <TextBlock Grid.Row="4" Text="Aufgenommen" Classes="elbwald-muted" FontSize="10" />
+                                                <TextBlock Grid.Row="4" Text="Aufnahmedatum" Classes="elbwald-muted" FontSize="10" />
                                                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedFileItem.CaptureDate}" FontSize="10" />
                                                 <TextBlock Grid.Row="5" Text="Kamera" Classes="elbwald-muted" FontSize="10" />
                                                 <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedFileItem.Camera}" FontSize="10" TextWrapping="Wrap" />
-                                                <TextBlock Grid.Row="6" Text="EXIF / GPS" Classes="elbwald-muted" FontSize="10" />
-                                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedFileItem.ExifGps}" FontSize="10" />
+                                                <TextBlock Grid.Row="6" Text="Kamera-Informationen" Classes="elbwald-muted" FontSize="10" />
+                                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedFileItem.Exif}" FontSize="10" />
+                                                <TextBlock Grid.Row="7" Text="Standort" Classes="elbwald-muted" FontSize="10" />
+                                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedFileItem.Gps}" FontSize="10" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
                             </Grid>
                         </Border>
+
+                        <Border Classes="elbwald-card" Padding="16">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Speicherplatz: größte Dateien" Classes="elbwald-section-title" />
+                                <TextBlock Text="Diese Liste ist nur zur Orientierung. Große Dateien sind nicht automatisch problematisch." Classes="elbwald-muted" FontSize="10" />
+                                <ItemsControl ItemsSource="{Binding LargestFiles}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:LargestFileViewModel">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16" Margin="0,3">
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="11" />
+                                                    <TextBlock Text="{Binding FullPath}" Classes="elbwald-muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Size}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </TabItem>
 
-                <TabItem Header="Metadaten">
+                <TabItem Header="Aufnahmedaten">
                     <StackPanel Margin="0,14,0,0" Spacing="14">
+                        <Border
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                            CornerRadius="12"
+                            Padding="14">
+                            <TextBlock
+                                Text="Fotos können zusätzliche Informationen wie Aufnahmedatum, Kamera oder Standort enthalten. Fehlende Angaben sind kein Fehler und können später ergänzt werden."
+                                Classes="elbwald-muted"
+                                FontSize="11"
+                                TextWrapping="Wrap" />
+                        </Border>
+
                         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
-                            <Border Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding ExifCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="mit EXIF" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
-                            <Border Grid.Column="1" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding CaptureDateCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="mit Aufnahmedatum" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
-                            <Border Grid.Column="2" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding MissingCaptureDateCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="ohne Aufnahmedatum" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
-                            <Border Grid.Column="3" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding GpsCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="mit GPS" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding ExifCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Kamera-Informationen" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Grid.Column="1" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding CaptureDateCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Aufnahmedatum gefunden" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Grid.Column="2" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding MissingCaptureDateCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Aufnahmedatum fehlt" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Grid.Column="3" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding GpsCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Standort vorhanden" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
                         </Grid>
 
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                             <Border Classes="elbwald-card" Padding="18">
                                 <StackPanel Spacing="10">
-                                    <TextBlock Text="Kameras" Classes="elbwald-section-title" />
+                                    <TextBlock Text="Erkannte Kameras" Classes="elbwald-section-title" />
                                     <ItemsControl ItemsSource="{Binding Cameras}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:BreakdownItemViewModel">
@@ -379,19 +451,19 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock Text="Keine erkannten Kameras werden als leere Liste dargestellt." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                    <TextBlock Text="Wenn keine Kamera erkannt wurde, bleibt diese Liste leer. Das ist bei exportierten oder bearbeiteten Bildern normal." Classes="elbwald-muted" FontSize="9.5" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
 
                             <Border Grid.Column="1" Classes="elbwald-card" Padding="18">
                                 <StackPanel Spacing="10">
-                                    <TextBlock Text="Metadatenqualität" Classes="elbwald-section-title" />
-                                    <TextBlock Text="Fehlende Aufnahmedaten und Parser-Hinweise findest du gesammelt unter Probleme. Der Analyzer bleibt read-only; Korrekturen gehören später in den Metadaten-Bereich." Classes="elbwald-muted" FontSize="11" TextWrapping="Wrap" />
+                                    <TextBlock Text="Qualität der Dateiinformationen" Classes="elbwald-section-title" />
+                                    <TextBlock Text="Manche Dateien enthalten nicht alle Zusatzinformationen oder lassen sich nur teilweise auslesen. Das bedeutet nicht automatisch, dass mit dem Bild etwas nicht stimmt." Classes="elbwald-muted" FontSize="11" TextWrapping="Wrap" />
                                     <Border Background="{DynamicResource ElbwaldAccentSoftBrush}" CornerRadius="9" Padding="12">
                                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="5">
-                                            <TextBlock Text="Parser-Hinweise" FontSize="11" />
+                                            <TextBlock Text="Zusatzinformationen nicht vollständig lesbar" FontSize="11" />
                                             <TextBlock Grid.Column="1" Text="{Binding InfoCount}" FontSize="11" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Row="1" Text="Dateien mit Auflösung" FontSize="11" />
+                                            <TextBlock Grid.Row="1" Text="Dateien mit erkannter Auflösung" FontSize="11" />
                                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DimensionCount}" FontSize="11" FontWeight="SemiBold" />
                                         </Grid>
                                     </Border>
@@ -401,44 +473,55 @@
                     </StackPanel>
                 </TabItem>
 
-                <TabItem Header="Probleme">
+                <TabItem Header="Hinweise">
                     <StackPanel Margin="0,14,0,0" Spacing="12">
                         <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                            <Border Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding ProblemCount}" Foreground="{DynamicResource ElbwaldDangerBrush}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="echte Probleme" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
-                            <Border Grid.Column="1" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding InfoCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Parser-Hinweise" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
-                            <Border Grid.Column="2" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding MissingCaptureDateCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="ohne Aufnahmedatum" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding ProblemCount}" Foreground="{DynamicResource ElbwaldDangerBrush}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Probleme" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Grid.Column="1" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding InfoCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="technische Hinweise" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
+                            <Border Grid.Column="2" Classes="analyzer-stat"><StackPanel Spacing="3"><TextBlock Text="{Binding MissingCaptureDateCount}" FontSize="22" FontWeight="SemiBold" /><TextBlock Text="Aufnahmedatum fehlt" Classes="elbwald-muted" FontSize="11" /></StackPanel></Border>
                         </Grid>
 
                         <Border Classes="elbwald-card" Padding="16">
                             <StackPanel Spacing="10">
-                                <TextBlock Text="Probleme und Hinweise" Classes="elbwald-section-title" />
-                                <TextBlock Text="Echte Lese-/Dateisystemprobleme und Parser-Hinweise werden getrennt bewertet. Der Analyzer repariert nichts automatisch." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
-                                <ItemsControl ItemsSource="{Binding Issues}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:AnalysisIssueViewModel">
-                                            <Border Classes="analyzer-soft">
-                                                <StackPanel Spacing="4">
-                                                    <Grid ColumnDefinitions="100,110,*" ColumnSpacing="10">
-                                                        <TextBlock Text="{Binding SeverityLabel}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" FontWeight="SemiBold" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Kind}" Classes="elbwald-muted" FontSize="10" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding Path}" Classes="elbwald-muted" FontSize="9" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" />
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Message}" FontSize="11" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <TextBlock Text="Hinweise zur Prüfung" Classes="elbwald-section-title" />
+                                <TextBlock Text="Probleme betreffen Dateien, die nicht zuverlässig gelesen werden konnten. Fehlende Angaben wie ein Aufnahmedatum sind dagegen nur Hinweise und kein Defekt. Es wird nichts automatisch verändert oder repariert." Classes="elbwald-muted" FontSize="10.5" LineHeight="16" TextWrapping="Wrap" />
+
+                                <Border Background="{DynamicResource ElbwaldAccentSoftBrush}" CornerRadius="9" Padding="12">
+                                    <TextBlock Text="{Binding MissingCaptureDateSummary}" Classes="elbwald-muted" FontSize="10.5" TextWrapping="Wrap" />
+                                </Border>
+
+                                <ScrollViewer
+                                    MaxHeight="560"
+                                    VerticalScrollBarVisibility="Auto"
+                                    HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding Issues}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:AnalysisIssueViewModel">
+                                                <Border Classes="analyzer-soft">
+                                                    <StackPanel Spacing="4">
+                                                        <Grid ColumnDefinitions="100,150,*" ColumnSpacing="10">
+                                                            <TextBlock Text="{Binding SeverityLabel}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" FontWeight="SemiBold" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Kind}" Classes="elbwald-muted" FontSize="10" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding Path}" Classes="elbwald-muted" FontSize="9" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Message}" FontSize="11" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
 
                                 <TextBlock
                                     IsVisible="{Binding !HasIssues}"
-                                    Text="Keine Probleme oder Parser-Hinweise gefunden."
-                                    Classes="elbwald-muted"
+                                    Text="Keine beschädigten oder technisch auffälligen Dateien gefunden."
+                                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                    FontWeight="SemiBold"
                                     HorizontalAlignment="Center"
-                                    Margin="0,24" />
+                                    Margin="0,18,0,10" />
                             </StackPanel>
                         </Border>
                     </StackPanel>

@@ -34,15 +34,34 @@ using Elbwald.DesktopTools.Core.Projects;
 using Elbwald.DesktopTools.Core.Recovery;
 using Elbwald.DesktopTools.Core.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Elbwald.DesktopTools.Contracts.Modules;
+using Elbwald.DesktopTools.Contracts.Navigation;
 
 namespace Elbwald.DesktopTools.App.Services;
 
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDesktopTools(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IModuleRegistry? moduleRegistry = null,
+        IModuleLoader? moduleLoader = null,
+        IModuleLoadReport? moduleLoadReport = null)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
+        moduleRegistry ??= new ModuleRegistry();
+        moduleLoader ??= new ModuleLoader(moduleRegistry);
+        moduleLoadReport ??= new ModuleLoadReport();
+
+        // Host registrations are added after extension registration so critical
+        // platform services remain authoritative for single-service resolution.
+        services.AddSingleton<IModuleRegistry>(moduleRegistry);
+        services.AddSingleton<IModuleLoader>(moduleLoader);
+        services.AddSingleton<IModuleLoadReport>(moduleLoadReport);
+        services.AddSingleton<IExtensionRegistry, ExtensionRegistry>();
+
         services.AddSingleton<IAppPaths, AppPaths>();
+        services.AddSingleton<WindowPlacementStore>();
 
         services.AddSingleton<IStorageVolumeProvider>(
             _ =>
@@ -62,10 +81,6 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IStorageLocationResolver, StorageLocationResolver>();
         services.AddSingleton<IStorageSettingsStore, JsonStorageSettingsStore>();
-
-        services.AddSingleton<IModuleRegistry, ModuleRegistry>();
-        services.AddSingleton<IModuleLoader, ModuleLoader>();
-        services.AddSingleton<IModuleLoadReport, ModuleLoadReport>();
 
         services.AddSingleton<IMediaTypeDetector, ExtensionMediaTypeDetector>();
         services.AddSingleton<IMediaScanner, FileSystemMediaScanner>();
@@ -95,10 +110,12 @@ public static class ServiceCollectionExtensions
                     serviceProvider.GetRequiredService<IMediaAnalysisCache>()));
 
         services.AddSingleton<IMediaAnalyzer, MediaAnalyzerService>();
+        services.AddSingleton<IMediaAnalysisHistoryStore, JsonMediaAnalysisHistoryStore>();
         services.AddSingleton<IMetadataSidecarService, XmpMetadataSidecarService>();
         services.AddSingleton<IMetadataExportService, MetadataExportService>();
         services.AddSingleton<IMediaImportPlanner, MediaImportPlanner>();
         services.AddSingleton<IMediaImportExecutor, MediaImportExecutor>();
+        services.AddSingleton<IMediaImportHistoryStore, JsonMediaImportHistoryStore>();
         services.AddSingleton<IMediaImportCleanupPlanner, MediaImportCleanupPlanner>();
         services.AddSingleton<IMediaImportCleanupExecutor, MediaImportCleanupExecutor>();
         services.AddSingleton<ILibraryHealthService, LibraryHealthService>();
@@ -252,6 +269,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MediaExportSelectionContext>();
 
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<IApplicationNavigation>(
+            serviceProvider => serviceProvider.GetRequiredService<INavigationService>());
         services.AddSingleton<INavigationContentFactory, NavigationContentFactory>();
 
         return services;

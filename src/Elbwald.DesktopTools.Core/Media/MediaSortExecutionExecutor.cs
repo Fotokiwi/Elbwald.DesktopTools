@@ -1589,15 +1589,10 @@ public sealed class MediaSortExecutionExecutor
         var operationKind =
             kinds[0];
 
-        if (!confirmation.HasRequiredTextFor(
-                operationKind))
+        if (operationKind == FileOperationKind.Move
+            && !confirmation.HasRequiredTextFor(operationKind))
         {
-            var requiredText =
-                operationKind == FileOperationKind.Move
-                    ? MediaSortExecutionConfirmation.MoveRequiredText
-                    : MediaSortExecutionConfirmation.CopyRequiredText;
-
-            return $"Zur Freigabe muss exakt '{requiredText}' eingegeben werden.";
+            return $"Zur Freigabe muss exakt '{MediaSortExecutionConfirmation.MoveRequiredText}' eingegeben werden.";
         }
 
         if (operationKind == FileOperationKind.Move

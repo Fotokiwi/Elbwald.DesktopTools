@@ -1,5 +1,6 @@
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
+using Elbwald.DesktopTools.Contracts.MediaIndex.Collections;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.Knowledge;
 using System.Text.Json;
@@ -1001,6 +1002,12 @@ internal sealed class SqliteMediaIndexStore
         var search = string.IsNullOrWhiteSpace(query.SearchText)
             ? null
             : query.SearchText.Trim();
+        var knowledgeIds = (query.KnowledgeItemIds ?? Array.Empty<string>())
+            .Concat(string.IsNullOrWhiteSpace(query.KnowledgeItemId) ? Array.Empty<string>() : new[] { query.KnowledgeItemId! })
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
         await _gate.WaitAsync(cancellationToken);
         try
@@ -1045,9 +1052,10 @@ internal sealed class SqliteMediaIndexStore
                 ? "AND COALESCE((SELECT r.Rating FROM MediaRatings r WHERE r.MediaItemId = i.Id), 0) >= $minimumRating"
                 : string.Empty;
 
-            var knowledgePredicate = string.IsNullOrWhiteSpace(query.KnowledgeItemId)
+            var knowledgePredicate = knowledgeIds.Length == 0
                 ? string.Empty
-                : "AND EXISTS (SELECT 1 FROM MediaKnowledgeAssignments ka WHERE ka.MediaItemId = i.Id AND ka.KnowledgeItemId = $knowledgeItemId)";
+                : string.Join("\n", knowledgeIds.Select((_, index) =>
+                    $"AND EXISTS (SELECT 1 FROM MediaKnowledgeAssignments ka{index} WHERE ka{index}.MediaItemId = i.Id AND ka{index}.KnowledgeItemId = $knowledgeItemId{index})"));
 
             var searchPredicate = search is null
                 ? string.Empty
@@ -1083,6 +1091,8 @@ internal sealed class SqliteMediaIndexStore
                 MediaIndexSortOrder.FileNameDescending => "RepresentativeRelativePath COLLATE NOCASE DESC, i.Id",
                 MediaIndexSortOrder.SizeDescending => "i.Length DESC, i.Id",
                 MediaIndexSortOrder.SizeAscending => "i.Length ASC, i.Id",
+                MediaIndexSortOrder.CaptureDateDescending => "EffectiveCaptureDate DESC, i.Id",
+                MediaIndexSortOrder.CaptureDateAscending => "EffectiveCaptureDate ASC, i.Id",
                 _ => "i.LastSeenUtc DESC, i.Id"
             };
 
@@ -1154,8 +1164,8 @@ internal sealed class SqliteMediaIndexStore
                 command.Parameters.AddWithValue("$captureTo", query.CaptureDateTo.Value.ToString("O"));
             if (query.MinimumRating.HasValue)
                 command.Parameters.AddWithValue("$minimumRating", Math.Clamp(query.MinimumRating.Value, 0, 3));
-            if (!string.IsNullOrWhiteSpace(query.KnowledgeItemId))
-                command.Parameters.AddWithValue("$knowledgeItemId", query.KnowledgeItemId.Trim());
+            for (var index = 0; index < knowledgeIds.Length; index++)
+                command.Parameters.AddWithValue($"$knowledgeItemId{index}", knowledgeIds[index]);
 
             if (search is not null)
             {
@@ -1448,6 +1458,341 @@ internal sealed class SqliteMediaIndexStore
         }
     }
 
+
+    public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineYearsAsync(CancellationToken cancellationToken) =>
+        GetTimelineFacetsAsync(null, null, cancellationToken);
+
+    public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineMonthsAsync(
+        int year,
+        CancellationToken cancellationToken) =>
+        GetTimelineFacetsAsync(year, null, cancellationToken);
+
+    public Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineDaysAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken)
+    {
+        if (month is < 1 or > 12) throw new ArgumentOutOfRangeException(nameof(month));
+        return GetTimelineFacetsAsync(year, month, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineFacetsAsync(
+        int? year,
+        int? month,
+        CancellationToken cancellationToken)
+    {
+        if (year.HasValue && year.Value is < 1 or > 9999)
+            throw new ArgumentOutOfRangeException(nameof(year));
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+
+            var groupExpression = !year.HasValue
+                ? "substr(CaptureDate, 1, 4)"
+                : !month.HasValue
+                    ? "substr(CaptureDate, 6, 2)"
+                    : "substr(CaptureDate, 9, 2)";
+            var where = "CaptureDate IS NOT NULL AND length(CaptureDate) >= 10";
+            if (year.HasValue) where += " AND substr(CaptureDate, 1, 4) = $year";
+            if (month.HasValue) where += " AND substr(CaptureDate, 6, 2) = $month";
+
+            command.CommandText = $"""
+                WITH Effective AS (
+                    SELECT i.Id,
+                           COALESCE(
+                               (SELECT m.CaptureDate FROM MediaMetadata m WHERE m.MediaItemId = i.Id AND m.CaptureDateOverridden = 1),
+                               (SELECT f.CaptureDate FROM MediaFacts f WHERE f.MediaItemId = i.Id)
+                           ) AS CaptureDate
+                    FROM MediaItems i
+                    WHERE EXISTS (
+                        SELECT 1 FROM MediaLocations l
+                        WHERE l.MediaItemId = i.Id AND l.IsPresent = 1
+                    )
+                )
+                SELECT {groupExpression} AS Bucket, COUNT(*) AS MediaCount
+                FROM Effective
+                WHERE {where}
+                GROUP BY {groupExpression}
+                ORDER BY Bucket DESC;
+                """;
+
+            if (year.HasValue) command.Parameters.AddWithValue("$year", year.Value.ToString("0000"));
+            if (month.HasValue) command.Parameters.AddWithValue("$month", month.Value.ToString("00"));
+
+            var result = new List<MediaTimelineFacet>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                if (reader.IsDBNull(0) || !int.TryParse(reader.GetString(0), out var bucket)) continue;
+                result.Add(!year.HasValue
+                    ? new MediaTimelineFacet(bucket, null, null, Convert.ToInt32(reader.GetInt64(1)))
+                    : !month.HasValue
+                        ? new MediaTimelineFacet(year.Value, bucket, null, Convert.ToInt32(reader.GetInt64(1)))
+                        : new MediaTimelineFacet(year.Value, month.Value, bucket, Convert.ToInt32(reader.GetInt64(1))));
+            }
+
+            return result;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<MediaSmartCollection>> GetSmartCollectionsAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            var rows = new List<(string Id, string Name, string? SearchText, MediaFileType? MediaType, string? EndpointId, string? RelativeFolder, DateTime? From, DateTime? To, int? Rating, DateTimeOffset Created, DateTimeOffset Updated)>();
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    SELECT Id, Name, SearchText, MediaType, EndpointId, RelativeFolder, CaptureDateFrom, CaptureDateTo,
+                           MinimumRating, CreatedUtc, UpdatedUtc
+                    FROM SmartCollections
+                    ORDER BY Name COLLATE NOCASE;
+                    """;
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    rows.Add((
+                        reader.GetString(0),
+                        reader.GetString(1),
+                        reader.IsDBNull(2) ? null : reader.GetString(2),
+                        reader.IsDBNull(3) ? null : (MediaFileType)reader.GetInt32(3),
+                        reader.IsDBNull(4) ? null : reader.GetString(4),
+                        reader.IsDBNull(5) ? null : reader.GetString(5),
+                        ReadNullableDateTime(reader, 6),
+                        ReadNullableDateTime(reader, 7),
+                        reader.IsDBNull(8) ? null : reader.GetInt32(8),
+                        DateTimeOffset.Parse(reader.GetString(9)),
+                        DateTimeOffset.Parse(reader.GetString(10))));
+                }
+            }
+
+            var knowledge = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    SELECT CollectionId, KnowledgeItemId
+                    FROM SmartCollectionKnowledgeItems
+                    ORDER BY CollectionId, KnowledgeItemId;
+                    """;
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    var collectionId = reader.GetString(0);
+                    if (!knowledge.TryGetValue(collectionId, out var values))
+                    {
+                        values = [];
+                        knowledge[collectionId] = values;
+                    }
+                    values.Add(reader.GetString(1));
+                }
+            }
+
+            return rows.Select(row => new MediaSmartCollection(
+                    row.Id,
+                    row.Name,
+                    row.SearchText,
+                    row.MediaType,
+                    row.EndpointId,
+                    row.RelativeFolder,
+                    row.From,
+                    row.To,
+                    row.Rating,
+                    knowledge.TryGetValue(row.Id, out var ids) ? ids.ToArray() : Array.Empty<string>(),
+                    row.Created,
+                    row.Updated))
+                .ToArray();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<MediaSmartCollection> SaveSmartCollectionAsync(
+        MediaSmartCollectionDraft draft,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        var name = (draft.Name ?? string.Empty).Trim();
+        if (name.Length == 0) throw new ArgumentException("Name darf nicht leer sein.", nameof(draft));
+        if (draft.CaptureDateFrom.HasValue && draft.CaptureDateTo.HasValue && draft.CaptureDateTo.Value < draft.CaptureDateFrom.Value)
+            throw new ArgumentException("Enddatum darf nicht vor dem Startdatum liegen.", nameof(draft));
+        if (draft.MinimumRating is < 1 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(draft), "Mindestbewertung muss zwischen 1 und 3 liegen.");
+
+        var knowledgeIds = (draft.KnowledgeItemIds ?? Array.Empty<string>())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var id = string.IsNullOrWhiteSpace(draft.Id) ? Guid.NewGuid().ToString("N") : draft.Id.Trim();
+        var now = DateTimeOffset.UtcNow;
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+            foreach (var knowledgeId in knowledgeIds)
+            {
+                await using var exists = connection.CreateCommand();
+                exists.Transaction = transaction;
+                exists.CommandText = "SELECT COUNT(*) FROM MetadataKnowledgeItems WHERE Id = $id;";
+                exists.Parameters.AddWithValue("$id", knowledgeId);
+                if (Convert.ToInt64(await exists.ExecuteScalarAsync(cancellationToken)) == 0)
+                    throw new InvalidOperationException($"Metadatenkriterium ist nicht mehr vorhanden: {knowledgeId}");
+            }
+
+            await using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = """
+                    INSERT INTO SmartCollections (
+                        Id, Name, SearchText, MediaType, EndpointId, RelativeFolder, CaptureDateFrom, CaptureDateTo,
+                        MinimumRating, CreatedUtc, UpdatedUtc)
+                    VALUES (
+                        $id, $name, $searchText, $mediaType, $endpointId, $relativeFolder, $captureFrom, $captureTo,
+                        $minimumRating, $created, $updated)
+                    ON CONFLICT(Id) DO UPDATE SET
+                        Name = excluded.Name,
+                        SearchText = excluded.SearchText,
+                        MediaType = excluded.MediaType,
+                        EndpointId = excluded.EndpointId,
+                        RelativeFolder = excluded.RelativeFolder,
+                        CaptureDateFrom = excluded.CaptureDateFrom,
+                        CaptureDateTo = excluded.CaptureDateTo,
+                        MinimumRating = excluded.MinimumRating,
+                        UpdatedUtc = excluded.UpdatedUtc;
+                    """;
+                command.Parameters.AddWithValue("$id", id);
+                command.Parameters.AddWithValue("$name", name);
+                command.Parameters.AddWithValue("$searchText", (object?)NormalizeNullableText(draft.SearchText) ?? DBNull.Value);
+                command.Parameters.AddWithValue("$mediaType", draft.MediaType.HasValue ? (int)draft.MediaType.Value : DBNull.Value);
+                command.Parameters.AddWithValue("$endpointId", (object?)NormalizeNullableText(draft.EndpointId) ?? DBNull.Value);
+                command.Parameters.AddWithValue("$relativeFolder", (object?)NormalizeNullableText(draft.RelativeFolder) ?? DBNull.Value);
+                command.Parameters.AddWithValue("$captureFrom", draft.CaptureDateFrom.HasValue ? draft.CaptureDateFrom.Value.ToString("O") : DBNull.Value);
+                command.Parameters.AddWithValue("$captureTo", draft.CaptureDateTo.HasValue ? draft.CaptureDateTo.Value.ToString("O") : DBNull.Value);
+                command.Parameters.AddWithValue("$minimumRating", draft.MinimumRating.HasValue ? draft.MinimumRating.Value : DBNull.Value);
+                command.Parameters.AddWithValue("$created", now.UtcDateTime.ToString("O"));
+                command.Parameters.AddWithValue("$updated", now.UtcDateTime.ToString("O"));
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await using (var delete = connection.CreateCommand())
+            {
+                delete.Transaction = transaction;
+                delete.CommandText = "DELETE FROM SmartCollectionKnowledgeItems WHERE CollectionId = $id;";
+                delete.Parameters.AddWithValue("$id", id);
+                await delete.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            foreach (var knowledgeId in knowledgeIds)
+            {
+                await using var insert = connection.CreateCommand();
+                insert.Transaction = transaction;
+                insert.CommandText = """
+                    INSERT INTO SmartCollectionKnowledgeItems (CollectionId, KnowledgeItemId)
+                    VALUES ($collectionId, $knowledgeId);
+                    """;
+                insert.Parameters.AddWithValue("$collectionId", id);
+                insert.Parameters.AddWithValue("$knowledgeId", knowledgeId);
+                await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            var created = now;
+            await using (var createdCommand = connection.CreateCommand())
+            {
+                createdCommand.CommandText = "SELECT CreatedUtc FROM SmartCollections WHERE Id = $id LIMIT 1;";
+                createdCommand.Parameters.AddWithValue("$id", id);
+                var value = await createdCommand.ExecuteScalarAsync(cancellationToken);
+                if (value is string text && DateTimeOffset.TryParse(text, out var parsed)) created = parsed;
+            }
+
+            return new MediaSmartCollection(
+                id,
+                name,
+                NormalizeNullableText(draft.SearchText),
+                draft.MediaType,
+                NormalizeNullableText(draft.EndpointId),
+                NormalizeNullableText(draft.RelativeFolder),
+                draft.CaptureDateFrom,
+                draft.CaptureDateTo,
+                draft.MinimumRating,
+                knowledgeIds,
+                created,
+                now);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task DeleteSmartCollectionAsync(string collectionId, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(collectionId);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+            await using (var links = connection.CreateCommand())
+            {
+                links.Transaction = transaction;
+                links.CommandText = "DELETE FROM SmartCollectionKnowledgeItems WHERE CollectionId = $id;";
+                links.Parameters.AddWithValue("$id", collectionId.Trim());
+                await links.ExecuteNonQueryAsync(cancellationToken);
+            }
+            await using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = "DELETE FROM SmartCollections WHERE Id = $id;";
+                command.Parameters.AddWithValue("$id", collectionId.Trim());
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            await transaction.CommitAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private static DateTime? ReadNullableDateTime(SqliteDataReader reader, int index)
+    {
+        if (reader.IsDBNull(index)) return null;
+        return DateTime.TryParse(
+            reader.GetString(index),
+            null,
+            System.Globalization.DateTimeStyles.RoundtripKind,
+            out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static string? NormalizeNullableText(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
@@ -1600,7 +1945,32 @@ internal sealed class SqliteMediaIndexStore
             CREATE INDEX IF NOT EXISTS IX_MediaRatings_Rating
                 ON MediaRatings (Rating);
 
-            PRAGMA user_version = 3;
+            CREATE TABLE IF NOT EXISTS SmartCollections (
+                Id TEXT PRIMARY KEY NOT NULL,
+                Name TEXT NOT NULL,
+                SearchText TEXT NULL,
+                MediaType INTEGER NULL,
+                EndpointId TEXT NULL,
+                RelativeFolder TEXT NULL,
+                CaptureDateFrom TEXT NULL,
+                CaptureDateTo TEXT NULL,
+                MinimumRating INTEGER NULL CHECK (MinimumRating IS NULL OR MinimumRating BETWEEN 1 AND 3),
+                CreatedUtc TEXT NOT NULL,
+                UpdatedUtc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS SmartCollectionKnowledgeItems (
+                CollectionId TEXT NOT NULL,
+                KnowledgeItemId TEXT NOT NULL,
+                PRIMARY KEY (CollectionId, KnowledgeItemId),
+                FOREIGN KEY (CollectionId) REFERENCES SmartCollections(Id) ON DELETE CASCADE,
+                FOREIGN KEY (KnowledgeItemId) REFERENCES MetadataKnowledgeItems(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_SmartCollectionKnowledgeItems_Knowledge
+                ON SmartCollectionKnowledgeItems (KnowledgeItemId, CollectionId);
+
+            PRAGMA user_version = 4;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
         _initialized = true;

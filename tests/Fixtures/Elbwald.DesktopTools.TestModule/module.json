@@ -3,8 +3,13 @@
   "name": "Test Module",
   "description": "Testmodul für automatisierte ModuleLoader-Tests.",
   "version": "1.0.0",
-  "apiVersion": 1,
+  "apiVersion": 2,
   "minimumHostVersion": "0.0.1",
   "assembly": "Elbwald.DesktopTools.TestModule.dll",
-  "enabled": true
+  "enabled": true,
+  "capabilities": [
+    "test.service-registration"
+  ],
+  "permissions": [],
+  "dependencies": []
 }

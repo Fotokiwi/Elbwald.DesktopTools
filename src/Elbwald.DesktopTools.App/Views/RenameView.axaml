@@ -67,121 +67,157 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="Umbenennen" Classes="elbwald-title" />
                 <TextBlock
-                    Text="Medien nachvollziehbar und sicher umbenennen – mit Regelvorschau vor jeder Änderung."
+                    Text="Gib vielen Dateien einheitliche, verständliche Namen. Eine Vorschau zeigt dir jede Änderung, bevor etwas passiert."
                     Classes="elbwald-muted"
-                    FontSize="13" />
+                    FontSize="13"
+                    TextWrapping="Wrap" />
             </StackPanel>
 
-            <!-- Workflow -->
+            <!-- Geführter Einstieg -->
             <Grid ColumnDefinitions="1.1*,1.9*" ColumnSpacing="12">
                 <Border Grid.Column="0" Classes="elbwald-card" Padding="17">
                     <Grid ColumnDefinitions="38,*,Auto" ColumnSpacing="12">
                         <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
                             <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
                         </Border>
-                        <StackPanel Grid.Column="1" Spacing="3">
-                            <TextBlock Text="Quelle" FontWeight="SemiBold" FontSize="16" />
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="Welche Dateien?" FontWeight="SemiBold" FontSize="16" />
+                            <TextBlock Text="{Binding SourceContextText}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="11" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding SourcePath}" Classes="elbwald-muted" FontSize="10" TextTrimming="CharacterEllipsis" MaxLines="2" />
                             <CheckBox Content="Unterordner einbeziehen" IsChecked="{Binding IncludeSubdirectories}" Margin="0,4,0,0" />
                         </StackPanel>
-                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Content="Ändern" Command="{Binding ChooseFolderCommand}" VerticalAlignment="Top" />
+                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Content="Andere Quelle" Command="{Binding ChooseFolderCommand}" VerticalAlignment="Top" />
                     </Grid>
                 </Border>
 
                 <Border Grid.Column="1" Classes="elbwald-card" Padding="17">
-                    <Grid ColumnDefinitions="38,*" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="38,*,Auto" ColumnSpacing="12">
                         <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
                             <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Namensregel" FontWeight="SemiBold" FontSize="16" />
-                            <TextBlock Text="Freier Text + Platzhalter. Die Dateiendung bleibt automatisch erhalten." Classes="elbwald-muted" FontSize="10" />
-                            <TextBlock Text="{Binding Pattern}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="Wie sollen die Dateien heißen?" FontWeight="SemiBold" FontSize="16" />
+                            <TextBlock Text="{Binding RuleName}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock Text="Beispiel:" Classes="elbwald-muted" FontSize="9.5" />
+                            <TextBlock Text="{Binding ExampleFileName}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
+                        <TextBlock Grid.Column="2" Text="Endung bleibt erhalten" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Top" />
                     </Grid>
                 </Border>
             </Grid>
 
-            <!-- Rule editor -->
+            <!-- Namensstil -->
             <Border Classes="elbwald-card" Padding="18">
-                <StackPanel Spacing="13">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                        <StackPanel Spacing="3">
-                            <TextBlock Text="Namensregel" Classes="elbwald-section-title" />
-                            <TextBlock Text="Freier Text und Platzhalter lassen sich beliebig kombinieren. Die Dateiendung des Mediums bleibt automatisch erhalten." Classes="elbwald-muted" FontSize="11" />
-                        </StackPanel>
-                        <TextBlock Grid.Column="1" Text="Gemeinsame Rule Engine mit Sortieren" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" />
-                    </Grid>
-
-                    <TextBox
-                        Text="{Binding Pattern, Mode=TwoWay}"
-                        IsReadOnly="{Binding IsBusy}"
-                        FontSize="15"
-                        Padding="12,10"
-                        Watermark="{}z. B. Urlaub_{date:yyyy-MM-dd}_{camera}_{seq:000}" />
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Namensstil auswählen" Classes="elbwald-section-title" />
+                        <TextBlock
+                            Text="Für die meisten Sammlungen reicht eine Vorlage. Du kannst sie später jederzeit anpassen."
+                            Classes="elbwald-muted"
+                            FontSize="11"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
 
                     <WrapPanel>
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{year}" Content="Jahr" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{month}" Content="Monat" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{day}" Content="Tag" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{date:yyyy-MM-dd}" Content="Datum" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{time:HHmmss}" Content="Zeit" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{camera}" Content="Kamera" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{make}" Content="Hersteller" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{model}" Content="Modell" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{title}" Content="Titel" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{description}" Content="Beschreibung" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{type}" Content="Medientyp" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{folder}" Content="Quellordner" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{original}" Content="Originalname" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{ext}" Content="Erweiterung" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{width}" Content="Breite" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{height}" Content="Höhe" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{seq:000}" Content="Sequenz" />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Content="Datum + Uhrzeit" Command="{Binding UseReadablePresetCommand}" ToolTip.Tip="Gut für Fotos und Videos: 2026-10-11_14-35-22.jpg. Eine Nummer wird nur ergänzt, wenn derselbe Name sonst doppelt wäre." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Content="Datum + Originalname" Command="{Binding UseOriginalPresetCommand}" ToolTip.Tip="Behält den bisherigen Namen und ergänzt vorne das Aufnahmedatum." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Content="Datum + Kamera" Command="{Binding UseCameraPresetCommand}" ToolTip.Tip="Praktisch bei mehreren Kameras oder Geräten." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Content="Datum + Titel" Command="{Binding UseTitlePresetCommand}" ToolTip.Tip="Gut für gepflegte Sammlungen mit Titeln oder Beschreibungen." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Content="Archiv · Datum + Nummer" Command="{Binding UseArchivePresetCommand}" ToolTip.Tip="Kompakter Archivname mit fester Nummer: 20261011_143522_001.jpg" />
                     </WrapPanel>
 
-                    <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="9">
-                        <Button Grid.Column="0" Classes="elbwald-secondary-button" Content="Archiv" Command="{Binding UseArchivePresetCommand}" />
-                        <Button Grid.Column="1" Classes="elbwald-secondary-button" Content="Lesbar" Command="{Binding UseReadablePresetCommand}" />
-                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Content="Original + Datum" Command="{Binding UseOriginalPresetCommand}" />
-                        <TextBlock Grid.Column="3" Text="Datum: Elbwald-Override → EXIF → Dateisystem" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" TextAlignment="Right" />
-                    </Grid>
-
-                    <Expander Header="Formatbeispiele">
-                        <Grid Margin="8,8,0,0" ColumnDefinitions="*,*" ColumnSpacing="18">
-                            <StackPanel Grid.Column="0" Spacing="5">
-                                <TextBlock Text="{}Datum/Zeit: {date:FORMAT} · {time:FORMAT}" TextWrapping="Wrap" />
-                                <TextBlock Text="{}Sequenz: {seq:000} · {seq:0000}" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="5">
-                                <TextBlock Text="{}Beispiel: Urlaub_{date:yyyy-MM-dd}_{camera}_{seq:000}" TextWrapping="Wrap" />
-                                <TextBlock Text="Leere Metadaten werden von der Rule Engine mit sicheren Fallbacks behandelt." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
-                            </StackPanel>
+                    <Border Classes="elbwald-soft-card" Padding="14">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <TextBlock Text="Beispiel" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding ExampleFileName}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                         </Grid>
+                    </Border>
+
+                    <Expander Header="Eigene Namensregel anpassen">
+                        <StackPanel Margin="4,10,4,0" Spacing="12">
+                            <TextBlock
+                                Text="Fortgeschritten: Du kannst Text und Platzhalter frei kombinieren. Die Dateiendung wird automatisch beibehalten."
+                                Classes="elbwald-muted"
+                                FontSize="10.5"
+                                TextWrapping="Wrap" />
+
+                            <TextBox
+                                Text="{Binding Pattern, Mode=TwoWay}"
+                                IsReadOnly="{Binding IsBusy}"
+                                FontSize="14"
+                                Padding="12,10"
+                                PlaceholderText="{}z. B. Urlaub_{date:yyyy-MM-dd}_{camera}_{seq:000}" />
+
+                            <WrapPanel>
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{year}" Content="Jahr" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{month}" Content="Monat" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{day}" Content="Tag" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{date:yyyy-MM-dd}" Content="Datum" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{time:HHmmss}" Content="Zeit" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{camera}" Content="Kamera" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{make}" Content="Hersteller" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{model}" Content="Modell" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{title}" Content="Titel" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{description}" Content="Beschreibung" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{type}" Content="Medientyp" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{folder}" Content="Quellordner" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{original}" Content="Originalname" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{width}" Content="Breite" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{height}" Content="Höhe" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{seq:000}" Content="Sequenz" />
+                            </WrapPanel>
+
+                            <TextBlock
+                                Text="Datum wird aus den vorhandenen Medieninformationen ermittelt. Fehlende Angaben erhalten sichere Fallbacks."
+                                Classes="elbwald-muted"
+                                FontSize="10"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
                     </Expander>
                 </StackPanel>
             </Border>
 
-            <!-- Action/status -->
+            <!-- Aktionen -->
             <Border Classes="elbwald-soft-card" Padding="12">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
-                    <Button Grid.Column="0" Classes="elbwald-primary-button" Content="Vorschau aktualisieren" Command="{Binding CreatePreviewCommand}" />
-                    <Button Grid.Column="1" Classes="elbwald-secondary-button" Content="Umbenennen" Command="{Binding ExecuteCommand}" IsEnabled="{Binding CanRun}" />
+                    <Button
+                        Grid.Column="0"
+                        Classes="elbwald-primary-button"
+                        Content="{Binding PreviewActionText}"
+                        Command="{Binding CreatePreviewCommand}"
+                        IsVisible="{Binding NeedsPreview}" />
+                    <Button
+                        Grid.Column="0"
+                        Classes="elbwald-secondary-button"
+                        Content="Vorschau aktualisieren"
+                        Command="{Binding CreatePreviewCommand}"
+                        IsVisible="{Binding HasPreview}" />
+                    <Button
+                        Grid.Column="1"
+                        Classes="elbwald-primary-button"
+                        Content="{Binding ExecuteActionText}"
+                        Command="{Binding ExecuteCommand}"
+                        IsEnabled="{Binding CanRun}"
+                        IsVisible="{Binding HasPreview}" />
                     <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center">
                         <TextBlock Text="{Binding StatusMessage}" FontSize="11" TextWrapping="Wrap" />
                         <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" IsVisible="{Binding IsBusy}" Height="4" />
                     </StackPanel>
-                    <TextBlock Grid.Column="3" Text="Keine Überschreibungen" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="Keine Dateien werden überschrieben" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" FontSize="10" VerticalAlignment="Center" />
                 </Grid>
             </Border>
 
-            <!-- Preview -->
+            <!-- Vorschau -->
             <Border Classes="elbwald-card" IsVisible="{Binding HasPreview}" Padding="18">
                 <StackPanel Spacing="13">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Spacing="3">
                             <TextBlock Text="Vorschau" Classes="elbwald-section-title" />
-                            <TextBlock Text="RAW/JPEG-Gruppen behalten denselben neuen Stamm; vorhandene .xmp-Begleitdateien werden gemeinsam geplant." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                            <TextBlock
+                                Text="Links siehst du den bisherigen Namen, rechts den neuen. Begleitdateien wie XMP werden automatisch passend mitgeführt."
+                                Classes="elbwald-muted"
+                                FontSize="10.5"
+                                TextWrapping="Wrap" />
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="Alt → Neu" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" />
                     </Grid>
@@ -189,19 +225,19 @@
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
                         <Border Grid.Column="0" Classes="elbwald-soft-card" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Bereit" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="Wird umbenannt" Classes="elbwald-muted" FontSize="9" />
                                 <TextBlock Text="{Binding ReadyCount}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldAccentBrush}" />
                             </StackPanel>
                         </Border>
                         <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Unverändert" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="Bleibt unverändert" Classes="elbwald-muted" FontSize="9" />
                                 <TextBlock Text="{Binding UnchangedCount}" FontSize="20" FontWeight="SemiBold" />
                             </StackPanel>
                         </Border>
                         <Border Grid.Column="2" Classes="elbwald-soft-card" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Konflikte" Classes="elbwald-muted" FontSize="9" />
+                                <TextBlock Text="Muss geprüft werden" Classes="elbwald-muted" FontSize="9" />
                                 <TextBlock Text="{Binding ConflictCount}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldDangerBrush}" />
                             </StackPanel>
                         </Border>
@@ -212,7 +248,7 @@
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RenamePlanItemViewModel">
-                                        <Grid ColumnDefinitions="1.1*,38,1.25*,110,105" ColumnSpacing="10" Margin="7,8">
+                                        <Grid ColumnDefinitions="1.05*,38,1.25*,120,125" ColumnSpacing="10" Margin="7,8">
                                             <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock Text="{Binding SourceName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding Kind}" Classes="elbwald-muted" FontSize="9" />
@@ -222,8 +258,8 @@
                                                 <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding Message}" Classes="elbwald-muted" FontSize="9" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="3" Text="{Binding DateSource}" Classes="elbwald-muted" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="4" Text="{Binding Status}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="3" Text="{Binding FriendlyDateSource}" Classes="elbwald-muted" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="4" Text="{Binding FriendlyStatus}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -233,28 +269,32 @@
                 </StackPanel>
             </Border>
 
-            <!-- Result -->
+            <!-- Ergebnis -->
             <Border Classes="elbwald-card" IsVisible="{Binding HasResult}" Padding="18">
                 <StackPanel Spacing="6">
-                    <TextBlock Text="Abschluss" Classes="elbwald-section-title" />
+                    <TextBlock Text="Umbenennen abgeschlossen" Classes="elbwald-section-title" />
                     <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <!-- Safety -->
+            <!-- Sicherheit -->
             <Border Classes="elbwald-card" Padding="18">
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Spacing="3">
-                            <TextBlock Text="Sicherer Vorgang" Classes="elbwald-section-title" />
-                            <TextBlock Text="Vorschau erforderlich · keine Überschreibungen · SHA-256-Recheck · Recovery vor jedem Move · Benutzer-Historie" Classes="elbwald-muted" FontSize="10" />
+                            <TextBlock Text="Sicher umbenennen" Classes="elbwald-section-title" />
+                            <TextBlock
+                                Text="Vor dem Umbenennen wird jede Datei noch einmal geprüft. Vorhandene Dateien werden nicht überschrieben und der Vorgang kann bei Problemen wiederhergestellt werden."
+                                Classes="elbwald-muted"
+                                FontSize="10.5"
+                                TextWrapping="Wrap" />
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="Recovery aktiv" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Grid>
 
-                    <Expander Header="Sicherheitsdetails">
+                    <Expander Header="Technische Sicherheitsdetails anzeigen">
                         <TextBlock Margin="8" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap"
-                                   Text="• Erst Vorschau, dann Ausführung.&#10;• Quellen werden unmittelbar vor dem Rename erneut über Größe, Zeitstempel und SHA-256 geprüft.&#10;• Existierende Ziele, doppelte Ziele und Rename-Ketten werden blockiert.&#10;• Vor jedem Move erstellt die Dateioperations-Engine eine persistente Recovery-Sicherung und journalisiert den Vorgang.&#10;• Nach Beginn der destruktiven Phase gibt es bewusst keinen Benutzerabbruch.&#10;• Erfolgreiche Umbenennungen werden zusätzlich in der Benutzer-Historie protokolliert.&#10;• Der Medienindex wird nicht heimlich umgeschrieben; beim nächsten Indexlauf wird die Datei anhand ihrer Content-ID wiedergefunden." />
+                                   Text="• Erst Vorschau, dann Ausführung.&#10;• Quellen werden unmittelbar vor dem Umbenennen erneut über Größe, Zeitstempel und SHA-256 geprüft.&#10;• Existierende Ziele, doppelte Ziele und Umbenennungs-Ketten werden blockiert.&#10;• Vor jeder Änderung erstellt die Dateioperations-Engine eine persistente Recovery-Sicherung und journalisiert den Vorgang.&#10;• Erfolgreiche Umbenennungen werden zusätzlich in der Benutzer-Historie protokolliert.&#10;• Beim nächsten Indexlauf wird die Datei anhand ihrer Content-ID wiedergefunden." />
                     </Expander>
                 </StackPanel>
             </Border>

@@ -4,26 +4,70 @@
              RequestedThemeVariant="Default">
 
     <Application.Resources>
-        <SolidColorBrush x:Key="ElbwaldAccentBrush" Color="#286A4A" />
-        <SolidColorBrush x:Key="ElbwaldAccentHoverBrush" Color="#337A58" />
-        <SolidColorBrush x:Key="ElbwaldAccentSoftBrush" Color="#E8F2EC" />
-        <SolidColorBrush x:Key="ElbwaldAccentSoftStrongBrush" Color="#D2E8DA" />
-        <SolidColorBrush x:Key="ElbwaldSidebarBrush" Color="#F4F8F5" />
-        <SolidColorBrush x:Key="ElbwaldPageBrush" Color="#FAFCFA" />
-        <SolidColorBrush x:Key="ElbwaldCardBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="ElbwaldCardHoverBrush" Color="#F5FAF7" />
-        <SolidColorBrush x:Key="ElbwaldWarmCardBrush" Color="#F8F3EA" />
-        <SolidColorBrush x:Key="ElbwaldBorderBrush" Color="#DCE5DF" />
-        <SolidColorBrush x:Key="ElbwaldTextBrush" Color="#17251F" />
-        <SolidColorBrush x:Key="ElbwaldMutedTextBrush" Color="#66756D" />
-        <SolidColorBrush x:Key="ElbwaldWarningBrush" Color="#A96200" />
-        <SolidColorBrush x:Key="ElbwaldWarningSoftBrush" Color="#FFF1D6" />
-        <SolidColorBrush x:Key="ElbwaldDangerBrush" Color="#A64235" />
-        <SolidColorBrush x:Key="ElbwaldDangerSoftBrush" Color="#FBE8E5" />
+        <!-- Central color palette. All application colors live here. -->
+        <SolidColorBrush x:Key="ElbwaldAccentBrush" Color="#486B63" />
+        <SolidColorBrush x:Key="ElbwaldAccentHoverBrush" Color="#577A72" />
+        <SolidColorBrush x:Key="ElbwaldAccentSoftBrush" Color="#E8EFED" />
+        <SolidColorBrush x:Key="ElbwaldAccentSoftStrongBrush" Color="#D2DFDB" />
+        <SolidColorBrush x:Key="ElbwaldSidebarBrush" Color="#EEF2F1" />
+        <SolidColorBrush x:Key="ElbwaldPageBrush" Color="#F7F9F8" />
+        <SolidColorBrush x:Key="ElbwaldCardBrush" Color="#F8FFFFFF" />
+        <SolidColorBrush x:Key="ElbwaldCardHoverBrush" Color="#F1F6F4" />
+        <SolidColorBrush x:Key="ElbwaldHomeCardBrush" Color="#FFFDFCFA" />
+        <SolidColorBrush x:Key="ElbwaldHomeCardHoverBrush" Color="#FFF0F6F3" />
+        <SolidColorBrush x:Key="ElbwaldHomeCardPressedBrush" Color="#FFE3EEEA" />
+        <SolidColorBrush x:Key="ElbwaldWarmCardBrush" Color="#F5F1EA" />
+        <SolidColorBrush x:Key="ElbwaldBorderBrush" Color="#D4DEDB" />
+        <SolidColorBrush x:Key="ElbwaldTextBrush" Color="#1D2B28" />
+        <SolidColorBrush x:Key="ElbwaldMutedTextBrush" Color="#687873" />
+        <SolidColorBrush x:Key="ElbwaldWarningBrush" Color="#9A6425" />
+        <SolidColorBrush x:Key="ElbwaldWarningSoftBrush" Color="#F8EEDC" />
+        <SolidColorBrush x:Key="ElbwaldDangerBrush" Color="#9B4A40" />
+        <SolidColorBrush x:Key="ElbwaldDangerSoftBrush" Color="#F5E8E6" />
+
+        <!-- Semantic surfaces used by individual screens. -->
+        <SolidColorBrush x:Key="ElbwaldChromeBrush" Color="#EEF2F1" />
+        <SolidColorBrush x:Key="ElbwaldSidebarFooterBrush" Color="#F8F6F8F7" />
+        <SolidColorBrush x:Key="ElbwaldContentVeilBrush" Color="#20F7F9F8" />
+        <SolidColorBrush x:Key="ElbwaldSurfaceTintBrush" Color="#F4FAF8F6" />
+        <SolidColorBrush x:Key="ElbwaldSurfaceOverlayBrush" Color="#F7FBFAF8" />
+        <SolidColorBrush x:Key="ElbwaldSurfaceStrongBrush" Color="#FAFFFFFF" />
+        <SolidColorBrush x:Key="ElbwaldSurfaceQuietBrush" Color="#F3F7F6" />
+        <SolidColorBrush x:Key="ElbwaldSurfaceRaisedBrush" Color="#EAF1EE" />
+        <SolidColorBrush x:Key="ElbwaldSurfaceSelectionBrush" Color="#D8E4E0" />
+        <SolidColorBrush x:Key="ElbwaldThumbnailPlaceholderBrush" Color="#E5ECE9" />
+        <SolidColorBrush x:Key="ElbwaldSuccessSoftBrush" Color="#E8F0ED" />
+        <SolidColorBrush x:Key="ElbwaldCautionBorderBrush" Color="#A4876F" />
+        <SolidColorBrush x:Key="ElbwaldCautionSoftBrush" Color="#F7EFE7" />
+        <SolidColorBrush x:Key="ElbwaldDangerSoftStrongBrush" Color="#F3E4E2" />
+        <SolidColorBrush x:Key="ElbwaldModalBackdropBrush" Color="#70000000" />
+        <SolidColorBrush x:Key="ElbwaldModalSurfaceBrush" Color="#FBFCFB" />
+        <SolidColorBrush x:Key="ElbwaldAnalyzerOverlayBrush" Color="#F2F4F7F6" />
+        <SolidColorBrush x:Key="ElbwaldAnalyzerCaptionBrush" Color="#DFFFFFFF" />
+
+        <!-- Viewer palette is intentionally dark, but remains centralized. -->
+        <SolidColorBrush x:Key="ElbwaldViewerChromeBrush" Color="#111614" />
+        <SolidColorBrush x:Key="ElbwaldViewerToolbarBrush" Color="#E91A211E" />
+        <SolidColorBrush x:Key="ElbwaldViewerMutedBrush" Color="#AFC2BA" />
+        <SolidColorBrush x:Key="ElbwaldViewerTextBrush" Color="#CFD9D5" />
+        <SolidColorBrush x:Key="ElbwaldViewerRatingBrush" Color="#E7D58A" />
+        <SolidColorBrush x:Key="ElbwaldViewerCanvasBrush" Color="#080B0A" />
+        <SolidColorBrush x:Key="ElbwaldViewerPanelBrush" Color="#F218211E" />
+        <SolidColorBrush x:Key="ElbwaldViewerPanelBorderBrush" Color="#405C5149" />
+        <SolidColorBrush x:Key="ElbwaldViewerHintBrush" Color="#B3121715" />
+
+        <!-- Color values used by gradient stops in the window background. -->
+        <Color x:Key="ElbwaldBackgroundVeilTopColor">#18F7F9F8</Color>
+        <Color x:Key="ElbwaldBackgroundVeilMiddleColor">#92F7F9F8</Color>
+        <Color x:Key="ElbwaldBackgroundVeilBottomColor">#EDF7F9F8</Color>
+        <Color x:Key="ElbwaldBackgroundVeilEndColor">#FFF7F9F8</Color>
+        <Color x:Key="ElbwaldBackgroundSideVeilColor">#8EF7F9F8</Color>
+        <Color x:Key="ElbwaldBackgroundTransparentColor">#00F7F9F8</Color>
 
         <StreamGeometry x:Key="ElbwaldIconTree">M12 2L5 11H8L3 18H10V22H14V18H21L16 11H19L12 2Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconHome">M10 20V14H14V20H19V12H22L12 3L2 12H5V20Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconCamera">M9 2L7.17 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H16.83L15 2H9ZM12 17C9.24 17 7 14.76 7 12S9.24 7 12 7S17 9.24 17 12S14.76 17 12 17ZM12 9C10.34 9 9 10.34 9 12S10.34 15 12 15S15 13.66 15 12S13.66 9 12 9Z</StreamGeometry>
+        <StreamGeometry x:Key="ElbwaldIconProject">M4 4H18C19.1 4 20 4.9 20 6V8H22V20H8V18H4C2.9 18 2 17.1 2 16V6C2 4.9 2.9 4 4 4ZM8 10V16H18V10H8ZM10 12H16V14H10V12Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconMusic">M12 3V13.55A4 4 0 1 0 14 17V7H18V3H12Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconTool">M4 4H20V20H4V4ZM7 7V17H17V7H7Z</StreamGeometry>
         <StreamGeometry x:Key="ElbwaldIconArrowRight">M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12Z</StreamGeometry>
@@ -78,16 +122,35 @@
         </Style>
 
         <Style Selector="ListBox.elbwald-nav > ListBoxItem">
-            <Setter Property="Margin" Value="0,3" />
-            <Setter Property="Padding" Value="12,11" />
-            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
         </Style>
 
         <Style Selector="ListBox.elbwald-nav > ListBoxItem:pointerover">
-            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Background" Value="Transparent" />
         </Style>
 
         <Style Selector="ListBox.elbwald-nav > ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-nav-item-button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,11" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+        </Style>
+
+        <Style Selector="ListBox.elbwald-nav > ListBoxItem:pointerover Button.elbwald-nav-item-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+        </Style>
+
+        <Style Selector="ListBox.elbwald-nav > ListBoxItem:selected Button.elbwald-nav-item-button">
             <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
         </Style>
@@ -139,6 +202,94 @@
         <Style Selector="Button.elbwald-tool-card:pointerover">
             <Setter Property="Background" Value="{DynamicResource ElbwaldCardHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+        </Style>
+
+        <!--
+            Home cards use their own minimal button template. The Fluent Button theme
+            adds visual-state layers for pointer-over/pressed; changing only Background
+            is therefore not sufficient and can make the scenic wallpaper show through.
+            This template keeps the card surface fully opaque in every state.
+        -->
+        <Style Selector="Button.elbwald-home-card">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="{DynamicResource ElbwaldHomeCardBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.elbwald-home-card:pointerover">
+            <!-- Keep the border geometry identical to the normal state so hover never shifts content. -->
+            <Setter Property="Background" Value="{DynamicResource ElbwaldHomeCardHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Button.elbwald-home-card:pressed">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldHomeCardPressedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Menu.elbwald-shell-menu">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+        </Style>
+
+        <Style Selector="Menu.elbwald-shell-menu > MenuItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="Padding" Value="13,8" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <Style Selector="Menu.elbwald-shell-menu > MenuItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-window-button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.elbwald-window-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-window-close-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldDangerBrush}" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
     </Application.Styles>
 </Application>

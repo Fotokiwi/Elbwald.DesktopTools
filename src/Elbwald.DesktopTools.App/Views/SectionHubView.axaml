@@ -54,6 +54,7 @@
                         HorizontalAlignment="Right">
 
                         <TextBlock
+                            IsVisible="{Binding HasStatus}"
                             Text="{Binding Status}"
                             Foreground="{DynamicResource ElbwaldAccentBrush}"
                             FontSize="11"

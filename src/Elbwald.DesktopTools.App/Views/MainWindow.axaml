@@ -4,281 +4,317 @@
         x:Class="Elbwald.DesktopTools.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Width="1800"
-        Height="900"
-        MinWidth="980"
-        MinHeight="640"
+        Height="980"
+        MinWidth="1500"
+        MinHeight="950"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="False"
+        WindowDecorations="None"
+        CanResize="True"
         Icon="/Assets/avalonia-logo.ico"
         Title="Elbwald Digital – Desktop Tools">
 
-    <Grid
-        RowDefinitions="Auto,*"
-        ColumnDefinitions="238,*"
-        Background="{DynamicResource ElbwaldPageBrush}">
+    <Border
+        Background="{DynamicResource ElbwaldPageBrush}"
+        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+        BorderThickness="1">
 
-        <Border
-            Grid.Row="0"
-            Grid.ColumnSpan="2"
-            Background="{DynamicResource ElbwaldSidebarBrush}"
-            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
-            BorderThickness="0,0,0,1">
+        <Grid
+            RowDefinitions="50,*"
+            ColumnDefinitions="238,*"
+            Background="{DynamicResource ElbwaldPageBrush}">
 
-            <Menu
-                Margin="8,0"
-                Background="Transparent">
-                <MenuItem Header="Datei">
-                    <MenuItem
-                        Header="Medien analysieren"
-                        Command="{Binding NavigateAnalyzeCommand}" />
-                    <MenuItem
-                        Header="Importieren"
-                        Command="{Binding NavigateImportCommand}" />
-                    <MenuItem
-                        Header="Organisieren"
-                        Command="{Binding NavigateOrganizeCommand}" />
-                    <MenuItem
-                        Header="Projekte"
-                        Command="{Binding NavigateProjectsCommand}" />
-                    <Separator />
-                    <MenuItem
-                        Header="Beenden"
-                        Command="{Binding ExitCommand}" />
-                </MenuItem>
+            <!-- One unified application chrome: brand, menu and window controls. -->
+            <Border
+                Grid.Row="0"
+                Grid.ColumnSpan="2"
+                Background="{DynamicResource ElbwaldChromeBrush}"
+                BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                BorderThickness="0,0,0,1">
 
-                <MenuItem Header="Ansicht">
-                    <MenuItem
-                        Header="Start"
-                        Command="{Binding NavigateHomeCommand}" />
-                    <MenuItem
-                        Header="Analysieren"
-                        Command="{Binding NavigateAnalyzeCommand}" />
-                    <MenuItem
-                        Header="Importieren"
-                        Command="{Binding NavigateImportCommand}" />
-                    <MenuItem
-                        Header="Organisieren"
-                        Command="{Binding NavigateOrganizeCommand}" />
-                    <MenuItem
-                        Header="Bearbeiten"
-                        Command="{Binding NavigateEditCommand}" />
-                    <MenuItem
-                        Header="Sichern"
-                        Command="{Binding NavigateBackupCommand}" />
-                    <MenuItem
-                        Header="Werkzeuge"
-                        Command="{Binding NavigateToolsCommand}" />
-                    <MenuItem
-                        Header="Einstellungen"
-                        Command="{Binding NavigateSettingsCommand}" />
-                </MenuItem>
+                <Grid ColumnDefinitions="238,Auto,*,Auto">
+                    <Grid
+                        Grid.Column="0"
+                        Margin="28,0,16,0"
+                        ColumnDefinitions="28,*"
+                        ColumnSpacing="8"
+                        VerticalAlignment="Center"
+                        PointerPressed="OnTitleBarPointerPressed"
+                        DoubleTapped="OnTitleBarDoubleTapped">
 
-                <MenuItem Header="Werkzeuge">
-                    <MenuItem
-                        Header="Recovery-Status"
-                        Command="{Binding NavigateHomeCommand}" />
-                    <MenuItem
-                        Header="Bibliotheksstatus"
-                        Command="{Binding NavigateLibraryHealthCommand}" />
-                    <MenuItem
-                        Header="Medienindex"
-                        Command="{Binding NavigateMediaIndexCommand}" />
-                    <MenuItem
-                        Header="Protokoll"
-                        Command="{Binding NavigateDiagnosticsCommand}" />
-                    <MenuItem
-                        Header="Cache-Verwaltung"
-                        Command="{Binding NavigateSettingsCommand}" />
-                    <Separator />
-                    <MenuItem
-                        Header="Einstellungen"
-                        Command="{Binding NavigateSettingsCommand}" />
-                </MenuItem>
-
-                <MenuItem Header="Hilfe">
-                    <MenuItem
-                        Header="Über Elbwald Digital"
-                        Command="{Binding OpenAboutCommand}" />
-                </MenuItem>
-            </Menu>
-        </Border>
-
-        <Border
-            Grid.Row="1"
-            Grid.Column="0"
-            Background="{DynamicResource ElbwaldSidebarBrush}"
-            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
-            BorderThickness="0,0,1,0"
-            ClipToBounds="True">
-
-            <Grid>
-                <Image
-                    Source="/Assets/Branding/sidebar-forest.png"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Bottom"
-                    Height="310"
-                    Stretch="UniformToFill"
-                    Opacity="0.92"
-                    IsHitTestVisible="False" />
-
-                <Grid
-                    Margin="16"
-                    RowDefinitions="Auto,Auto,*,Auto">
-
-                <Grid
-                    ColumnDefinitions="72,*"
-                    Margin="4,8,4,25">
-
-                    <Border
-                        Width="68"
-                        Height="68"
-                        CornerRadius="14"
-                        Background="Transparent"
-                        ClipToBounds="True">
                         <Image
+                            Width="22"
+                            Height="28"
                             Source="/Assets/Branding/tree-logo.png"
                             Stretch="Uniform"
-                            HorizontalAlignment="Center"
                             VerticalAlignment="Center" />
+
+                        <StackPanel
+                            Grid.Column="1"
+                            Spacing="0"
+                            VerticalAlignment="Center">
+                            <TextBlock
+                                Text="{Binding ApplicationName}"
+                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                FontSize="14"
+                                FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="{Binding ApplicationSubtitle}"
+                                Foreground="{DynamicResource ElbwaldMutedTextBrush}"
+                                FontSize="9" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Menu
+                        Grid.Column="1"
+                        Classes="elbwald-shell-menu"
+                        Margin="10,0,0,0"
+                        Background="Transparent"
+                        VerticalAlignment="Center">
+
+                        <MenuItem Header="Datei">
+                            <MenuItem Header="Medien analysieren" Command="{Binding NavigateAnalyzeCommand}" />
+                            <MenuItem Header="Importieren" Command="{Binding NavigateImportCommand}" />
+                            <MenuItem Header="Organisieren" Command="{Binding NavigateOrganizeCommand}" />
+                            <MenuItem Header="Projekte" Command="{Binding NavigateProjectsCommand}" />
+                            <Separator />
+                            <MenuItem Header="Beenden" Command="{Binding ExitCommand}" />
+                        </MenuItem>
+
+                        <MenuItem Header="Ansicht">
+                            <MenuItem Header="Start" Command="{Binding NavigateHomeCommand}" />
+                            <MenuItem Header="Bibliothek" Command="{Binding NavigateLibraryCommand}" />
+                            <MenuItem Header="Projekte" Command="{Binding NavigateProjectsCommand}" />
+                            <MenuItem Header="Analysieren" Command="{Binding NavigateAnalyzeCommand}" />
+                            <MenuItem Header="Importieren" Command="{Binding NavigateImportCommand}" />
+                            <MenuItem Header="Organisieren" Command="{Binding NavigateOrganizeCommand}" />
+                            <MenuItem Header="Bearbeiten" Command="{Binding NavigateEditCommand}" />
+                            <MenuItem Header="Sichern" Command="{Binding NavigateBackupCommand}" />
+                            <MenuItem Header="Werkzeuge" Command="{Binding NavigateToolsCommand}" />
+                            <MenuItem Header="Einstellungen" Command="{Binding NavigateSettingsCommand}" />
+                            <Separator />
+                            <MenuItem x:Name="FullScreenMenuItem" Header="Vollbild    F11" />
+                        </MenuItem>
+
+                        <MenuItem Header="Werkzeuge">
+                            <MenuItem Header="Recovery-Status" Command="{Binding NavigateHomeCommand}" />
+                            <MenuItem Header="Bibliotheksstatus" Command="{Binding NavigateLibraryHealthCommand}" />
+                            <MenuItem Header="Medienindex" Command="{Binding NavigateMediaIndexCommand}" />
+                            <MenuItem Header="Protokoll" Command="{Binding NavigateDiagnosticsCommand}" />
+                            <MenuItem Header="Cache-Verwaltung" Command="{Binding NavigateSettingsCommand}" />
+                            <Separator />
+                            <MenuItem Header="Einstellungen" Command="{Binding NavigateSettingsCommand}" />
+                        </MenuItem>
+
+                        <MenuItem Header="Hilfe">
+                            <MenuItem Header="Über Elbwald Digital" Command="{Binding OpenAboutCommand}" />
+                        </MenuItem>
+                    </Menu>
+
+                    <Border
+                        Grid.Column="2"
+                        Background="Transparent"
+                        MinWidth="80"
+                        PointerPressed="OnTitleBarPointerPressed"
+                        DoubleTapped="OnTitleBarDoubleTapped">
+                        <TextBlock
+                            Text="Elbwald Digital – Desktop Tools"
+                            Foreground="{DynamicResource ElbwaldMutedTextBrush}"
+                            FontSize="10"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False" />
                     </Border>
 
                     <StackPanel
-                        Grid.Column="1"
-                        VerticalAlignment="Center"
-                        Spacing="1">
-                        <TextBlock
-                            Text="{Binding ApplicationName}"
-                            Foreground="{DynamicResource ElbwaldTextBrush}"
-                            FontSize="16"
-                            FontWeight="SemiBold" />
-                        <TextBlock
-                            Text="{Binding ApplicationSubtitle}"
-                            Classes="elbwald-muted"
-                            FontSize="11" />
+                        Grid.Column="3"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Stretch">
+                        <Button
+                            x:Name="MinimizeButton"
+                            Classes="elbwald-window-button"
+                            Width="46"
+                            Content="—"
+                            ToolTip.Tip="Minimieren" />
+                        <Button
+                            x:Name="MaximizeButton"
+                            Classes="elbwald-window-button"
+                            Width="46"
+                            Content="□"
+                            ToolTip.Tip="Maximieren / Wiederherstellen" />
+                        <Button
+                            x:Name="CloseButton"
+                            Classes="elbwald-window-button elbwald-window-close-button"
+                            Width="48"
+                            Content="×"
+                            ToolTip.Tip="Schließen" />
                     </StackPanel>
                 </Grid>
+            </Border>
 
-                <TextBlock
-                    Grid.Row="1"
-                    Margin="10,0,0,7"
-                    Text="BEREICHE"
-                    Classes="elbwald-muted"
-                    FontSize="9"
-                    FontWeight="SemiBold" />
+            <!-- Sidebar and title bar form one visual shell. -->
+            <Border
+                Grid.Row="1"
+                Grid.Column="0"
+                Background="{DynamicResource ElbwaldSidebarBrush}"
+                BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                BorderThickness="0,0,1,0"
+                ClipToBounds="True">
 
-                <ListBox
-                    Grid.Row="2"
-                    Classes="elbwald-nav"
-                    ItemsSource="{Binding NavigationItems}"
-                    SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+                <Grid>
+                    <Image
+                        Source="/Assets/Branding/sidebar-forest.png"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Bottom"
+                        Height="300"
+                        Stretch="UniformToFill"
+                        Opacity="0.54"
+                        IsHitTestVisible="False" />
 
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:NavigationItemViewModel">
-                            <Button
-                                Command="{Binding ActivateCommand}"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                BorderThickness="0"
-                                Padding="0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch">
-                                <Grid ColumnDefinitions="30,*">
-                                    <Grid
-                                        Width="20"
-                                        Height="20"
-                                        VerticalAlignment="Center">
+                    <Grid
+                        Margin="16"
+                        RowDefinitions="Auto,*,Auto">
 
-                                        <PathIcon IsVisible="{Binding IsHome}" Data="{StaticResource ElbwaldIconHome}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsLibrary}" Data="{StaticResource ElbwaldIconCamera}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsAnalyze}" Data="{StaticResource ElbwaldIconSearch}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsOrganize}" Data="{StaticResource ElbwaldIconFolder}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsEdit}" Data="{StaticResource ElbwaldIconEdit}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsBackup}" Data="{StaticResource ElbwaldIconBackup}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsTools}" Data="{StaticResource ElbwaldIconTool}" Width="17" Height="17" />
-                                        <PathIcon IsVisible="{Binding IsSettings}" Data="{StaticResource ElbwaldIconSettings}" Width="17" Height="17" />
-                                    </Grid>
+                        <TextBlock
+                            Grid.Row="0"
+                            Margin="12,18,0,8"
+                            Text="BEREICHE"
+                            Classes="elbwald-muted"
+                            FontSize="9"
+                            FontWeight="SemiBold" />
 
+                        <ListBox
+                            Grid.Row="1"
+                            Classes="elbwald-nav"
+                            ItemsSource="{Binding NavigationItems}"
+                            SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:NavigationItemViewModel">
+                                    <StackPanel>
+                                        <Border
+                                            IsVisible="{Binding ShowSeparatorBefore}"
+                                            Height="1"
+                                            Margin="10,8,10,7"
+                                            Background="{DynamicResource ElbwaldBorderBrush}"
+                                            IsHitTestVisible="False" />
+
+                                        <Button
+                                            Classes="elbwald-nav-item-button"
+                                            Command="{Binding ActivateCommand}"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch">
+                                            <Grid ColumnDefinitions="30,*">
+                                                <Grid Width="20" Height="20" VerticalAlignment="Center">
+                                                    <PathIcon IsVisible="{Binding IsHome}" Data="{StaticResource ElbwaldIconHome}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsLibrary}" Data="{StaticResource ElbwaldIconCamera}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsProjects}" Data="{StaticResource ElbwaldIconProject}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsAnalyze}" Data="{StaticResource ElbwaldIconSearch}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsOrganize}" Data="{StaticResource ElbwaldIconFolder}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsEdit}" Data="{StaticResource ElbwaldIconEdit}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsBackup}" Data="{StaticResource ElbwaldIconBackup}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsTools}" Data="{StaticResource ElbwaldIconTool}" Width="17" Height="17" />
+                                                    <PathIcon IsVisible="{Binding IsSettings}" Data="{StaticResource ElbwaldIconSettings}" Width="17" Height="17" />
+                                                </Grid>
+
+                                                <TextBlock
+                                                    Grid.Column="1"
+                                                    Text="{Binding Name}"
+                                                    VerticalAlignment="Center"
+                                                    FontWeight="SemiBold" />
+                                            </Grid>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Border
+                            Grid.Row="2"
+                            Margin="12,14,12,8"
+                            Padding="12,10"
+                            CornerRadius="12"
+                            Background="{DynamicResource ElbwaldSidebarFooterBrush}"
+                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                            BorderThickness="1"
+                            VerticalAlignment="Bottom">
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock
+                                        Text="{Binding ApplicationVersion}"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        FontSize="10"
+                                        FontWeight="SemiBold" />
                                     <TextBlock
                                         Grid.Column="1"
-                                        Text="{Binding Name}"
-                                        VerticalAlignment="Center"
-                                        FontWeight="SemiBold" />
+                                        Text="Preview Build"
+                                        Foreground="{DynamicResource ElbwaldMutedTextBrush}"
+                                        FontSize="9" />
                                 </Grid>
-                            </Button>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-
-                <StackPanel
-                    Grid.Row="3"
-                    Margin="4,12,4,4"
-                    Spacing="7"
-                    VerticalAlignment="Bottom">
-
-                    <Border
-                        Padding="10,8"
-                        CornerRadius="10"
-                        Background="#ECF5F0E8">
-                        <StackPanel Spacing="2">
-                            <TextBlock
-                                Text="{Binding ApplicationVersion}"
-                                Foreground="{DynamicResource ElbwaldAccentBrush}"
-                                FontSize="10"
-                                FontWeight="SemiBold" />
-                            <TextBlock
-                                Text="Preview Build"
-                                Classes="elbwald-muted"
-                                FontSize="9" />
-                        </StackPanel>
-                    </Border>
-
-                    <TextBlock
-                        Text="{Binding PrivacySummary}"
-                        Classes="elbwald-muted"
-                        HorizontalAlignment="Center"
-                        FontSize="9" />
-                </StackPanel>
+                                <TextBlock
+                                    Text="{Binding PrivacySummary}"
+                                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                                    FontSize="9"
+                                    FontWeight="SemiBold"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </Grid>
+            </Border>
+
+            <!--
+                Keep the subdued mist wallpaper, but treat it like the older start screen:
+                strongest in the upper/right area and smoothly disappearing into the page.
+                The image still fills the whole work surface, so there is no visible cutoff.
+            -->
+            <Grid
+                Grid.Row="1"
+                Grid.Column="1"
+                Background="{DynamicResource ElbwaldPageBrush}"
+                ClipToBounds="True">
+
+                <Image
+                    Source="/Assets/Branding/app-background-mist.png"
+                    Stretch="UniformToFill"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    Opacity="0.64"
+                    IsHitTestVisible="False">
+                    <Image.OpacityMask>
+                        <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+                            <GradientStop Color="Black" Offset="0" />
+                            <GradientStop Color="Black" Offset="0.48" />
+                            <GradientStop Color="#D9000000" Offset="0.68" />
+                            <GradientStop Color="#70000000" Offset="0.84" />
+                            <GradientStop Color="Transparent" Offset="1" />
+                        </LinearGradientBrush>
+                    </Image.OpacityMask>
+                </Image>
+
+                <!-- A soft side veil recreates the calm, bright text area of the former home screen. -->
+                <Border IsHitTestVisible="False">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                            <GradientStop Color="{DynamicResource ElbwaldBackgroundVeilEndColor}" Offset="0" />
+                            <GradientStop Color="{DynamicResource ElbwaldBackgroundSideVeilColor}" Offset="0.16" />
+                            <GradientStop Color="{DynamicResource ElbwaldBackgroundTransparentColor}" Offset="0.40" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <ContentControl Content="{Binding CurrentContent}" />
             </Grid>
-        </Border>
 
-        <Grid
-            Grid.Row="1"
-            Grid.Column="1"
-            ClipToBounds="True">
-
-            <Border
-                Height="800"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                IsHitTestVisible="False">
-                <Border.Background>
-                    <ImageBrush
-                        Source="/Assets/Branding/hero-landscape.png"
-                        Stretch="UniformToFill"
-                        AlignmentX="Center"
-                        AlignmentY="Top" />
-                </Border.Background>
-            </Border>
-
-            <Border
-                Height="800"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                IsHitTestVisible="False">
-                <Border.Background>
-                    <LinearGradientBrush
-                        StartPoint="50%,0%"
-                        EndPoint="50%,100%">
-                        <GradientStop Color="#00FAFCFA" Offset="0.56" />
-                        <GradientStop Color="#22FAFCFA" Offset="0.68" />
-                        <GradientStop Color="#88FAFCFA" Offset="0.82" />
-                        <GradientStop Color="#DDFAFCFA" Offset="0.94" />
-                        <GradientStop Color="#FFFAFCFA" Offset="1" />
-                    </LinearGradientBrush>
-                </Border.Background>
-            </Border>
-
-            <ContentControl
-                Content="{Binding CurrentContent}" />
+            <!-- Explicit pointer-driven resize grips are reliable with borderless windows on Linux and Windows. -->
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Width="8" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast" ZIndex="100" PointerPressed="OnResizeWestPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Width="8" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWestEast" ZIndex="100" PointerPressed="OnResizeEastPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Height="8" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNorthSouth" ZIndex="100" PointerPressed="OnResizeNorthPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Height="8" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNorthSouth" ZIndex="100" PointerPressed="OnResizeSouthPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="TopLeftCorner" ZIndex="101" PointerPressed="OnResizeNorthWestPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" Cursor="TopRightCorner" ZIndex="101" PointerPressed="OnResizeNorthEastPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" Cursor="BottomLeftCorner" ZIndex="101" PointerPressed="OnResizeSouthWestPointerPressed" />
+            <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Cursor="BottomRightCorner" ZIndex="101" PointerPressed="OnResizeSouthEastPointerPressed" />
         </Grid>
-    </Grid>
+    </Border>
 </Window>

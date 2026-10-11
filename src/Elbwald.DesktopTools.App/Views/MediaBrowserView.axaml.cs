@@ -58,10 +58,97 @@ public partial class MediaBrowserView : UserControl
         OpenViewer(viewModel, item, selected);
     }
 
-    private IReadOnlyList<MediaBrowserItemViewModel> GetCurrentSelection(MediaBrowserViewModel viewModel)
+
+    private void OnBrowserKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MediaBrowserViewModel viewModel)
+        {
+            return;
+        }
+
+        if (e.Source is TextBox or ComboBox)
+        {
+            return;
+        }
+
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.A)
+        {
+            SelectAllLoaded(viewModel);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.E)
+        {
+            if (viewModel.ExportSelectionCommand.CanExecute(null))
+            {
+                viewModel.ExportSelectionCommand.Execute(null);
+            }
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            ClearCurrentSelection(viewModel);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            var selected = GetCurrentSelection(viewModel);
+            if (selected.Count == 1 && selected[0].IsImage)
+            {
+                OpenViewer(viewModel, selected[0], selected);
+                e.Handled = true;
+            }
+            return;
+        }
+
+        var rating = e.Key switch
+        {
+            Key.D0 or Key.NumPad0 => "0",
+            Key.D1 or Key.NumPad1 => "1",
+            Key.D2 or Key.NumPad2 => "2",
+            Key.D3 or Key.NumPad3 => "3",
+            _ => null
+        };
+
+        if (rating is not null && viewModel.SetRatingCommand.CanExecute(rating))
+        {
+            viewModel.SetRatingCommand.Execute(rating);
+            e.Handled = true;
+        }
+    }
+
+    private void SelectAllLoaded(MediaBrowserViewModel viewModel)
+    {
+        var list = GetCurrentList(viewModel);
+        if (list?.SelectedItems is null) return;
+
+        list.SelectedItems.Clear();
+        foreach (var item in viewModel.Items)
+        {
+            list.SelectedItems.Add(item);
+        }
+    }
+
+    private void ClearCurrentSelection(MediaBrowserViewModel viewModel)
+    {
+        var list = GetCurrentList(viewModel);
+        list?.SelectedItems?.Clear();
+    }
+
+    private ListBox? GetCurrentList(MediaBrowserViewModel viewModel)
     {
         var controlName = viewModel.IsGridView ? "GridList" : "TableList";
-        var list = this.FindControl<ListBox>(controlName);
+        return this.FindControl<ListBox>(controlName);
+    }
+
+    private IReadOnlyList<MediaBrowserItemViewModel> GetCurrentSelection(MediaBrowserViewModel viewModel)
+    {
+        var list = GetCurrentList(viewModel);
         return list?.SelectedItems?
             .OfType<MediaBrowserItemViewModel>()
             .ToArray()

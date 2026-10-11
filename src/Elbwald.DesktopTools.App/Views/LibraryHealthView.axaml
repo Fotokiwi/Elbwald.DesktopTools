@@ -23,7 +23,7 @@
             <Border Grid.Column="1"
                     Classes="elbwald-soft-card"
                     Padding="14"
-                    Background="#EBF5EF">
+                    Background="{DynamicResource ElbwaldSuccessSoftBrush}">
                 <StackPanel Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="{Binding LastScanMessage}"
                                Foreground="{DynamicResource ElbwaldAccentBrush}"

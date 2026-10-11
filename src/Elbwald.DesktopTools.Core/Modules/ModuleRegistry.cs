@@ -10,7 +10,11 @@ public sealed class ModuleRegistry : IModuleRegistry
 
     public void Register(IToolModule module)
     {
-        if (_modules.Any(x => x.Id == module.Id))
+        if (_modules.Any(
+                x => string.Equals(
+                    x.Id,
+                    module.Id,
+                    StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException(
                 $"Module '{module.Id}' is already registered.");

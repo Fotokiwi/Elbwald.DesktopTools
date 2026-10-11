@@ -2,6 +2,7 @@ using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.Knowledge;
+using Elbwald.DesktopTools.Contracts.MediaIndex.Collections;
 
 namespace Elbwald.DesktopTools.Contracts.MediaIndex;
 
@@ -93,5 +94,28 @@ public interface IMediaIndexService
     Task<IReadOnlyList<MediaIndexFolderNode>> GetFolderChildrenAsync(
         string endpointId,
         string? parentRelativeFolder = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineYearsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineMonthsAsync(
+        int year,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaTimelineFacet>> GetTimelineDaysAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<MediaSmartCollection>> GetSmartCollectionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<MediaSmartCollection> SaveSmartCollectionAsync(
+        MediaSmartCollectionDraft draft,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteSmartCollectionAsync(
+        string collectionId,
         CancellationToken cancellationToken = default);
 }

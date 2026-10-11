@@ -17,6 +17,8 @@ public partial class MediaImportViewModel : ObservableObject
     private readonly IMediaImportExecutor _importExecutor;
     private readonly IMediaImportCleanupPlanner _cleanupPlanner;
     private readonly IMediaImportCleanupExecutor _cleanupExecutor;
+    private readonly IMediaAnalysisHistoryStore _analysisHistoryStore;
+    private readonly IMediaImportHistoryStore _importHistoryStore;
     private readonly INavigationService _navigationService;
 
     private MediaImportPlan? _plan;
@@ -24,11 +26,16 @@ public partial class MediaImportViewModel : ObservableObject
     private MediaImportExecutionResult? _lastImportResult;
     private CancellationTokenSource? _cancellationTokenSource;
     private Stopwatch? _stopwatch;
+    private bool _isRefreshingDefaults;
+    private bool _sourceWasChosenManually;
 
     [ObservableProperty] private string sourcePath = string.Empty;
+    [ObservableProperty] private string destinationRootPath = string.Empty;
+    [ObservableProperty] private string destinationSubfolderName = string.Empty;
     [ObservableProperty] private string destinationPath = string.Empty;
-    [ObservableProperty] private string destinationStatus = "Import-Wartehalle wird geprüft …";
-    [ObservableProperty] private string statusMessage = "Quelle auswählen und anschließend eine Importvorschau erstellen.";
+    [ObservableProperty] private string destinationStatus = "Speicherort wird geprüft …";
+    [ObservableProperty] private string destinationFolderStatus = "Ein passender Ordnername wird vorgeschlagen, sobald Quelle und Speicherort verfügbar sind.";
+    [ObservableProperty] private string statusMessage = "Quelle und Speicherort prüfen und anschließend den Import vorbereiten.";
     [ObservableProperty] private string resultMessage = string.Empty;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private bool hasPlan;
@@ -56,6 +63,10 @@ public partial class MediaImportViewModel : ObservableObject
     [ObservableProperty] private string cleanupSize = "0 B";
     [ObservableProperty] private string cleanupStatus = string.Empty;
     [ObservableProperty] private string cleanupResultMessage = string.Empty;
+    [ObservableProperty] private string cleanupTechnicalDetails = string.Empty;
+    [ObservableProperty] private string cleanupResultTitle = "Quelle aufräumen";
+    [ObservableProperty] private int cleanupRetainedCount;
+    [ObservableProperty] private bool importCompleted;
     [ObservableProperty] private IReadOnlyList<string> cleanupIssues = Array.Empty<string>();
 
     public MediaImportViewModel(
@@ -66,6 +77,8 @@ public partial class MediaImportViewModel : ObservableObject
         IMediaImportExecutor importExecutor,
         IMediaImportCleanupPlanner cleanupPlanner,
         IMediaImportCleanupExecutor cleanupExecutor,
+        IMediaAnalysisHistoryStore analysisHistoryStore,
+        IMediaImportHistoryStore importHistoryStore,
         INavigationService navigationService)
     {
         _sourcePicker = sourcePicker;
@@ -75,6 +88,8 @@ public partial class MediaImportViewModel : ObservableObject
         _importExecutor = importExecutor;
         _cleanupPlanner = cleanupPlanner;
         _cleanupExecutor = cleanupExecutor;
+        _analysisHistoryStore = analysisHistoryStore;
+        _importHistoryStore = importHistoryStore;
         _navigationService = navigationService;
 
         ChooseSourceCommand = new AsyncRelayCommand(ChooseSourceAsync, () => !IsBusy);
@@ -86,8 +101,9 @@ public partial class MediaImportViewModel : ObservableObject
         ConfirmCleanupWarningCommand = new RelayCommand(ConfirmCleanupWarning, CanConfirmCleanupWarning);
         ExecuteCleanupCommand = new AsyncRelayCommand(ExecuteCleanupAsync, CanExecuteCleanup);
         CancelCleanupCommand = new RelayCommand(CancelCleanup);
+        OpenImportedFolderCommand = new RelayCommand(OpenImportedFolder, CanOpenImportedFolder);
+        OpenLibraryCommand = new RelayCommand(() => _navigationService.NavigateTo("library"));
 
-        _ = RefreshDestinationAsync();
     }
 
     public IAsyncRelayCommand ChooseSourceCommand { get; }
@@ -99,14 +115,18 @@ public partial class MediaImportViewModel : ObservableObject
     public IRelayCommand ConfirmCleanupWarningCommand { get; }
     public IAsyncRelayCommand ExecuteCleanupCommand { get; }
     public IRelayCommand CancelCleanupCommand { get; }
+    public IRelayCommand OpenImportedFolderCommand { get; }
+    public IRelayCommand OpenLibraryCommand { get; }
 
     public bool HasSource => !string.IsNullOrWhiteSpace(SourcePath);
+    public bool SourceAvailable => HasSource && Directory.Exists(SourcePath);
+    public bool HasValidDestination => DestinationAvailable && !string.IsNullOrWhiteSpace(DestinationPath);
     public bool HasIssues => Issues.Count > 0;
     public bool HasPreviewItems => PreviewItems.Count > 0;
     public bool CanImport => _plan?.CanExecute == true && !IsBusy;
     public string ProgressText => CopyCount <= 0 ? "" : $"{CompletedCopyCount:N0} / {CopyCount:N0} Dateien";
     public bool HasCleanupIssues => CleanupIssues.Count > 0;
-    public bool CleanupConfirmationMatches => string.Equals(CleanupConfirmationText.Trim(), "QUELLE LEEREN", StringComparison.Ordinal);
+    public bool CleanupConfirmationMatches => string.Equals(CleanupConfirmationText.Trim(), "LÖSCHEN", StringComparison.Ordinal);
 
     partial void OnIsBusyChanged(bool value)
     {
@@ -118,15 +138,37 @@ public partial class MediaImportViewModel : ObservableObject
         PrepareCleanupCommand.NotifyCanExecuteChanged();
         ConfirmCleanupWarningCommand.NotifyCanExecuteChanged();
         ExecuteCleanupCommand.NotifyCanExecuteChanged();
+        OpenImportedFolderCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSourcePathChanged(string value)
     {
         OnPropertyChanged(nameof(HasSource));
+        OnPropertyChanged(nameof(SourceAvailable));
         CreatePreviewCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnDestinationAvailableChanged(bool value) => CreatePreviewCommand.NotifyCanExecuteChanged();
+    partial void OnDestinationAvailableChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HasValidDestination));
+        CreatePreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnDestinationSubfolderNameChanged(string value)
+    {
+        UpdateDestinationPath();
+        ClearPlan();
+        ClearCleanup();
+    }
+
+    partial void OnDestinationPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasValidDestination));
+        CreatePreviewCommand.NotifyCanExecuteChanged();
+        OpenImportedFolderCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnImportCompletedChanged(bool value) => OpenImportedFolderCommand.NotifyCanExecuteChanged();
     partial void OnIssuesChanged(IReadOnlyList<string> value) => OnPropertyChanged(nameof(HasIssues));
     partial void OnPreviewItemsChanged(IReadOnlyList<MediaImportPlanItemViewModel> value) => OnPropertyChanged(nameof(HasPreviewItems));
     partial void OnCompletedCopyCountChanged(int value) => OnPropertyChanged(nameof(ProgressText));
@@ -141,11 +183,12 @@ public partial class MediaImportViewModel : ObservableObject
     }
     partial void OnCleanupIssuesChanged(IReadOnlyList<string> value) => OnPropertyChanged(nameof(HasCleanupIssues));
 
-    private bool CanCreatePreview() => !IsBusy && DestinationAvailable && HasSource;
+    private bool CanCreatePreview() => !IsBusy && SourceAvailable && HasValidDestination;
     private bool CanExecuteImport() => _plan?.CanExecute == true && !IsBusy;
     private bool CanPrepareCleanup() => CleanupAvailable && !IsBusy && _plan is not null;
     private bool CanConfirmCleanupWarning() => HasCleanupPlan && _cleanupPlan?.CanExecute == true && !IsBusy;
     private bool CanExecuteCleanup() => CleanupSecondConfirmationVisible && CleanupConfirmationMatches && _cleanupPlan?.CanExecute == true && !IsBusy;
+    private bool CanOpenImportedFolder() => ImportCompleted && !IsBusy && !string.IsNullOrWhiteSpace(DestinationPath) && Directory.Exists(DestinationPath);
 
     private async Task ChooseSourceAsync()
     {
@@ -155,10 +198,76 @@ public partial class MediaImportViewModel : ObservableObject
             return;
         }
 
+        _sourceWasChosenManually = true;
         SourcePath = selected;
+        SuggestDestinationSubfolder();
         ClearPlan();
         ClearCleanup();
-        StatusMessage = "Quelle gewählt. Erstelle jetzt die Importvorschau.";
+        StatusMessage = "Quelle gewählt. Der vorgeschlagene Ordnername kann vor dem Import noch geändert werden.";
+    }
+
+    public async Task RefreshDefaultsAsync()
+    {
+        if (_isRefreshingDefaults
+            || IsBusy
+            || HasPlan
+            || HasResult
+            || HasCleanupPlan)
+        {
+            return;
+        }
+
+        _isRefreshingDefaults = true;
+
+        try
+        {
+            var sourceChanged = false;
+
+            if (!_sourceWasChosenManually)
+            {
+                try
+                {
+                    var lastAnalysis = await _analysisHistoryStore.LoadLastAsync();
+                    if (lastAnalysis is not null && lastAnalysis.IsFolder)
+                    {
+                        sourceChanged = !PathsEqual(SourcePath, lastAnalysis.SourcePath);
+                        SourcePath = lastAnalysis.SourcePath;
+                        StatusMessage = Directory.Exists(lastAnalysis.SourcePath)
+                            ? $"Letzte Analyse vom {lastAnalysis.CompletedUtc.ToLocalTime():dd.MM.yyyy, HH:mm} Uhr als Importquelle übernommen."
+                            : "Der Pfad der letzten Analyse wurde übernommen, ist derzeit aber nicht erreichbar. Wähle bei Bedarf eine andere Quelle.";
+                    }
+                    else if (lastAnalysis is not null && !HasSource)
+                    {
+                        StatusMessage = "Die letzte Analyse betraf eine Einzeldatei. Für den Import bitte einen Quellordner auswählen.";
+                    }
+                }
+                catch (Exception exception) when (
+                    exception is IOException
+                        or UnauthorizedAccessException
+                        or InvalidOperationException
+                        or NotSupportedException
+                        or ArgumentException)
+                {
+                    Console.Error.WriteLine($"Letzte Analyse konnte für den Import nicht geladen werden: {exception.Message}");
+                }
+            }
+
+            await RefreshDestinationAsync();
+
+            if (HasSource
+                && DestinationAvailable
+                && (sourceChanged || string.IsNullOrWhiteSpace(DestinationSubfolderName)))
+            {
+                SuggestDestinationSubfolder();
+            }
+
+            OnPropertyChanged(nameof(SourceAvailable));
+            CreatePreviewCommand.NotifyCanExecuteChanged();
+        }
+        finally
+        {
+            _isRefreshingDefaults = false;
+        }
     }
 
     private async Task RefreshDestinationAsync()
@@ -170,23 +279,29 @@ public partial class MediaImportViewModel : ObservableObject
             if (endpoint is null || !endpoint.Enabled)
             {
                 DestinationAvailable = false;
+                DestinationRootPath = string.Empty;
                 DestinationPath = string.Empty;
-                DestinationStatus = "Keine aktive Import-Wartehalle konfiguriert.";
+                DestinationStatus = "Es ist noch kein Import-Speicherort eingerichtet.";
+                DestinationFolderStatus = "Lege zuerst unter Einstellungen einen Speicherort für Importe fest.";
                 return;
             }
 
             var resolution = _storageResolver.Resolve(endpoint.Location);
             DestinationAvailable = resolution.IsAvailable;
-            DestinationPath = resolution.ResolvedPath ?? string.Empty;
+            DestinationRootPath = resolution.ResolvedPath ?? string.Empty;
             DestinationStatus = resolution.IsAvailable
-                ? $"{endpoint.Name} · über Volume-ID eindeutig verfügbar"
+                ? $"{endpoint.Name} · Speicherort bereit"
                 : resolution.Message;
+
+            UpdateDestinationPath();
         }
         catch (Exception exception)
         {
             DestinationAvailable = false;
+            DestinationRootPath = string.Empty;
             DestinationPath = string.Empty;
-            DestinationStatus = "Import-Wartehalle konnte nicht geladen werden: " + exception.GetBaseException().Message;
+            DestinationStatus = "Der Import-Speicherort konnte nicht geladen werden: " + exception.GetBaseException().Message;
+            DestinationFolderStatus = "Ziel kann derzeit nicht berechnet werden.";
         }
     }
 
@@ -199,11 +314,12 @@ public partial class MediaImportViewModel : ObservableObject
 
         IsBusy = true;
         HasResult = false;
+        ImportCompleted = false;
         ResultMessage = string.Empty;
         ClearCleanup();
         _cancellationTokenSource = new CancellationTokenSource();
         _stopwatch = Stopwatch.StartNew();
-        StatusMessage = "Quelle wird vollständig geprüft …";
+        StatusMessage = "Dateien werden geprüft. Noch wird nichts kopiert …";
 
         try
         {
@@ -229,19 +345,19 @@ public partial class MediaImportViewModel : ObservableObject
             HasPlan = true;
 
             StatusMessage = !_plan.IsComplete
-                ? "Die Vorschau ist unvollständig. Der Import bleibt aus Sicherheitsgründen gesperrt."
+                ? "Die Prüfung ist noch nicht vollständig. Der Import bleibt gesperrt, damit keine Dateien übersehen werden."
                 : _plan.CopyCount == 0
-                    ? "Keine neuen Dateien zu importieren. Vorhandene bitidentische Dateien werden nicht erneut kopiert."
-                    : $"Vorschau fertig: {_plan.CopyCount:N0} Datei(en) werden kopiert, {_plan.AlreadyImportedCount:N0} bereits vorhanden, {_plan.ConflictCount:N0} Konflikt(e).";
+                    ? "Es gibt keine neuen Dateien zu importieren. Bereits vorhandene Dateien werden nicht doppelt kopiert."
+                    : $"Alles bereit: {_plan.CopyCount:N0} neue Datei(en) werden kopiert. {_plan.AlreadyImportedCount:N0} sind bereits vorhanden, {_plan.ConflictCount:N0} Namenskonflikt(e) wurden erkannt.";
         }
         catch (OperationCanceledException)
         {
-            StatusMessage = "Vorschau abgebrochen.";
+            StatusMessage = "Prüfung abgebrochen. Es wurde nichts kopiert.";
             ClearPlan();
         }
         catch (Exception exception)
         {
-            StatusMessage = "Importvorschau fehlgeschlagen: " + exception.GetBaseException().Message;
+            StatusMessage = "Die Importprüfung ist fehlgeschlagen: " + exception.GetBaseException().Message;
             ClearPlan();
         }
         finally
@@ -261,12 +377,13 @@ public partial class MediaImportViewModel : ObservableObject
 
         IsBusy = true;
         HasResult = false;
+        ImportCompleted = false;
         ResultMessage = string.Empty;
         CompletedCopyCount = 0;
         ProgressPercentage = 0;
         _cancellationTokenSource = new CancellationTokenSource();
         _stopwatch = Stopwatch.StartNew();
-        StatusMessage = "Import läuft. Quellen bleiben unverändert.";
+        StatusMessage = "Import läuft. Deine Originaldateien bleiben unverändert.";
 
         var timerTask = UpdateElapsedAsync(_cancellationTokenSource.Token);
         try
@@ -284,24 +401,31 @@ public partial class MediaImportViewModel : ObservableObject
 
             CompletedCopyCount = result.CopiedCount;
             ProgressPercentage = CopyCount <= 0 ? 100 : (int)Math.Round(result.CopiedCount * 100d / CopyCount);
-            ResultMessage = result.Message + $" Importiert: {result.CopiedCount:N0}; bereits vorhanden: {result.AlreadyImportedCount:N0}; Konflikte: {result.ConflictCount:N0}; offen: {result.RemainingCount:N0}.";
+            ResultMessage = result.Message + $" Neu kopiert: {result.CopiedCount:N0}; bereits vorhanden: {result.AlreadyImportedCount:N0}; Namenskonflikte: {result.ConflictCount:N0}; noch offen: {result.RemainingCount:N0}.";
             HasResult = true;
             _lastImportResult = result;
             CleanupAvailable = result.State == MediaImportExecutionState.Completed
                                && result.CopiedCount == CopyCount
                                && result.CopiedCount > 0;
             StatusMessage = result.State == MediaImportExecutionState.Completed
-                ? "Import abgeschlossen. Die Quelle wurde nicht verändert."
+                ? "Import abgeschlossen. Deine Originaldateien wurden nicht verändert."
                 : result.Message;
+
+            if (result.State == MediaImportExecutionState.Completed)
+            {
+                ImportCompleted = true;
+                OpenImportedFolderCommand.NotifyCanExecuteChanged();
+                await SaveImportHistorySafeAsync(result);
+            }
         }
         catch (OperationCanceledException)
         {
-            StatusMessage = "Importabbruch angefordert. Die Quelle wird nicht verändert.";
+            StatusMessage = "Importabbruch angefordert. Deine Originaldateien werden nicht verändert.";
         }
         catch (Exception exception)
         {
             StatusMessage = "Import fehlgeschlagen: " + exception.GetBaseException().Message;
-            ResultMessage = "Die Quelle wurde nicht gelöscht. Prüfe Protokoll und Zielzustand, bevor du erneut importierst.";
+            ResultMessage = "Deine Originaldateien wurden nicht gelöscht. Prüfe den Speicherort, bevor du den Import erneut startest.";
             HasResult = true;
         }
         finally
@@ -321,8 +445,10 @@ public partial class MediaImportViewModel : ObservableObject
         }
 
         IsBusy = true;
-        CleanupStatus = "Quelle und Zielkopien werden erneut vollständig per SHA-256 geprüft …";
+        CleanupStatus = "Die importierten Kopien werden noch einmal geprüft. Noch wird nichts gelöscht …";
         CleanupResultMessage = string.Empty;
+        CleanupTechnicalDetails = string.Empty;
+        CleanupResultTitle = "Quelle aufräumen";
         HasCleanupResult = false;
         _cancellationTokenSource = new CancellationTokenSource();
 
@@ -330,6 +456,7 @@ public partial class MediaImportViewModel : ObservableObject
         {
             _cleanupPlan = await _cleanupPlanner.CreatePlanAsync(_plan, _cancellationTokenSource.Token);
             CleanupFileCount = _cleanupPlan.FileCount;
+            CleanupRetainedCount = Math.Max(0, FileCount - _cleanupPlan.FileCount);
             CleanupSize = FormatBytes(_cleanupPlan.TotalBytes);
             CleanupIssues = _cleanupPlan.Issues
                 .Select(issue => string.IsNullOrWhiteSpace(issue.Path) ? issue.Message : $"{issue.Message} · {issue.Path}")
@@ -338,18 +465,18 @@ public partial class MediaImportViewModel : ObservableObject
             CleanupSecondConfirmationVisible = false;
             CleanupConfirmationText = string.Empty;
             CleanupStatus = _cleanupPlan.CanExecute
-                ? $"{_cleanupPlan.FileCount:N0} Datei(en) sind für die Quellbereinigung verifiziert. Noch wurde nichts gelöscht."
-                : "Quellbereinigung ist gesperrt. Mindestens eine Datei konnte nicht eindeutig verifiziert werden.";
+                ? $"{_cleanupPlan.FileCount:N0} Datei(en) können sicher von der ursprünglichen Quelle entfernt werden. Noch wurde nichts gelöscht."
+                : "Es kann noch nichts entfernt werden. Mindestens eine Kopie konnte nicht eindeutig geprüft werden.";
         }
         catch (OperationCanceledException)
         {
-            CleanupStatus = "Prüfung der Quellbereinigung abgebrochen. Es wurde nichts gelöscht.";
+            CleanupStatus = "Prüfung abgebrochen. Es wurde nichts gelöscht.";
             _cleanupPlan = null;
             HasCleanupPlan = false;
         }
         catch (Exception exception)
         {
-            CleanupStatus = "Quellbereinigung konnte nicht vorbereitet werden: " + exception.GetBaseException().Message;
+            CleanupStatus = "Die Quelle konnte nicht sicher geprüft werden: " + exception.GetBaseException().Message;
             _cleanupPlan = null;
             HasCleanupPlan = false;
         }
@@ -370,7 +497,7 @@ public partial class MediaImportViewModel : ObservableObject
 
         CleanupSecondConfirmationVisible = true;
         CleanupConfirmationText = string.Empty;
-        CleanupStatus = "Bestätigung 1 von 2 erfolgt. Tippe jetzt exakt QUELLE LEEREN ein.";
+        CleanupStatus = $"Letzte Bestätigung: Tippe LÖSCHEN ein, um {CleanupFileCount:N0} geprüfte Originaldatei(en) von der Quelle zu entfernen.";
     }
 
     private async Task ExecuteCleanupAsync()
@@ -383,7 +510,7 @@ public partial class MediaImportViewModel : ObservableObject
         IsBusy = true;
         HasCleanupResult = false;
         CleanupResultMessage = string.Empty;
-        CleanupStatus = "Finale Sicherheitsprüfung läuft. Vor dem ersten Löschen kann der Vorgang noch blockiert werden.";
+        CleanupStatus = "Letzte Sicherheitsprüfung läuft. Wenn etwas nicht eindeutig stimmt, wird nichts gelöscht.";
         _cancellationTokenSource = new CancellationTokenSource();
 
         try
@@ -393,13 +520,14 @@ public partial class MediaImportViewModel : ObservableObject
                 RemoveEmptyDirectories,
                 _cancellationTokenSource.Token);
 
-            CleanupResultMessage = result.Message
-                + $" Entfernt: {result.DeletedFileCount:N0}/{result.PlannedFileCount:N0} Dateien; leere Unterordner: {result.RemovedDirectoryCount:N0}; Report-ID: {result.CorrelationId}.";
+            CleanupTechnicalDetails = $"Report-ID: {result.CorrelationId} · Geplant: {result.PlannedFileCount:N0} · Entfernt: {result.DeletedFileCount:N0} · Leere Unterordner entfernt: {result.RemovedDirectoryCount:N0}.";
             HasCleanupResult = true;
 
             if (result.State == MediaImportCleanupExecutionState.Completed)
             {
-                CleanupStatus = "Quellbereinigung abgeschlossen. Die verifizierten Zielkopien bleiben in der Import-Wartehalle erhalten.";
+                CleanupResultTitle = "Quelle aufgeräumt";
+                CleanupResultMessage = $"{result.DeletedFileCount:N0} Datei(en) wurden von der ursprünglichen Quelle entfernt. {CleanupSize} wurden freigegeben. Deine importierten Kopien bleiben unverändert erhalten.";
+                CleanupStatus = "Quelle aufgeräumt. Die geprüften Kopien im Importordner bleiben erhalten.";
                 CleanupAvailable = false;
                 HasCleanupPlan = false;
                 CleanupSecondConfirmationVisible = false;
@@ -407,17 +535,21 @@ public partial class MediaImportViewModel : ObservableObject
             }
             else
             {
+                CleanupResultTitle = "Quelle konnte nicht vollständig aufgeräumt werden";
+                CleanupResultMessage = result.Message;
                 CleanupStatus = result.Message;
             }
         }
         catch (OperationCanceledException)
         {
-            CleanupStatus = "Quellbereinigung wurde vor Beginn der destruktiven Phase abgebrochen. Es wurde nichts gelöscht.";
+            CleanupStatus = "Aufräumen wurde vor dem Löschen abgebrochen. Es wurde nichts gelöscht.";
         }
         catch (Exception exception)
         {
-            CleanupStatus = "Quellbereinigung fehlgeschlagen: " + exception.GetBaseException().Message;
-            CleanupResultMessage = "Keine weiteren Löschversuche durchführen, bevor Quelle und Import-Wartehalle geprüft wurden.";
+            CleanupStatus = "Die Quelle konnte nicht sicher aufgeräumt werden: " + exception.GetBaseException().Message;
+            CleanupResultTitle = "Quelle konnte nicht aufgeräumt werden";
+            CleanupResultMessage = "Es wurden keine weiteren Löschversuche gestartet. Prüfe Quelle und importierte Kopien, bevor du es erneut versuchst.";
+            CleanupTechnicalDetails = exception.GetBaseException().Message;
             HasCleanupResult = true;
         }
         finally
@@ -428,12 +560,305 @@ public partial class MediaImportViewModel : ObservableObject
         }
     }
 
+    private void SuggestDestinationSubfolder()
+    {
+        if (!HasSource)
+        {
+            return;
+        }
+
+        var sourceName = GetSourceDisplayName(SourcePath);
+        var descriptiveName = IsGenericSourceFolderName(sourceName)
+            ? "Import"
+            : sourceName;
+
+        descriptiveName = SanitizeFolderName(descriptiveName);
+        if (string.IsNullOrWhiteSpace(descriptiveName))
+        {
+            descriptiveName = "Import";
+        }
+
+        var baseName = $"{DateTimeOffset.Now:yyyy-MM-dd} - {descriptiveName}";
+        DestinationSubfolderName = BuildConflictFreeSubfolderName(baseName);
+    }
+
+    private string BuildConflictFreeSubfolderName(string baseName)
+    {
+        if (!DestinationAvailable || string.IsNullOrWhiteSpace(DestinationRootPath))
+        {
+            return baseName;
+        }
+
+        var candidate = baseName;
+        var suffix = 2;
+
+        while (PathExistsUnderDestinationRoot(candidate))
+        {
+            candidate = $"{baseName} ({suffix})";
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private bool PathExistsUnderDestinationRoot(string subfolderName)
+    {
+        try
+        {
+            var path = Path.Combine(DestinationRootPath, subfolderName);
+            return Directory.Exists(path) || File.Exists(path);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or NotSupportedException
+                or PathTooLongException)
+        {
+            return true;
+        }
+    }
+
+    private void UpdateDestinationPath()
+    {
+        if (!DestinationAvailable || string.IsNullOrWhiteSpace(DestinationRootPath))
+        {
+            DestinationPath = string.Empty;
+            DestinationFolderStatus = "Import-Stammverzeichnis ist nicht verfügbar.";
+            return;
+        }
+
+        if (!HasSource && string.IsNullOrWhiteSpace(DestinationSubfolderName))
+        {
+            DestinationPath = string.Empty;
+            DestinationFolderStatus = "Der Unterordner wird nach Auswahl einer Quelle automatisch vorgeschlagen.";
+            return;
+        }
+
+        var validationError = ValidateSubfolderName(DestinationSubfolderName);
+        if (validationError is not null)
+        {
+            DestinationPath = string.Empty;
+            DestinationFolderStatus = validationError;
+            return;
+        }
+
+        try
+        {
+            var destination = Path.GetFullPath(
+                Path.Combine(DestinationRootPath, DestinationSubfolderName.Trim()));
+
+            var root = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(DestinationRootPath));
+
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            if (!destination.StartsWith(root + Path.DirectorySeparatorChar, comparison))
+            {
+                DestinationPath = string.Empty;
+                DestinationFolderStatus = "Der Unterordner muss direkt innerhalb des Import-Stammverzeichnisses liegen.";
+                return;
+            }
+
+            if (File.Exists(destination))
+            {
+                DestinationPath = string.Empty;
+                DestinationFolderStatus = "Am berechneten Ziel existiert bereits eine Datei mit diesem Namen.";
+                return;
+            }
+
+            DestinationPath = destination;
+            DestinationFolderStatus = Directory.Exists(destination)
+                ? "Der Zielordner existiert bereits. Die Vorschau vergleicht vorhandene Dateien per SHA-256 und überschreibt nichts."
+                : "Neuer Zielordner. Er wird erst beim tatsächlichen Import angelegt.";
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or NotSupportedException
+                or PathTooLongException)
+        {
+            DestinationPath = string.Empty;
+            DestinationFolderStatus = "Der Zielpfad ist ungültig: " + exception.Message;
+        }
+    }
+
+    private static string? ValidateSubfolderName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Gib einen Namen für den Import-Unterordner an.";
+        }
+
+        var trimmed = value.Trim();
+        if (!string.Equals(trimmed, value, StringComparison.Ordinal))
+        {
+            return "Der Unterordner darf nicht mit Leerzeichen beginnen oder enden.";
+        }
+
+        if (trimmed is "." or "..")
+        {
+            return "Dieser Unterordnername ist nicht zulässig.";
+        }
+
+        if (trimmed.Length > 120)
+        {
+            return "Der Unterordnername ist zu lang. Maximal 120 Zeichen sind vorgesehen.";
+        }
+
+        if (trimmed.IndexOf('/') >= 0 || trimmed.IndexOf('\\') >= 0)
+        {
+            return "Der Name darf keine weiteren Pfadbestandteile enthalten.";
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        if (trimmed.IndexOfAny(invalid) >= 0
+            || trimmed.IndexOfAny(new[] { '<', '>', ':', '"', '|', '?', '*' }) >= 0)
+        {
+            return "Der Unterordnername enthält Zeichen, die nicht plattformübergreifend zulässig sind.";
+        }
+
+        if (trimmed.EndsWith(".", StringComparison.Ordinal))
+        {
+            return "Der Unterordnername darf nicht mit einem Punkt enden.";
+        }
+
+        return null;
+    }
+
+    private static bool PathsEqual(string first, string second)
+    {
+        if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
+        {
+            return false;
+        }
+
+        try
+        {
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            return string.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(first)),
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(second)),
+                comparison);
+        }
+        catch
+        {
+            return string.Equals(first, second, StringComparison.Ordinal);
+        }
+    }
+
+    private static string GetSourceDisplayName(string sourcePath)
+    {
+        try
+        {
+            var normalized = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(sourcePath));
+
+            var name = Path.GetFileName(normalized);
+            return string.IsNullOrWhiteSpace(name)
+                ? "Import"
+                : name;
+        }
+        catch
+        {
+            return "Import";
+        }
+    }
+
+    private static bool IsGenericSourceFolderName(string value)
+    {
+        var name = value.Trim();
+        return name.Equals("DCIM", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("Camera", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("Pictures", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("Photos", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("Images", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("PRIVATE", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("100MEDIA", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("100CANON", StringComparison.OrdinalIgnoreCase)
+               || name.Equals("100NIKON", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string SanitizeFolderName(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars()
+            .Concat(new[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*' })
+            .ToHashSet();
+
+        var sanitized = new string(
+                value.Select(character => invalid.Contains(character) ? ' ' : character)
+                    .ToArray())
+            .Trim()
+            .TrimEnd('.');
+
+        while (sanitized.Contains("  ", StringComparison.Ordinal))
+        {
+            sanitized = sanitized.Replace("  ", " ", StringComparison.Ordinal);
+        }
+
+        return sanitized.Length <= 80
+            ? sanitized
+            : sanitized[..80].TrimEnd();
+    }
+
+    private async Task SaveImportHistorySafeAsync(
+        MediaImportExecutionResult result)
+    {
+        try
+        {
+            await _importHistoryStore.SaveLastAsync(
+                new MediaImportHistoryEntry(
+                    SourcePath: SourcePath,
+                    DestinationRootPath: DestinationRootPath,
+                    DestinationPath: DestinationPath,
+                    DestinationSubfolderName: DestinationSubfolderName,
+                    CompletedUtc: DateTimeOffset.UtcNow,
+                    CopiedCount: result.CopiedCount,
+                    AlreadyImportedCount: result.AlreadyImportedCount,
+                    ConflictCount: result.ConflictCount));
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException
+                or NotSupportedException
+                or ArgumentException
+                or System.Text.Json.JsonException)
+        {
+            Console.Error.WriteLine(
+                $"Importverlauf konnte nicht gespeichert werden: {exception.Message}");
+        }
+    }
+
+    private void OpenImportedFolder()
+    {
+        if (!CanOpenImportedFolder())
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = DestinationPath,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            StatusMessage = "Der importierte Ordner konnte nicht automatisch geöffnet werden: " + exception.Message;
+        }
+    }
+
     private void CancelCleanup()
     {
         CleanupSecondConfirmationVisible = false;
         CleanupConfirmationText = string.Empty;
         CleanupStatus = HasCleanupPlan
-            ? "Quellbereinigung nicht freigegeben. Es wurde nichts gelöscht."
+            ? "Aufräumen nicht bestätigt. Es wurde nichts gelöscht."
             : string.Empty;
     }
 
@@ -464,6 +889,9 @@ public partial class MediaImportViewModel : ObservableObject
         _plan = null;
         _lastImportResult = null;
         HasPlan = false;
+        HasResult = false;
+        ImportCompleted = false;
+        ResultMessage = string.Empty;
         PreviewItems = Array.Empty<MediaImportPlanItemViewModel>();
         Issues = Array.Empty<string>();
         FileCount = 0;
@@ -489,6 +917,9 @@ public partial class MediaImportViewModel : ObservableObject
         CleanupSize = "0 B";
         CleanupStatus = string.Empty;
         CleanupResultMessage = string.Empty;
+        CleanupTechnicalDetails = string.Empty;
+        CleanupResultTitle = "Quelle aufräumen";
+        CleanupRetainedCount = 0;
         CleanupIssues = Array.Empty<string>();
         PrepareCleanupCommand.NotifyCanExecuteChanged();
         ConfirmCleanupWarningCommand.NotifyCanExecuteChanged();

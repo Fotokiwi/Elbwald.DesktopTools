@@ -142,6 +142,85 @@ public sealed class MediaSortPlanner
             var dateResolution =
                 contextEntry.Resolution;
 
+            var normalizedFilePath =
+                Path.GetFullPath(file.FullPath);
+
+            options.DateDecisionsBySourcePath.TryGetValue(
+                normalizedFilePath,
+                out var dateDecision);
+
+            if (dateDecision?.Kind == MediaSortDateDecisionKind.Skip)
+            {
+                continue;
+            }
+
+            if (dateDecision?.Kind == MediaSortDateDecisionKind.SortAsUnclear)
+            {
+                var fallbackDate =
+                    dateResolution.Value
+                    ?? file.LastWriteTimeUtc.UtcDateTime;
+
+                var overrideResolution =
+                    CreateUserOverrideResolution(
+                        dateResolution,
+                        fallbackDate,
+                        "Vom Nutzer als ungeklärtes Datum markiert.");
+
+                var unclearRelativeDirectory =
+                    "Datum unklar";
+
+                var unclearDestinationPath =
+                    Path.GetFullPath(
+                        Path.Combine(
+                            normalizedDestinationRoot,
+                            unclearRelativeDirectory,
+                            file.FileName));
+
+                var unclearOperationIndex =
+                    requests.Count;
+
+                items.Add(
+                    new MediaSortPlanItem(
+                        unclearOperationIndex,
+                        file,
+                        fallbackDate,
+                        overrideResolution,
+                        unclearRelativeDirectory,
+                        unclearDestinationPath));
+
+                requests.Add(
+                    options.OperationKind switch
+                    {
+                        FileOperationKind.Copy =>
+                            FileOperationRequest.Copy(
+                                file.FullPath,
+                                unclearDestinationPath),
+
+                        FileOperationKind.Move =>
+                            FileOperationRequest.Move(
+                                file.FullPath,
+                                unclearDestinationPath),
+
+                        _ =>
+                            throw new InvalidOperationException(
+                                $"Nicht unterstützte Dateioperation: {options.OperationKind}.")
+                    });
+
+                continue;
+            }
+
+            if (dateDecision?.Kind == MediaSortDateDecisionKind.UseDate
+                && dateDecision.Value.HasValue)
+            {
+                dateResolution =
+                    CreateUserOverrideResolution(
+                        dateResolution,
+                        dateDecision.Value.Value,
+                        string.IsNullOrWhiteSpace(dateDecision.Label)
+                            ? "Vom Nutzer für die Sortierung ausgewählt."
+                            : dateDecision.Label!);
+            }
+
             if (!dateResolution.IsResolved)
             {
                 issues.Add(
@@ -351,6 +430,20 @@ public sealed class MediaSortPlanner
             companionGroups,
             operationPlan,
             ignoredNonImageCount);
+    }
+
+    private static MediaDateResolution CreateUserOverrideResolution(
+        MediaDateResolution original,
+        DateTime value,
+        string explanation)
+    {
+        return new MediaDateResolution(
+            value,
+            MediaDateConfidence.VeryHigh,
+            MediaDateSource.UserOverride,
+            original.Candidates,
+            Array.Empty<MediaDateComparison>(),
+            explanation);
     }
 
     private string BuildRelativeDirectory(

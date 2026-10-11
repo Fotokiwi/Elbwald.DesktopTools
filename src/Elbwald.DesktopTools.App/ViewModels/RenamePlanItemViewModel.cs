@@ -16,4 +16,20 @@ public sealed class RenamePlanItemViewModel
     public bool IsReady { get; set; }
 
     public string Kind => IsCompanion ? "Begleitdatei" : "Medium";
+
+    public string FriendlyStatus => Status switch
+    {
+        "Bereit" => "Wird umbenannt",
+        "Unverändert" => "Bleibt gleich",
+        "Konflikt" => "Bitte prüfen",
+        _ => Status
+    };
+
+    public string FriendlyDateSource => DateSource switch
+    {
+        "EXIF" => "Aufnahmedatum",
+        "Dateisystem" => "Dateidatum",
+        "XMP-Begleitdatei" => "Begleitdatei",
+        _ => DateSource
+    };
 }

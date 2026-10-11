@@ -14,7 +14,7 @@ namespace Elbwald.DesktopTools.Core.Tests.Media;
 public sealed class MediaSortExecutionExecutorTests
 {
     [Fact]
-    public async Task ExecuteAsync_WrongConfirmation_DoesNotTouchDestination()
+    public async Task ExecuteAsync_Copy_DoesNotRequireConfirmationText()
     {
         using var directory =
             new TestDirectory();
@@ -37,35 +37,27 @@ public sealed class MediaSortExecutionExecutorTests
                         destination)
                 });
 
-        var journal =
-            new FakeJournal();
-
-        var executor =
-            CreateExecutor(
-                journal);
-
         var result =
-            await executor.ExecuteAsync(
-                plan,
-                new MediaSortExecutionConfirmation(
-                    plan.Fingerprint,
-                    "JA",
-                    ApproveDateReviews: false));
+            await CreateExecutor(
+                    new FakeJournal())
+                .ExecuteAsync(
+                    plan,
+                    new MediaSortExecutionConfirmation(
+                        plan.Fingerprint,
+                        string.Empty,
+                        ApproveDateReviews: false));
 
         Assert.Equal(
-            MediaSortLiveExecutionState.BlockedByConfirmation,
+            MediaSortLiveExecutionState.Completed,
             result.State);
 
         Assert.True(
             File.Exists(
                 source));
 
-        Assert.False(
+        Assert.True(
             File.Exists(
                 destination));
-
-        Assert.Empty(
-            journal.Entries);
     }
 
     [Fact]
@@ -1402,7 +1394,7 @@ public sealed class MediaSortExecutionExecutorTests
     {
         return new MediaSortExecutionConfirmation(
             plan.Fingerprint,
-            MediaSortExecutionConfirmation.CopyRequiredText,
+            string.Empty,
             ApproveDateReviews: false);
     }
 

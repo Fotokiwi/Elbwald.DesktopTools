@@ -7,5 +7,7 @@ public enum MediaIndexSortOrder
     FileNameAscending = 2,
     FileNameDescending = 3,
     SizeDescending = 4,
-    SizeAscending = 5
+    SizeAscending = 5,
+    CaptureDateDescending = 6,
+    CaptureDateAscending = 7
 }

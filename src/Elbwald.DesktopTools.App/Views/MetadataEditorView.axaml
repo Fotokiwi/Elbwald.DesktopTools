@@ -140,7 +140,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Padding="10" CornerRadius="8" Background="#EDF5F1">
+                            <Border Padding="10" CornerRadius="8" Background="{DynamicResource ElbwaldSurfaceRaisedBrush}">
                                 <TextBlock Text="Eingebettete EXIF/XMP-Metadaten schreiben wir künftig primär beim Export neuer Kopien. Bibliotheks-Originale bleiben im normalen Workflow unangetastet."
                                            Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
                             </Border>

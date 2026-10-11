@@ -23,9 +23,26 @@ public sealed class MediaImportPlanner : IMediaImportPlanner
             return Blocked(source, destination, "Der Quellordner existiert nicht.", source);
         }
 
+        if (File.Exists(destination))
+        {
+            return Blocked(
+                source,
+                destination,
+                "Am Zielpfad existiert bereits eine Datei. Für den Import wird ein Ordner benötigt.",
+                destination);
+        }
+
         if (!Directory.Exists(destination))
         {
-            return Blocked(source, destination, "Die konfigurierte Import-Wartehalle existiert nicht.", destination);
+            var parent = Path.GetDirectoryName(destination);
+            if (string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent))
+            {
+                return Blocked(
+                    source,
+                    destination,
+                    "Der Zielordner existiert noch nicht und sein Stammverzeichnis ist nicht verfügbar.",
+                    destination);
+            }
         }
 
         if (PathsOverlap(source, destination))

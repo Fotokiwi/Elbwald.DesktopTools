@@ -189,13 +189,15 @@ public partial class MainWindowViewModel : ObservableObject
                 "Bibliothek read-only prüfen",
                 "Search",
                 analyzerModule,
-                activate)
+                activate,
+                showSeparatorBefore: true)
             : NavigationItemViewModel.CreateSection(
                 "analyze",
                 "Analysieren",
                 "Bibliothek read-only prüfen",
                 "Search",
-                activate);
+                activate,
+                showSeparatorBefore: true);
 
         return new[]
         {
@@ -205,6 +207,13 @@ public partial class MainWindowViewModel : ObservableObject
                 "Bibliothek",
                 "Medien durchsuchen und auswählen",
                 "Camera",
+                activate,
+                showSeparatorBefore: true),
+            NavigationItemViewModel.CreateSection(
+                "projects",
+                "Projekte",
+                "Medien zu Vorhaben und Sammlungen zusammenstellen",
+                "Project",
                 activate),
             analyze,
             NavigationItemViewModel.CreateSection(
@@ -224,7 +233,8 @@ public partial class MainWindowViewModel : ObservableObject
                 "Sichern",
                 "Redundante Sicherungen prüfen und erstellen",
                 "Backup",
-                activate),
+                activate,
+                showSeparatorBefore: true),
             NavigationItemViewModel.CreateSection(
                 "tools",
                 "Werkzeuge",
@@ -236,7 +246,8 @@ public partial class MainWindowViewModel : ObservableObject
                 "Einstellungen",
                 "Cache, Performance und Darstellung",
                 "Settings",
-                activate)
+                activate,
+                showSeparatorBefore: true)
         };
     }
 

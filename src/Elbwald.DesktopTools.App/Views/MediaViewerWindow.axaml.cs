@@ -47,6 +47,27 @@ public partial class MediaViewerWindow : Window
     {
         if (ViewModel is null) return;
 
+        if (e.Source is TextBox or ComboBox)
+        {
+            return;
+        }
+
+        var rating = e.Key switch
+        {
+            Key.D0 or Key.NumPad0 => 0,
+            Key.D1 or Key.NumPad1 => 1,
+            Key.D2 or Key.NumPad2 => 2,
+            Key.D3 or Key.NumPad3 => 3,
+            _ => -1
+        };
+
+        if (rating >= 0)
+        {
+            await ViewModel.ApplyRatingShortcutAsync(rating);
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Left:

@@ -1,7 +1,9 @@
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Knowledge;
 using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
 using Elbwald.DesktopTools.App.Services;
@@ -14,6 +16,7 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
     private readonly MediaThumbnailOptions _thumbnailOptions;
     private readonly IStorageSettingsStore _storageSettingsStore;
     private readonly IStorageLocationResolver _storageLocationResolver;
+    private readonly IMediaIndexService _mediaIndexService;
     private readonly IReadOnlyList<MediaBrowserItemViewModel> _items;
     private readonly DispatcherTimer _presentationTimer;
     private CancellationTokenSource? _loadCancellation;
@@ -30,12 +33,21 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool isPresentationRunning;
     [ObservableProperty] private bool randomOrder;
     [ObservableProperty] private int selectedIntervalSeconds = 5;
+    [ObservableProperty] private int rating;
+    [ObservableProperty] private string ratingText = "Unbewertet";
+    [ObservableProperty] private string knowledgeSummary = "–";
+    [ObservableProperty] private bool showQuickEdit;
+    [ObservableProperty] private string quickKnowledgeKind = "Tag";
+    [ObservableProperty] private string quickKnowledgeText = string.Empty;
+    [ObservableProperty] private IReadOnlyList<QuickKnowledgeItemViewModel> quickKnowledgeItems = Array.Empty<QuickKnowledgeItemViewModel>();
+    [ObservableProperty] private string quickEditStatus = "Bewertung und Zuordnungen werden direkt in Elbwald gespeichert.";
 
     public MediaViewerViewModel(
         IMediaThumbnailService thumbnailService,
         MediaThumbnailOptions thumbnailOptions,
         IStorageSettingsStore storageSettingsStore,
         IStorageLocationResolver storageLocationResolver,
+        IMediaIndexService mediaIndexService,
         IReadOnlyList<MediaBrowserItemViewModel> items,
         string startMediaItemId)
     {
@@ -43,6 +55,7 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
         _thumbnailOptions = thumbnailOptions ?? throw new ArgumentNullException(nameof(thumbnailOptions));
         _storageSettingsStore = storageSettingsStore ?? throw new ArgumentNullException(nameof(storageSettingsStore));
         _storageLocationResolver = storageLocationResolver ?? throw new ArgumentNullException(nameof(storageLocationResolver));
+        _mediaIndexService = mediaIndexService ?? throw new ArgumentNullException(nameof(mediaIndexService));
         _items = items?.Where(item => item.IsImage).ToArray() ?? throw new ArgumentNullException(nameof(items));
 
         if (_items.Count == 0)
@@ -59,15 +72,24 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
         };
         _presentationTimer.Tick += OnPresentationTick;
 
+        SetRatingCommand = new AsyncRelayCommand<string>(SetRatingAsync, _ => !IsBusy);
+        ToggleQuickEditCommand = new RelayCommand(() => ShowQuickEdit = !ShowQuickEdit);
+        AddQuickKnowledgeCommand = new AsyncRelayCommand(AddQuickKnowledgeAsync, CanAddQuickKnowledge);
+
         _ = InitializeAsync();
     }
 
     public IReadOnlyList<int> PresentationIntervals { get; } = [3, 5, 10, 15, 30];
+    public IReadOnlyList<string> QuickKnowledgeKinds { get; } = ["Tag", "Person", "Ort", "Ereignis"];
+    public IAsyncRelayCommand<string> SetRatingCommand { get; }
+    public IRelayCommand ToggleQuickEditCommand { get; }
+    public IAsyncRelayCommand AddQuickKnowledgeCommand { get; }
     public int ItemCount => _items.Count;
     public bool CanNavigate => _items.Count > 1;
     public bool HasImage => Image is not null;
     public bool HasNoImage => Image is null;
     public bool ShowControls => !IsPresentationRunning;
+    public bool ShowQuickEditPanel => ShowControls && ShowQuickEdit;
 
     partial void OnImageChanged(Bitmap? value)
     {
@@ -78,7 +100,27 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
     partial void OnIsPresentationRunningChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowControls));
+        OnPropertyChanged(nameof(ShowQuickEditPanel));
+        if (value) ShowQuickEdit = false;
     }
+
+    partial void OnShowQuickEditChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowQuickEditPanel));
+
+    partial void OnIsBusyChanged(bool value)
+    {
+        SetRatingCommand.NotifyCanExecuteChanged();
+        AddQuickKnowledgeCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnQuickKnowledgeKindChanged(string value)
+    {
+        QuickKnowledgeText = string.Empty;
+        _ = LoadQuickKnowledgeItemsAsync(CancellationToken.None);
+    }
+
+    partial void OnQuickKnowledgeTextChanged(string value) =>
+        AddQuickKnowledgeCommand.NotifyCanExecuteChanged();
 
     partial void OnSelectedIntervalSecondsChanged(int value)
     {
@@ -190,6 +232,9 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
         var item = _items[_currentIndex];
         Title = item.DisplayTitle;
         Subtitle = item.RelativePath;
+        Rating = item.Rating;
+        RatingText = Rating == 0 ? "Unbewertet" : new string('★', Rating);
+        KnowledgeSummary = "Metadaten werden geladen …";
         PositionText = $"{_currentIndex + 1:N0} / {_items.Count:N0}";
         StatusText = "Bild wird geladen …";
 
@@ -199,6 +244,8 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
             {
                 await LoadEndpointRootsAsync(token);
             }
+
+            await LoadCurrentKnowledgeAsync(item, token);
 
             var file = TryResolveMediaFile(item.Result);
             if (file is null)
@@ -242,6 +289,127 @@ public partial class MediaViewerViewModel : ObservableObject, IDisposable
             {
                 IsBusy = false;
             }
+        }
+    }
+
+    public Task ApplyRatingShortcutAsync(int value) =>
+        SetRatingAsync(Math.Clamp(value, 0, 3).ToString());
+
+    private async Task SetRatingAsync(string? value)
+    {
+        if (!int.TryParse(value, out var ratingValue)) return;
+        ratingValue = Math.Clamp(ratingValue, 0, 3);
+        var item = _items[_currentIndex];
+        try
+        {
+            await _mediaIndexService.SetRatingBatchAsync([item.Id], ratingValue);
+            item.SetRating(ratingValue);
+            Rating = ratingValue;
+            RatingText = ratingValue == 0 ? "Unbewertet" : new string('★', ratingValue);
+            QuickEditStatus = ratingValue == 0
+                ? "Bewertung entfernt."
+                : $"Mit {ratingValue} Stern(en) bewertet.";
+        }
+        catch (Exception exception)
+        {
+            QuickEditStatus = "Bewertung fehlgeschlagen: " + exception.GetBaseException().Message;
+        }
+    }
+
+    private MediaKnowledgeKind GetQuickKnowledgeKind() => QuickKnowledgeKind switch
+    {
+        "Person" => MediaKnowledgeKind.Person,
+        "Ort" => MediaKnowledgeKind.Place,
+        "Ereignis" => MediaKnowledgeKind.Event,
+        _ => MediaKnowledgeKind.Tag
+    };
+
+    private bool CanAddQuickKnowledge() =>
+        !IsBusy && !string.IsNullOrWhiteSpace(QuickKnowledgeText);
+
+    private async Task LoadQuickKnowledgeItemsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var items = await _mediaIndexService.GetKnowledgeItemsAsync(
+                GetQuickKnowledgeKind(),
+                limit: 8,
+                cancellationToken: cancellationToken);
+            QuickKnowledgeItems = items
+                .Select(item => new QuickKnowledgeItemViewModel(item, ApplyQuickKnowledgeItemAsync))
+                .ToArray();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch
+        {
+            QuickKnowledgeItems = Array.Empty<QuickKnowledgeItemViewModel>();
+        }
+    }
+
+    private async Task AddQuickKnowledgeAsync()
+    {
+        if (!CanAddQuickKnowledge()) return;
+        var item = _items[_currentIndex];
+        var name = QuickKnowledgeText.Trim();
+        try
+        {
+            var knowledge = await _mediaIndexService.EnsureKnowledgeItemAsync(
+                new MediaKnowledgeDraft(GetQuickKnowledgeKind(), name));
+            var added = await _mediaIndexService.AssignKnowledgeItemBatchAsync([item.Id], knowledge.Id);
+            QuickKnowledgeText = string.Empty;
+            QuickEditStatus = added == 0
+                ? $"„{knowledge.Name}“ war bereits zugeordnet."
+                : $"„{knowledge.Name}“ wurde zugeordnet.";
+            await LoadCurrentKnowledgeAsync(item, CancellationToken.None);
+            await LoadQuickKnowledgeItemsAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            QuickEditStatus = "Zuordnung fehlgeschlagen: " + exception.GetBaseException().Message;
+        }
+    }
+
+    private async Task ApplyQuickKnowledgeItemAsync(QuickKnowledgeItemViewModel knowledge)
+    {
+        var item = _items[_currentIndex];
+        try
+        {
+            var added = await _mediaIndexService.AssignKnowledgeItemBatchAsync([item.Id], knowledge.Id);
+            QuickEditStatus = added == 0
+                ? $"„{knowledge.Name}“ war bereits zugeordnet."
+                : $"„{knowledge.Name}“ wurde zugeordnet.";
+            await LoadCurrentKnowledgeAsync(item, CancellationToken.None);
+            await LoadQuickKnowledgeItemsAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            QuickEditStatus = "Zuordnung fehlgeschlagen: " + exception.GetBaseException().Message;
+        }
+    }
+
+    private async Task LoadCurrentKnowledgeAsync(
+        MediaBrowserItemViewModel item,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var snapshot = await _mediaIndexService.GetKnowledgeAsync(item.Id, cancellationToken);
+            Rating = snapshot.Rating;
+            item.SetRating(snapshot.Rating);
+            RatingText = snapshot.Rating == 0 ? "Unbewertet" : new string('★', snapshot.Rating);
+            KnowledgeSummary = snapshot.Items.Count == 0
+                ? "Noch keine Personen, Orte, Tags oder Ereignisse"
+                : string.Join(" · ", snapshot.Items.Select(value => value.Name));
+            await LoadQuickKnowledgeItemsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch
+        {
+            KnowledgeSummary = "Metadaten konnten nicht geladen werden";
         }
     }
 

@@ -49,6 +49,14 @@ public sealed class NavigationContentFactory : INavigationContentFactory
 
         if (string.Equals(
                 sectionId,
+                "projects",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateProjectsPage();
+        }
+
+        if (string.Equals(
+                sectionId,
                 "settings",
                 StringComparison.OrdinalIgnoreCase))
         {

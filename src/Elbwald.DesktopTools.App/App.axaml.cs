@@ -29,8 +29,19 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         var services = new ServiceCollection();
+        var moduleRegistry = new ModuleRegistry();
+        var moduleLoader = new ModuleLoader(moduleRegistry);
+        var moduleLoadReport = new ModuleLoadReport();
 
-        services.AddDesktopTools();
+        LoadModules(
+            services,
+            moduleLoader,
+            moduleLoadReport);
+
+        services.AddDesktopTools(
+            moduleRegistry,
+            moduleLoader,
+            moduleLoadReport);
 
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<MainWindow>();
@@ -50,8 +61,6 @@ public partial class App : Application
 
             desktop.Exit += OnDesktopExit;
         }
-
-        LoadModules(_serviceProvider);
 
         if (desktop is not null)
         {
@@ -104,10 +113,14 @@ public partial class App : Application
         serviceProvider?.Dispose();
     }
 
-    private static void LoadModules(IServiceProvider serviceProvider)
+    private static void LoadModules(
+        IServiceCollection services,
+        IModuleLoader loader,
+        IModuleLoadReport report)
     {
-        var loader = serviceProvider.GetRequiredService<IModuleLoader>();
-        var report = serviceProvider.GetRequiredService<IModuleLoadReport>();
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(loader);
+        ArgumentNullException.ThrowIfNull(report);
 
         var modulesPath = Path.Combine(
             AppContext.BaseDirectory,
@@ -115,7 +128,8 @@ public partial class App : Application
 
         var results = loader.LoadModules(
             modulesPath,
-            HostVersion);
+            HostVersion,
+            services);
 
         report.Replace(results);
 

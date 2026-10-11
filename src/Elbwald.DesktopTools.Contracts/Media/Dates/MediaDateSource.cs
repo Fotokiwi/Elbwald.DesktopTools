@@ -9,5 +9,6 @@ public enum MediaDateSource
     GpsUtc,
     FileName,
     FileSystemCreationUtc,
-    FileSystemLastWriteUtc
+    FileSystemLastWriteUtc,
+    UserOverride
 }

@@ -29,4 +29,11 @@ public sealed record MediaSortOptions
 
     public MediaDateConfidence MinimumDateConfidence { get; init; } =
         MediaDateConfidence.High;
+
+    /// <summary>
+    /// Nutzerentscheidungen für einzelne Dateien mit unsicherem oder fehlendem Aufnahmedatum.
+    /// Die Schlüssel sind normalisierte Quellpfade.
+    /// </summary>
+    public IReadOnlyDictionary<string, MediaSortDateDecision> DateDecisionsBySourcePath { get; init; } =
+        new Dictionary<string, MediaSortDateDecision>(StringComparer.Ordinal);
 }

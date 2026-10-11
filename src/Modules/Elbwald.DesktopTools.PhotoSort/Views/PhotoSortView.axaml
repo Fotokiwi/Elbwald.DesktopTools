@@ -67,24 +67,26 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="Sortieren" Classes="elbwald-title" />
                 <TextBlock
-                    Text="Medien mit frei definierbaren Regeln strukturieren – erst planen, dann sicher ausführen."
+                    Text="Ordne deine importierten Medien in eine dauerhafte Ordnerstruktur. Erst die Vorschau zeigt dir genau, was passieren wird."
                     Classes="elbwald-muted"
-                    FontSize="13" />
+                    FontSize="13"
+                    TextWrapping="Wrap" />
             </StackPanel>
 
-            <!-- Workflow -->
+            <!-- Geführter Workflow -->
             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                 <Border Grid.Column="0" Classes="elbwald-card" Padding="17">
                     <Grid ColumnDefinitions="38,*,Auto" ColumnSpacing="12">
                         <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
                             <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
                         </Border>
-                        <StackPanel Grid.Column="1" Spacing="3">
-                            <TextBlock Text="Quelle" FontWeight="SemiBold" FontSize="16" />
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="Welche Medien sollen sortiert werden?" FontWeight="SemiBold" FontSize="15" />
+                            <TextBlock Text="{Binding SourceContextText}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding SourcePath}" Classes="elbwald-muted" FontSize="10" TextTrimming="CharacterEllipsis" MaxLines="2" />
-                            <CheckBox Content="Unterordner einbeziehen" IsChecked="{Binding IncludeSubdirectories}" IsEnabled="{Binding IsInputEnabled}" Margin="0,4,0,0" />
+                            <CheckBox Content="Unterordner ebenfalls einbeziehen" IsChecked="{Binding IncludeSubdirectories}" IsEnabled="{Binding IsInputEnabled}" Margin="0,4,0,0" />
                         </StackPanel>
-                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding ChooseSourceCommand}" Content="Ändern" VerticalAlignment="Top" />
+                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding ChooseSourceCommand}" Content="Andere Quelle" VerticalAlignment="Top" />
                     </Grid>
                 </Border>
 
@@ -93,12 +95,13 @@
                         <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
                             <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
                         </Border>
-                        <StackPanel Grid.Column="1" Spacing="3">
-                            <TextBlock Text="Ziel" FontWeight="SemiBold" FontSize="16" />
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="Wo sollen die sortierten Medien hin?" FontWeight="SemiBold" FontSize="15" />
+                            <TextBlock Text="{Binding DestinationContextText}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="10" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding DestinationPath}" Classes="elbwald-muted" FontSize="10" TextTrimming="CharacterEllipsis" MaxLines="2" />
-                            <TextBlock Text="Bestehende Dateien werden niemals überschrieben." Classes="elbwald-muted" FontSize="9" Margin="0,5,0,0" />
+                            <TextBlock Text="Vorhandene Dateien werden niemals überschrieben." Classes="elbwald-muted" FontSize="9.5" Margin="0,4,0,0" />
                         </StackPanel>
-                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding ChooseDestinationCommand}" Content="Ändern" VerticalAlignment="Top" />
+                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding ChooseDestinationCommand}" Content="Anderes Ziel" VerticalAlignment="Top" />
                     </Grid>
                 </Border>
 
@@ -107,63 +110,84 @@
                         <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource ElbwaldAccentSoftBrush}">
                             <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ElbwaldAccentBrush}" FontWeight="Bold" />
                         </Border>
-                        <StackPanel Grid.Column="1" Spacing="7">
-                            <TextBlock Text="Ausführung" FontWeight="SemiBold" FontSize="16" />
+                        <StackPanel Grid.Column="1" Spacing="8">
+                            <TextBlock Text="Wie soll sortiert werden?" FontWeight="SemiBold" FontSize="15" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <ComboBox Grid.Column="0" ItemsSource="{Binding OperationOptions}" SelectedItem="{Binding SelectedOperation, Mode=TwoWay}" IsEnabled="{Binding IsInputEnabled}" />
-                                <ComboBox Grid.Column="1" ItemsSource="{Binding DateConfidenceOptions}" SelectedItem="{Binding SelectedDateConfidence, Mode=TwoWay}" IsEnabled="{Binding IsInputEnabled}" />
+                                <StackPanel Grid.Column="0" Spacing="3">
+                                    <TextBlock Text="Dateien" Classes="elbwald-muted" FontSize="9.5" />
+                                    <ComboBox ItemsSource="{Binding OperationOptions}" SelectedItem="{Binding SelectedOperation, Mode=TwoWay}" IsEnabled="{Binding IsInputEnabled}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock Text="Datumsangaben" Classes="elbwald-muted" FontSize="9.5" />
+                                    <ComboBox ItemsSource="{Binding DateConfidenceOptions}" SelectedItem="{Binding SelectedDateConfidence, Mode=TwoWay}" IsEnabled="{Binding IsInputEnabled}" />
+                                </StackPanel>
                             </Grid>
+                            <TextBlock Text="{Binding OperationHelpText}" Classes="elbwald-muted" FontSize="9.5" TextWrapping="Wrap" />
+                            <TextBlock Text="Empfohlen nutzt nur verlässliche Aufnahmedaten. Unsichere Fälle werden in der Vorschau zur Prüfung markiert." Classes="elbwald-muted" FontSize="9.5" TextWrapping="Wrap" />
                         </StackPanel>
                     </Grid>
                 </Border>
             </Grid>
 
-            <!-- Rule editor -->
+            <!-- Ordnerstruktur -->
             <Border Classes="elbwald-card" Padding="18">
                 <StackPanel Spacing="13">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                        <StackPanel Spacing="3">
-                            <TextBlock Text="Zielstruktur" Classes="elbwald-section-title" />
-                            <TextBlock Text="Freier Text und Platzhalter lassen sich beliebig kombinieren. / erzeugt die nächste logische Ordnerebene." Classes="elbwald-muted" FontSize="11" />
-                        </StackPanel>
-                        <TextBlock Grid.Column="1" Text="Gemeinsame Rule Engine mit Umbenennen" Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" />
-                    </Grid>
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="So sollen die Ordner aufgebaut werden" Classes="elbwald-section-title" />
+                        <TextBlock Text="Wähle zuerst eine passende Vorlage. Wenn du möchtest, kannst du die Struktur anschließend selbst anpassen." Classes="elbwald-muted" FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
 
-                    <TextBox
-                        Text="{Binding PathPattern, Mode=TwoWay}"
-                        IsReadOnly="{Binding IsBusy}"
-                        FontSize="15"
-                        Padding="12,10"
-                        Watermark="z. B. {year}/{month}/{camera}" />
-
+                    <TextBlock Text="Vorlagen" Foreground="{DynamicResource ElbwaldTextBrush}" FontSize="12" FontWeight="SemiBold" />
                     <WrapPanel>
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{year}" Content="Jahr" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{month}" Content="Monat" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{day}" Content="Tag" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{date:yyyy-MM-dd}" Content="Datum" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{camera}" Content="Kamera" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{make}" Content="Hersteller" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{model}" Content="Modell" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{title}" Content="Titel" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{type}" Content="Medientyp" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{folder}" Content="Quellordner" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{original}" Content="Originalname" />
-                        <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{seq:000}" Content="Sequenz" />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Command="{Binding UseYearMonthPresetCommand}" Content="Jahr / Monat" ToolTip.Tip="Einfach und übersichtlich: z. B. 2026 / 10" />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Command="{Binding UseYearMonthDayPresetCommand}" Content="Jahr / Monat / Tag" ToolTip.Tip="Für sehr große Sammlungen: z. B. 2026 / 10 / 11" />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Command="{Binding UseYearFolderPresetCommand}" Content="Jahr / Quellordner" ToolTip.Tip="Behält den bisherigen Ordnernamen innerhalb des Jahres bei." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Command="{Binding UseYearEventPresetCommand}" Content="Jahr / Titel" ToolTip.Tip="Gut für Ereignisse oder Projekte, wenn Titel gepflegt sind." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Command="{Binding UseCameraPresetCommand}" Content="Jahr / Kamera / Monat" ToolTip.Tip="Trennt Aufnahmen zusätzlich nach Kamera." />
+                        <Button Classes="elbwald-secondary-button" Margin="0,0,8,8" Command="{Binding UseMediaTypePresetCommand}" Content="Jahr / Medientyp / Monat" ToolTip.Tip="Trennt Bilder, Audio und Video innerhalb eines Jahres." />
                     </WrapPanel>
 
-                    <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="9">
-                        <Button Grid.Column="0" Classes="elbwald-secondary-button" Command="{Binding UseYearMonthPresetCommand}" Content="Jahr / Monat" />
-                        <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding UseYearEventPresetCommand}" Content="Jahr / Titel" />
-                        <Button Grid.Column="2" Classes="elbwald-secondary-button" Command="{Binding UseCameraPresetCommand}" Content="Jahr / Kamera / Monat" />
-                        <TextBlock Grid.Column="3" Text="Titel/Beschreibung werden – wenn verwendet – aus den Elbwald-Metadaten der Media-ID aufgelöst." Classes="elbwald-muted" FontSize="10" VerticalAlignment="Center" TextAlignment="Right" />
-                    </Grid>
+                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="11" Padding="13">
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="Beispiel für die gewählte Struktur" Classes="elbwald-muted" FontSize="9.5" />
+                            <TextBlock Text="{Binding StructurePreviewText}" Foreground="{DynamicResource ElbwaldTextBrush}" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="Die echte Vorschau unten zeigt dir später für jede Datei den genauen Zielordner." Classes="elbwald-muted" FontSize="9.5" />
+                        </StackPanel>
+                    </Border>
+
+                    <Expander Header="Eigene Struktur anpassen">
+                        <StackPanel Spacing="10" Margin="0,10,0,0">
+                            <TextBlock Text="Für eigene Regeln kannst du Text und die Bausteine unten kombinieren. Ein / beginnt einen neuen Unterordner." Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                            <TextBox
+                                Text="{Binding PathPattern, Mode=TwoWay}"
+                                IsReadOnly="{Binding IsBusy}"
+                                FontSize="14"
+                                Padding="12,10"
+                                PlaceholderText="z. B. {year}/{month}/{camera}" />
+                            <WrapPanel>
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{year}" Content="Jahr" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{month}" Content="Monat" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{day}" Content="Tag" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{date:yyyy-MM-dd}" Content="Datum" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{camera}" Content="Kamera" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{make}" Content="Hersteller" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{model}" Content="Modell" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{title}" Content="Titel" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{type}" Content="Medientyp" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{folder}" Content="Quellordner" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{original}" Content="Originalname" />
+                                <Button Classes="elbwald-chip" Command="{Binding InsertTokenCommand}" CommandParameter="{}{seq:000}" Content="Sequenz" />
+                            </WrapPanel>
+                            <TextBlock Text="Titel/Beschreibung werden – wenn verwendet – aus deinen Elbwald-Metadaten übernommen." Classes="elbwald-muted" FontSize="9.5" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Expander>
                 </StackPanel>
             </Border>
 
             <!-- Action/status -->
             <Border Classes="elbwald-soft-card" Padding="12">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="10">
-                    <Button Grid.Column="0" Classes="elbwald-primary-button" Command="{Binding BuildPreviewCommand}" Content="Vorschau aktualisieren" />
+                    <Button Grid.Column="0" Classes="elbwald-primary-button" Command="{Binding BuildPreviewCommand}" Content="{Binding PreviewActionText}" />
                     <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding CancelCommand}" Content="Abbrechen" />
                     <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
                         <TextBlock Text="{Binding StatusMessage}" FontSize="11" TextWrapping="Wrap" />
@@ -186,11 +210,11 @@
                     </Grid>
 
                     <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="8">
-                        <Border Grid.Column="0" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Geplant" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding PlannedFiles}" FontSize="20" FontWeight="SemiBold" /></StackPanel></Border>
-                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Datenmenge" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding PlannedSize}" FontSize="20" FontWeight="SemiBold" /></StackPanel></Border>
+                        <Border Grid.Column="0" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Dateien" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding PlannedFiles}" FontSize="20" FontWeight="SemiBold" /></StackPanel></Border>
+                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Gesamtgröße" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding PlannedSize}" FontSize="20" FontWeight="SemiBold" /></StackPanel></Border>
                         <Border Grid.Column="2" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Datum prüfen" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding MissingDateCount}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldWarningBrush}" /></StackPanel></Border>
-                        <Border Grid.Column="3" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Konflikte" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding ConflictCount}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldDangerBrush}" /></StackPanel></Border>
-                        <Border Grid.Column="4" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Ignoriert" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding IgnoredCount}" FontSize="20" FontWeight="SemiBold" /></StackPanel></Border>
+                        <Border Grid.Column="3" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Namenskonflikte" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding ConflictCount}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldDangerBrush}" /></StackPanel></Border>
+                        <Border Grid.Column="4" Classes="elbwald-soft-card" Padding="12"><StackPanel><TextBlock Text="Übersprungen" Classes="elbwald-muted" FontSize="9" /><TextBlock Text="{Binding IgnoredCount}" FontSize="20" FontWeight="SemiBold" /></StackPanel></Border>
                     </Grid>
 
                     <Border Background="{DynamicResource ElbwaldPageBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1" CornerRadius="11" Padding="6">
@@ -222,15 +246,155 @@
                 </StackPanel>
             </Border>
 
+            <!-- Actionable date review -->
+            <Border IsVisible="{Binding HasDateReviews}" Classes="elbwald-card" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Aufnahmedatum prüfen" Classes="elbwald-section-title" />
+                            <TextBlock Text="{Binding DateReviewCountText}" Foreground="{DynamicResource ElbwaldWarningBrush}" FontSize="12" FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="Das Datum bestimmt nur, in welchen Zielordner die Datei einsortiert wird. Die Metadaten deiner Originaldatei werden hier nicht verändert."
+                                Classes="elbwald-muted"
+                                FontSize="10.5"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                            <Button
+                                Classes="elbwald-secondary-button"
+                                Command="{Binding UseAllSuggestedDatesCommand}"
+                                Content="Alle Vorschläge verwenden"
+                                ToolTip.Tip="Übernimmt bei allen Dateien mit einem Vorschlag das von Elbwald Digital ausgewählte Datum." />
+                            <Button
+                                Classes="elbwald-secondary-button"
+                                Command="{Binding SortAllUnclearDatesCommand}"
+                                Content="Alle nach ‚Datum unklar‘"
+                                ToolTip.Tip="Sortiert alle noch offenen Datumsfälle in einen sicheren Sammelordner, ohne Metadaten zu verändern." />
+                        </StackPanel>
+                    </Grid>
+
+                    <Border
+                        Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                        CornerRadius="10"
+                        Padding="12">
+                        <TextBlock
+                            Text="Du kannst einen Vorschlag übernehmen, ein anderes gefundenes Datum wählen, selbst ein Datum eingeben, die Datei unter ‚Datum unklar‘ ablegen oder sie für diesen Vorgang auslassen."
+                            FontSize="10.5"
+                            TextWrapping="Wrap" />
+                    </Border>
+
+                    <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding DateReviewItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PhotoSortDateReviewItemViewModel">
+                                    <Border
+                                        Background="{DynamicResource ElbwaldPageBrush}"
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="11"
+                                        Padding="13"
+                                        Margin="0,0,0,8">
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="13" />
+                                                    <TextBlock Text="{Binding Path}" Classes="elbwald-muted" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Button
+                                                    Grid.Column="1"
+                                                    Classes="elbwald-chip"
+                                                    Command="{Binding OpenFileCommand}"
+                                                    Content="Datei ansehen" />
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Vorschlag für die Sortierung" Classes="elbwald-muted" FontSize="9.5" />
+                                                    <TextBlock Text="{Binding SuggestedDateText}" Foreground="{DynamicResource ElbwaldTextBrush}" FontSize="14" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding ExplanationText}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Button
+                                                    Grid.Column="1"
+                                                    IsVisible="{Binding HasSuggestedDate}"
+                                                    Classes="elbwald-primary-button"
+                                                    Command="{Binding UseSuggestedCommand}"
+                                                    Content="Vorschlag verwenden"
+                                                    VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <WrapPanel>
+                                                <Button
+                                                    Classes="elbwald-chip"
+                                                    Command="{Binding SortAsUnclearCommand}"
+                                                    Content="Nach ‚Datum unklar‘ sortieren"
+                                                    ToolTip.Tip="Die Datei wird übernommen, aber nicht möglicherweise falsch nach Jahr oder Monat einsortiert." />
+                                                <Button
+                                                    Classes="elbwald-chip"
+                                                    Command="{Binding SkipCommand}"
+                                                    Content="Bei diesem Vorgang auslassen" />
+                                            </WrapPanel>
+
+                                            <Expander Header="Anderes Datum wählen">
+                                                <StackPanel Margin="8,8,8,4" Spacing="9">
+                                                    <Grid IsVisible="{Binding HasMultipleCandidates}" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                        <ComboBox
+                                                            ItemsSource="{Binding CandidateOptions}"
+                                                            SelectedItem="{Binding SelectedCandidate, Mode=TwoWay}">
+                                                            <ComboBox.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:PhotoSortDateCandidateOptionViewModel">
+                                                                    <TextBlock Text="{Binding DisplayText}" />
+                                                                </DataTemplate>
+                                                            </ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                        <Button
+                                                            Grid.Column="1"
+                                                            Classes="elbwald-secondary-button"
+                                                            Command="{Binding UseSelectedCandidateCommand}"
+                                                            Content="Dieses Datum verwenden" />
+                                                    </Grid>
+
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                        <TextBox
+                                                            Text="{Binding ManualDateText, Mode=TwoWay}"
+                                                            PlaceholderText="z. B. 16.05.2021 09:27" />
+                                                        <Button
+                                                            Grid.Column="1"
+                                                            Classes="elbwald-secondary-button"
+                                                            Command="{Binding UseManualDateCommand}"
+                                                            Content="Eigenes Datum verwenden" />
+                                                    </Grid>
+                                                    <TextBlock
+                                                        Text="{Binding ValidationMessage}"
+                                                        Foreground="{DynamicResource ElbwaldWarningBrush}"
+                                                        FontSize="9.5"
+                                                        TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Expander>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+
             <!-- Safety and execution -->
             <Border IsVisible="{Binding HasPlan}" Classes="elbwald-card" Padding="18">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <StackPanel Spacing="3">
-                            <TextBlock Text="Sicher ausführen" Classes="elbwald-section-title" />
-                            <TextBlock Text="Keine Überschreibungen · erneute Safety-Prüfung · Recovery vor destruktiven Moves · SHA-256-Verifikation" Classes="elbwald-muted" FontSize="10" />
+                            <TextBlock Text="Änderungen ausführen" Classes="elbwald-section-title" />
+                            <TextBlock Text="Vor dem Start prüft Elbwald Digital die Vorschau noch einmal. Vorhandene Dateien werden nicht überschrieben." Classes="elbwald-muted" FontSize="10" />
+                            <TextBlock
+                                IsVisible="{Binding HasDateReviews}"
+                                Text="Kläre zuerst die offenen Aufnahmedaten oben. Danach kann die letzte Sicherheitsprüfung gestartet werden."
+                                Foreground="{DynamicResource ElbwaldWarningBrush}"
+                                FontSize="10"
+                                FontWeight="SemiBold"
+                                TextWrapping="Wrap" />
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding PrepareExecutionCommand}" Content="Sicherheitsprüfung starten" />
+                        <Button Grid.Column="1" Classes="elbwald-secondary-button" Command="{Binding PrepareExecutionCommand}" Content="Vorschau erneut prüfen" />
                     </Grid>
 
                     <Border Background="{DynamicResource ElbwaldPageBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12">
@@ -239,16 +403,32 @@
 
                     <Grid IsVisible="{Binding HasExecutionPlan}" ColumnDefinitions="*,220,Auto" ColumnSpacing="12">
                         <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
-                            <CheckBox IsVisible="{Binding ShowDateReviewApproval}" IsChecked="{Binding ApproveDateReviews, Mode=TwoWay}" IsEnabled="{Binding IsInputEnabled}" Content="Datums-Prüffälle geprüft und für diesen Vorgang akzeptiert" />
-                            <CheckBox IsVisible="{Binding ShowSourceDeletionApproval}" IsChecked="{Binding ApproveSourceDeletion, Mode=TwoWay}" IsEnabled="{Binding IsInputEnabled}" Content="Quellen dürfen erst nach verifizierter Recovery- und Zielkopie entfernt werden" />
-                            <TextBlock Text="{Binding ExecutionFingerprint}" Classes="elbwald-muted" FontSize="9" />
+                            <CheckBox
+                                IsVisible="{Binding ShowSourceDeletionApproval}"
+                                IsChecked="{Binding ApproveSourceDeletion, Mode=TwoWay}"
+                                IsEnabled="{Binding IsInputEnabled}"
+                                Content="Ich verstehe: Die Originale werden erst nach vollständig geprüfter Zielkopie entfernt." />
                         </StackPanel>
-                        <TextBox Grid.Column="1" Text="{Binding ConfirmationText, Mode=TwoWay}" IsReadOnly="{Binding IsBusy}" PlaceholderText="{Binding ConfirmationPlaceholder}" VerticalAlignment="Center" />
-                        <Button Grid.Column="2" Classes="elbwald-primary-button" Command="{Binding ExecuteOperationCommand}" Content="{Binding ExecuteActionText}" VerticalAlignment="Center" />
+                        <TextBox
+                            Grid.Column="1"
+                            IsVisible="{Binding ShowConfirmationText}"
+                            Text="{Binding ConfirmationText, Mode=TwoWay}"
+                            IsReadOnly="{Binding IsBusy}"
+                            PlaceholderText="{Binding ConfirmationPlaceholder}"
+                            VerticalAlignment="Center" />
+                        <Button
+                            Grid.Column="2"
+                            Classes="elbwald-primary-button"
+                            Command="{Binding ExecuteOperationCommand}"
+                            Content="{Binding ExecuteActionText}"
+                            VerticalAlignment="Center" />
                     </Grid>
 
-                    <Expander Header="Sicherheitsdetails" IsVisible="{Binding HasExecutionPlan}">
-                        <TextBlock Text="{Binding ExecutionInstructionText}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" Margin="8" />
+                    <Expander Header="Technische Sicherheitsdetails" IsVisible="{Binding HasExecutionPlan}">
+                        <StackPanel Margin="8" Spacing="5">
+                            <TextBlock Text="{Binding ExecutionInstructionText}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding ExecutionFingerprint}" Classes="elbwald-muted" FontSize="9" />
+                        </StackPanel>
                     </Expander>
                 </StackPanel>
             </Border>
@@ -275,7 +455,7 @@
             <!-- Hints and issues are secondary -->
             <Border IsVisible="{Binding HasDateContextHints}" Classes="elbwald-card" Padding="18">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="Datums- und Serienhinweise" Classes="elbwald-section-title" />
+                    <TextBlock Text="Hinweise zu Datumsangaben" Classes="elbwald-section-title" />
                     <ItemsControl ItemsSource="{Binding DateContextHints}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:PhotoSortDateContextHintViewModel">
@@ -294,7 +474,7 @@
 
             <Border IsVisible="{Binding HasIssues}" Classes="elbwald-card" Padding="18">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="Prüffälle und Konflikte" Classes="elbwald-section-title" />
+                    <TextBlock Text="Weitere Hinweise und Konflikte" Classes="elbwald-section-title" />
                     <ItemsControl ItemsSource="{Binding Issues}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:PhotoSortIssueViewModel">

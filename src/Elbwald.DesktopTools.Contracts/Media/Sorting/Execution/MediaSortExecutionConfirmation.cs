@@ -25,14 +25,14 @@ public sealed record MediaSortExecutionConfirmation(
     public bool HasRequiredTextFor(
         FileOperationKind operationKind)
     {
-        var requiredText =
-            operationKind == FileOperationKind.Move
-                ? MoveRequiredText
-                : CopyRequiredText;
+        if (operationKind == FileOperationKind.Copy)
+        {
+            return true;
+        }
 
         return string.Equals(
             ConfirmationText?.Trim(),
-            requiredText,
+            MoveRequiredText,
             StringComparison.Ordinal);
     }
 }

@@ -10,7 +10,7 @@
             <StackPanel Spacing="5">
                 <TextBlock Text="Importieren" Classes="elbwald-title" />
                 <TextBlock
-                    Text="Medien sicher in die konfigurierte Import-Wartehalle kopieren. Die Quelle wird beim Import niemals gelöscht oder verändert."
+                    Text="Prüfe Quelle und Speicherort, bevor du importierst. Du siehst vorher genau, welche Dateien kopiert werden. Deine Originaldateien bleiben unverändert."
                     Classes="elbwald-muted"
                     FontSize="13"
                     LineHeight="20"
@@ -18,11 +18,11 @@
             </StackPanel>
 
             <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                <Border Classes="elbwald-card" Padding="18">
+                <Border Classes="elbwald-card" Padding="18" VerticalAlignment="Top">
                     <StackPanel Spacing="9">
                         <TextBlock Text="1 · Quelle" Classes="elbwald-section-title" />
                         <TextBlock
-                            Text="Kamera, SD-Karte, Smartphone-Mount oder beliebigen Ordner auswählen. Unterordner werden erhalten."
+                            Text="Diese Dateien werden importiert. Wenn du vorher einen Ordner analysiert hast, wird er automatisch vorgeschlagen."
                             Classes="elbwald-muted"
                             FontSize="11"
                             TextWrapping="Wrap" />
@@ -33,22 +33,42 @@
                             Classes="elbwald-secondary-button"
                             Command="{Binding ChooseSourceCommand}"
                             HorizontalAlignment="Left"
-                            Content="Quelle auswählen" />
+                            Content="Andere Quelle wählen" />
                     </StackPanel>
                 </Border>
 
                 <Border Grid.Column="1" Classes="elbwald-card" Padding="18">
                     <StackPanel Spacing="9">
-                        <TextBlock Text="2 · Import-Wartehalle" Classes="elbwald-section-title" />
+                        <TextBlock Text="2 · Ziel" Classes="elbwald-section-title" />
                         <TextBlock Text="{Binding DestinationStatus}" Classes="elbwald-muted" FontSize="11" TextWrapping="Wrap" />
-                        <Border Classes="elbwald-soft-card" Padding="10" MinHeight="42">
-                            <TextBlock Text="{Binding DestinationPath}" FontSize="11" TextWrapping="Wrap" />
+
+                        <TextBlock Text="Speicherort" FontSize="10" FontWeight="SemiBold" />
+                        <Border Classes="elbwald-soft-card" Padding="10" MinHeight="38">
+                            <TextBlock Text="{Binding DestinationRootPath}" FontSize="10.5" TextWrapping="Wrap" />
                         </Border>
+
+                        <TextBlock Text="Name des neuen Ordners" FontSize="10" FontWeight="SemiBold" />
+                        <TextBox
+                            Text="{Binding DestinationSubfolderName, Mode=TwoWay}"
+                            PlaceholderText="2026-10-11 - Urlaub Italien"
+                            MaxLength="120" />
+                        <TextBlock
+                            Text="{Binding DestinationFolderStatus}"
+                            Classes="elbwald-muted"
+                            FontSize="10"
+                            LineHeight="15"
+                            TextWrapping="Wrap" />
+
+                        <TextBlock Text="Hier werden deine Dateien gespeichert" FontSize="10" FontWeight="SemiBold" />
+                        <Border Classes="elbwald-soft-card" Padding="10" MinHeight="38">
+                            <TextBlock Text="{Binding DestinationPath}" FontSize="10.5" TextWrapping="Wrap" />
+                        </Border>
+
                         <Button
                             Classes="elbwald-secondary-button"
                             Command="{Binding OpenSettingsCommand}"
                             HorizontalAlignment="Left"
-                            Content="Speicherorte öffnen" />
+                            Content="Speicherort ändern" />
                     </StackPanel>
                 </Border>
             </Grid>
@@ -56,13 +76,13 @@
             <Border Classes="elbwald-card" Padding="18">
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="3 · Vorschau" Classes="elbwald-section-title" />
+                        <TextBlock Text="3 · Import prüfen" Classes="elbwald-section-title" />
                         <TextBlock Text="{Binding StatusMessage}" Classes="elbwald-muted" FontSize="11" TextWrapping="Wrap" />
                     </StackPanel>
                     <Button Grid.Column="1"
                             Classes="elbwald-primary-button"
                             Command="{Binding CreatePreviewCommand}"
-                            Content="Vorschau erstellen" />
+                            Content="Import prüfen" />
                     <Button Grid.Column="2"
                             Classes="elbwald-secondary-button"
                             Command="{Binding CancelCommand}"
@@ -73,14 +93,14 @@
             <Grid IsVisible="{Binding HasPlan}" ColumnDefinitions="*,*,*,*,*" ColumnSpacing="10">
                 <Border Classes="elbwald-card" Padding="14">
                     <StackPanel Spacing="3">
-                        <TextBlock Text="Dateien" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="Geprüft" Classes="elbwald-muted" FontSize="10" />
                         <TextBlock Text="{Binding FileCount}" FontSize="19" FontWeight="SemiBold" />
                         <TextBlock Text="{Binding TotalSize}" Classes="elbwald-muted" FontSize="10" />
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="1" Classes="elbwald-card" Padding="14">
                     <StackPanel Spacing="3">
-                        <TextBlock Text="Importieren" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="Neue Dateien" Classes="elbwald-muted" FontSize="10" />
                         <TextBlock Text="{Binding CopyCount}" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldAccentBrush}" />
                         <TextBlock Text="{Binding CopySize}" Classes="elbwald-muted" FontSize="10" />
                     </StackPanel>
@@ -89,48 +109,50 @@
                     <StackPanel Spacing="3">
                         <TextBlock Text="Bereits vorhanden" Classes="elbwald-muted" FontSize="10" />
                         <TextBlock Text="{Binding AlreadyImportedCount}" FontSize="19" FontWeight="SemiBold" />
-                        <TextBlock Text="SHA-256 identisch" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="wird nicht doppelt kopiert" Classes="elbwald-muted" FontSize="10" />
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="3" Classes="elbwald-card" Padding="14">
                     <StackPanel Spacing="3">
-                        <TextBlock Text="Konflikte" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="Namenskonflikte" Classes="elbwald-muted" FontSize="10" />
                         <TextBlock Text="{Binding ConflictCount}" FontSize="19" FontWeight="SemiBold" />
-                        <TextBlock Text="werden übersprungen" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="werden sicher übersprungen" Classes="elbwald-muted" FontSize="10" />
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="4" Classes="elbwald-card" Padding="14">
                     <StackPanel Spacing="3">
-                        <TextBlock Text="Prüfhinweise" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="Hinweise" Classes="elbwald-muted" FontSize="10" />
                         <TextBlock Text="{Binding IssueCount}" FontSize="19" FontWeight="SemiBold" />
-                        <TextBlock Text="blockieren bei Unvollständigkeit" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                        <TextBlock Text="bitte vor dem Import prüfen" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
             </Grid>
 
             <Border IsVisible="{Binding HasIssues}" Classes="elbwald-card" Padding="16">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Sicherheits-/Scan-Hinweise" Classes="elbwald-section-title" />
-                    <ItemsControl ItemsSource="{Binding Issues}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><StackPanel Spacing="5" /></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <TextBlock Text="Hinweise zur Prüfung" Classes="elbwald-section-title" />
+                    <ScrollViewer MaxHeight="220" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Issues}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Spacing="5" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Classes="elbwald-muted" FontSize="10" TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
 
             <Border IsVisible="{Binding HasPreviewItems}" Classes="elbwald-card" Padding="14">
                 <Grid RowDefinitions="Auto,*" RowSpacing="10">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="Importplan" Classes="elbwald-section-title" />
-                        <TextBlock Grid.Column="1" Text="max. 300 Einträge angezeigt" Classes="elbwald-muted" FontSize="9" />
+                        <TextBlock Text="Diese Dateien werden verarbeitet" Classes="elbwald-section-title" />
+                        <TextBlock Grid.Column="1" Text="Liste scrollbar · max. 300 Einträge" Classes="elbwald-muted" FontSize="9" />
                     </Grid>
-                    <ScrollViewer Grid.Row="1" MaxHeight="320" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="1" Height="390" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding PreviewItems}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><StackPanel Spacing="6" /></ItemsPanelTemplate>
@@ -160,7 +182,7 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="4 · Sicher importieren" Classes="elbwald-section-title" />
                             <TextBlock
-                                Text="Es wird ausschließlich kopiert. Jede neue Datei läuft über .partial, Flush-to-Disk und SHA-256-Verifikation. Vorhandene Ziele werden niemals überschrieben."
+                                Text="Deine Originaldateien bleiben unverändert. Vorhandene Dateien werden nicht überschrieben. Nach dem Kopieren wird geprüft, ob alles vollständig angekommen ist."
                                 Classes="elbwald-muted"
                                 FontSize="11"
                                 TextWrapping="Wrap" />
@@ -179,30 +201,43 @@
                 </StackPanel>
             </Border>
 
-            <Border IsVisible="{Binding HasResult}" Classes="elbwald-card" Padding="18" Background="#EEF7F1">
-                <StackPanel Spacing="5">
-                    <TextBlock Text="Import-Ergebnis" Classes="elbwald-section-title" />
-                    <TextBlock Text="{Binding ResultMessage}" FontSize="11" TextWrapping="Wrap" />
-                    <TextBlock
-                        Text="Die Quelle bleibt nach dem Import grundsätzlich unverändert. Eine Bereinigung ist nur als separater, mehrfach bestätigter Vorgang möglich."
-                        Foreground="{DynamicResource ElbwaldAccentBrush}"
-                        FontSize="10"
-                        FontWeight="SemiBold"
-                        TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
-
-            <Border IsVisible="{Binding CleanupAvailable}" Classes="elbwald-card" Padding="18" BorderBrush="#C58B5C" BorderThickness="1">
+            <Border IsVisible="{Binding HasResult}" Classes="elbwald-card" Padding="18" Background="{DynamicResource ElbwaldSuccessSoftBrush}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
                     <StackPanel Spacing="5">
-                        <TextBlock Text="Optional · Importquelle bereinigen" Classes="elbwald-section-title" />
+                        <TextBlock Text="Import abgeschlossen" Classes="elbwald-section-title" />
+                        <TextBlock Text="{Binding ResultMessage}" FontSize="11" TextWrapping="Wrap" />
                         <TextBlock
-                            Text="Nur Dateien, die in diesem Import neu kopiert und verifiziert wurden, können entfernt werden. Bereits vorhandene Dateien, Konflikte und übersprungene Dateien bleiben unangetastet."
+                            Text="Deine Originaldateien wurden nicht verändert. Wenn du die Quelle später aufräumen möchtest, ist das ein separater Schritt mit eigener Sicherheitsprüfung."
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontSize="10"
+                            FontWeight="SemiBold"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding ImportCompleted}">
+                        <Button
+                            Classes="elbwald-primary-button"
+                            Command="{Binding OpenImportedFolderCommand}"
+                            Content="Importierten Ordner öffnen" />
+                        <Button
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding OpenLibraryCommand}"
+                            Content="In Bibliothek anzeigen" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border IsVisible="{Binding CleanupAvailable}" Classes="elbwald-card" Padding="18" BorderBrush="{DynamicResource ElbwaldCautionBorderBrush}" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Optional · Quelle aufräumen" Classes="elbwald-section-title" />
+                        <TextBlock
+                            Text="Nach dem erfolgreichen Import kannst du die Dateien, die sicher kopiert wurden, von der ursprünglichen Quelle entfernen."
                             Classes="elbwald-muted"
                             FontSize="11"
                             TextWrapping="Wrap" />
                         <TextBlock
-                            Text="Vor einer Löschfreigabe werden Quelle und Zielkopie nochmals vollständig per SHA-256 geprüft."
+                            Text="Bevor etwas gelöscht wird, prüft Elbwald Digital die importierten Kopien noch einmal. Bereits vorhandene, übersprungene oder nicht eindeutig geprüfte Dateien bleiben auf der Quelle."
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
                             FontSize="10"
                             FontWeight="SemiBold"
                             TextWrapping="Wrap" />
@@ -211,83 +246,94 @@
                             Classes="elbwald-secondary-button"
                             Command="{Binding PrepareCleanupCommand}"
                             VerticalAlignment="Center"
-                            Content="Quellbereinigung prüfen" />
+                            Content="Prüfen, was entfernt werden kann" />
                 </Grid>
             </Border>
 
-            <Border IsVisible="{Binding HasCleanupPlan}" Classes="elbwald-card" Padding="18" BorderBrush="#C58B5C" BorderThickness="1">
+            <Border IsVisible="{Binding HasCleanupPlan}" Classes="elbwald-card" Padding="18" BorderBrush="{DynamicResource ElbwaldCautionBorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="12">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Quellbereinigung · Sicherheitsfreigabe" Classes="elbwald-section-title" />
+                        <TextBlock Text="Quelle aufräumen" Classes="elbwald-section-title" />
                         <TextBlock Text="{Binding CleanupStatus}" FontSize="11" TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
                         <Border Classes="elbwald-soft-card" Padding="12">
                             <StackPanel Spacing="3">
-                                <TextBlock Text="Freigegebene Dateien" Classes="elbwald-muted" FontSize="10" />
+                                <TextBlock Text="Sicher entfernbar" Classes="elbwald-muted" FontSize="10" />
                                 <TextBlock Text="{Binding CleanupFileCount}" FontSize="19" FontWeight="SemiBold" />
+                                <TextBlock Text="geprüfte Originaldateien" Classes="elbwald-muted" FontSize="9.5" />
                             </StackPanel>
                         </Border>
                         <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="12">
                             <StackPanel Spacing="3">
-                                <TextBlock Text="Gesamtgröße" Classes="elbwald-muted" FontSize="10" />
+                                <TextBlock Text="Speicherplatz" Classes="elbwald-muted" FontSize="10" />
                                 <TextBlock Text="{Binding CleanupSize}" FontSize="19" FontWeight="SemiBold" />
+                                <TextBlock Text="wird auf der Quelle frei" Classes="elbwald-muted" FontSize="9.5" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="elbwald-soft-card" Padding="12">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="Bleiben auf der Quelle" Classes="elbwald-muted" FontSize="10" />
+                                <TextBlock Text="{Binding CleanupRetainedCount}" FontSize="19" FontWeight="SemiBold" />
+                                <TextBlock Text="nicht zum Löschen freigegeben" Classes="elbwald-muted" FontSize="9.5" TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <Border IsVisible="{Binding HasCleanupIssues}" Background="#FFF3E8" CornerRadius="8" Padding="12">
+                    <Border IsVisible="{Binding HasCleanupIssues}" Background="{DynamicResource ElbwaldCautionSoftBrush}" CornerRadius="8" Padding="12">
                         <StackPanel Spacing="6">
-                            <TextBlock Text="Bereinigung gesperrt" FontWeight="SemiBold" />
-                            <ItemsControl ItemsSource="{Binding CleanupIssues}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}" FontSize="10" TextWrapping="Wrap" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <TextBlock Text="Diese Dateien können nicht sicher entfernt werden" FontWeight="SemiBold" />
+                            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding CleanupIssues}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" FontSize="10" TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </StackPanel>
                     </Border>
 
                     <CheckBox IsChecked="{Binding RemoveEmptyDirectories}"
-                              Content="Leere Unterordner nach erfolgreicher Dateilöschung ebenfalls entfernen" />
+                              Content="Leere Unterordner ebenfalls entfernen" />
 
-                    <Border Background="#FFF3E8" CornerRadius="8" Padding="14">
+                    <Border Background="{DynamicResource ElbwaldCautionSoftBrush}" CornerRadius="8" Padding="14">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Bestätigung 1 von 2" FontWeight="SemiBold" />
+                            <TextBlock Text="Originaldateien wirklich entfernen?" FontWeight="SemiBold" />
                             <TextBlock
-                                Text="Ich verstehe, dass die oben freigegebenen Dateien nach einer letzten Sicherheitsprüfung dauerhaft von der Importquelle gelöscht werden. Die verifizierten Kopien in der Import-Wartehalle bleiben erhalten."
+                                Text="Die oben freigegebenen Dateien werden nach einer letzten Sicherheitsprüfung dauerhaft von der ursprünglichen Quelle gelöscht. Die geprüften Kopien im Importordner bleiben erhalten."
                                 FontSize="10"
                                 TextWrapping="Wrap" />
                             <Button Classes="elbwald-secondary-button"
                                     Command="{Binding ConfirmCleanupWarningCommand}"
                                     HorizontalAlignment="Left"
-                                    Content="Ich verstehe – zweite Bestätigung" />
+                                    Content="Weiter zur Bestätigung" />
                         </StackPanel>
                     </Border>
 
-                    <Border IsVisible="{Binding CleanupSecondConfirmationVisible}" Background="#FBE7E5" CornerRadius="8" Padding="14">
+                    <Border IsVisible="{Binding CleanupSecondConfirmationVisible}" Background="{DynamicResource ElbwaldDangerSoftStrongBrush}" CornerRadius="8" Padding="14">
                         <StackPanel Spacing="9">
-                            <TextBlock Text="Bestätigung 2 von 2" FontWeight="Bold" />
+                            <TextBlock Text="Letzte Bestätigung" FontWeight="Bold" />
                             <TextBlock
-                                Text="Tippe exakt QUELLE LEEREN ein. Erst danach wird die endgültige Löschaktion freigeschaltet."
+                                Text="Tippe LÖSCHEN ein, um die geprüften Originaldateien dauerhaft von der Quelle zu entfernen."
                                 FontSize="10"
                                 TextWrapping="Wrap" />
                             <TextBox Text="{Binding CleanupConfirmationText, Mode=TwoWay}"
-                                     Watermark="QUELLE LEEREN"
+                                     PlaceholderText="LÖSCHEN"
                                      MaxWidth="360"
                                      HorizontalAlignment="Left" />
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Button Classes="elbwald-primary-button"
                                         Command="{Binding ExecuteCleanupCommand}"
-                                        Content="Verifizierte Quelldateien löschen" />
+                                        Content="Originaldateien entfernen" />
                                 <Button Classes="elbwald-secondary-button"
                                         Command="{Binding CancelCleanupCommand}"
-                                        Content="Nicht löschen" />
+                                        Content="Abbrechen" />
                             </StackPanel>
                             <TextBlock
-                                Text="Nach Beginn der destruktiven Phase wird ein Benutzerabbruch absichtlich ignoriert, damit kein künstlicher Teilzustand entsteht. Bei jeder Abweichung vor dem ersten Löschen wird vollständig blockiert."
+                                Text="Wenn bei der letzten Prüfung etwas nicht eindeutig stimmt, wird der Löschvorgang nicht gestartet."
                                 Classes="elbwald-muted"
                                 FontSize="9"
                                 TextWrapping="Wrap" />
@@ -296,15 +342,18 @@
                 </StackPanel>
             </Border>
 
-            <Border IsVisible="{Binding HasCleanupResult}" Classes="elbwald-card" Padding="18" Background="#EEF7F1">
-                <StackPanel Spacing="5">
-                    <TextBlock Text="Quellbereinigungs-Report" Classes="elbwald-section-title" />
+            <Border IsVisible="{Binding HasCleanupResult}" Classes="elbwald-card" Padding="18">
+                <StackPanel Spacing="7">
+                    <TextBlock Text="{Binding CleanupResultTitle}" Classes="elbwald-section-title" />
                     <TextBlock Text="{Binding CleanupResultMessage}" FontSize="11" TextWrapping="Wrap" />
-                    <TextBlock
-                        Text="Jeder Löschlauf erhält eine eigene Report-ID und wird zusätzlich als flush-to-disk JSONL-Sicherheitsprotokoll im Diagnoseverzeichnis dokumentiert."
-                        Classes="elbwald-muted"
-                        FontSize="10"
-                        TextWrapping="Wrap" />
+                    <Expander Header="Technische Details anzeigen">
+                        <TextBlock
+                            Text="{Binding CleanupTechnicalDetails}"
+                            Classes="elbwald-muted"
+                            FontSize="9.5"
+                            TextWrapping="Wrap"
+                            Margin="0,8,0,0" />
+                    </Expander>
                 </StackPanel>
             </Border>
         </StackPanel>

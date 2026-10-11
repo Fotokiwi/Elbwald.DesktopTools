@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Navigation;
 using Elbwald.DesktopTools.UI.Formatting;
 
 namespace Elbwald.DesktopTools.MediaAnalyzer.ViewModels;
@@ -24,6 +25,8 @@ public sealed class MediaAnalyzerViewModel
     private readonly IMediaSourcePicker _sourcePicker;
     private readonly IMediaThumbnailService _thumbnailService;
     private readonly IMediaAnalysisCache _analysisCache;
+    private readonly IMediaAnalysisHistoryStore _analysisHistoryStore;
+    private readonly IApplicationNavigation _applicationNavigation;
 
     private readonly Stopwatch _analysisStopwatch = new();
     private readonly DispatcherTimer _analysisDurationTimer;
@@ -34,6 +37,7 @@ public sealed class MediaAnalyzerViewModel
     private CancellationTokenSource? _analysisCancellation;
     private CancellationTokenSource? _previewCancellation;
     private CancellationTokenSource? _galleryCancellation;
+    private bool _hasRestoredAnalysisHistory;
 
     private int _galleryLoadedCount;
     private int _galleryTargetCount;
@@ -51,15 +55,27 @@ public sealed class MediaAnalyzerViewModel
     private bool _hasResult;
     private bool _isProgressIndeterminate;
     private double _progressPercent;
+    private int _selectedTabIndex;
+
+    private string _resultHeadline =
+        "Noch keine Prüfung durchgeführt.";
+
+    private string _resultSummary =
+        "Wähle einen Ordner oder eine Datei aus und starte die Prüfung.";
+
+    private string _missingCaptureDateSummary =
+        "Es fehlen keine Aufnahmedaten.";
+
+    private bool _hasAttentionItems;
 
     private string _statusMessage =
-        "Wähle eine Datei oder einen Ordner aus. Die Analyse verändert keine Dateien.";
+        "Wähle eine Datei oder einen Ordner aus. Die Prüfung verändert keine Dateien.";
 
     private string _elapsedTimeText =
         "Dauer: 00:00:00";
 
     private string _galleryStatus =
-        "Galerie wird nach der ersten Analyse aufgebaut.";
+        "Galerie wird nach der ersten Prüfung aufgebaut.";
 
     private string _totalFiles = "0";
     private string _totalSize = "0 B";
@@ -110,7 +126,7 @@ public sealed class MediaAnalyzerViewModel
         "Name";
 
     private string _inspectorSummary =
-        "Noch keine Analyse vorhanden.";
+        "Noch keine Prüfung vorhanden.";
 
     private IReadOnlyList<BreakdownItemViewModel> _formats =
         Array.Empty<BreakdownItemViewModel>();
@@ -136,17 +152,23 @@ public sealed class MediaAnalyzerViewModel
         IMediaAnalyzer mediaAnalyzer,
         IMediaSourcePicker sourcePicker,
         IMediaThumbnailService thumbnailService,
-        IMediaAnalysisCache analysisCache)
+        IMediaAnalysisCache analysisCache,
+        IMediaAnalysisHistoryStore analysisHistoryStore,
+        IApplicationNavigation applicationNavigation)
     {
         ArgumentNullException.ThrowIfNull(mediaAnalyzer);
         ArgumentNullException.ThrowIfNull(sourcePicker);
         ArgumentNullException.ThrowIfNull(thumbnailService);
         ArgumentNullException.ThrowIfNull(analysisCache);
+        ArgumentNullException.ThrowIfNull(analysisHistoryStore);
+        ArgumentNullException.ThrowIfNull(applicationNavigation);
 
         _mediaAnalyzer = mediaAnalyzer;
         _sourcePicker = sourcePicker;
         _thumbnailService = thumbnailService;
         _analysisCache = analysisCache;
+        _analysisHistoryStore = analysisHistoryStore;
+        _applicationNavigation = applicationNavigation;
 
         _analysisDurationTimer =
             new DispatcherTimer
@@ -188,6 +210,19 @@ public sealed class MediaAnalyzerViewModel
                 Cancel,
                 () => IsAnalyzing);
 
+        ShowFilesCommand =
+            new RelayCommand(
+                () => SelectedTabIndex = 1);
+
+        ShowHintsCommand =
+            new RelayCommand(
+                () => SelectedTabIndex = 3);
+
+        PrepareImportCommand =
+            new RelayCommand(
+                () => _applicationNavigation.NavigateTo("import"),
+                CanPrepareImport);
+
         RefreshCacheCommand =
             new AsyncRelayCommand(
                 RefreshCacheStatusAsync,
@@ -212,6 +247,12 @@ public sealed class MediaAnalyzerViewModel
 
     public IRelayCommand CancelCommand { get; }
 
+    public IRelayCommand ShowFilesCommand { get; }
+
+    public IRelayCommand ShowHintsCommand { get; }
+
+    public IRelayCommand PrepareImportCommand { get; }
+
     public IAsyncRelayCommand RefreshCacheCommand { get; }
 
     public IAsyncRelayCommand ClearAnalysisCacheCommand { get; }
@@ -225,7 +266,7 @@ public sealed class MediaAnalyzerViewModel
             "Größe ↓",
             "Aufnahmedatum ↓",
             "Format",
-            "Probleme zuerst"
+            "Auffällige zuerst"
         };
 
     public string SelectedPath
@@ -238,6 +279,7 @@ public sealed class MediaAnalyzerViewModel
                     value))
             {
                 AnalyzeCommand.NotifyCanExecuteChanged();
+                PrepareImportCommand.NotifyCanExecuteChanged();
             }
         }
     }
@@ -285,9 +327,15 @@ public sealed class MediaAnalyzerViewModel
     public bool HasResult
     {
         get => _hasResult;
-        private set => SetProperty(
-            ref _hasResult,
-            value);
+        private set
+        {
+            if (SetProperty(
+                    ref _hasResult,
+                    value))
+            {
+                PrepareImportCommand.NotifyCanExecuteChanged();
+            }
+        }
     }
 
     public bool IsProgressIndeterminate
@@ -319,6 +367,46 @@ public sealed class MediaAnalyzerViewModel
         get => _elapsedTimeText;
         private set => SetProperty(
             ref _elapsedTimeText,
+            value);
+    }
+
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set => SetProperty(
+            ref _selectedTabIndex,
+            value);
+    }
+
+    public string ResultHeadline
+    {
+        get => _resultHeadline;
+        private set => SetProperty(
+            ref _resultHeadline,
+            value);
+    }
+
+    public string ResultSummary
+    {
+        get => _resultSummary;
+        private set => SetProperty(
+            ref _resultSummary,
+            value);
+    }
+
+    public string MissingCaptureDateSummary
+    {
+        get => _missingCaptureDateSummary;
+        private set => SetProperty(
+            ref _missingCaptureDateSummary,
+            value);
+    }
+
+    public bool HasAttentionItems
+    {
+        get => _hasAttentionItems;
+        private set => SetProperty(
+            ref _hasAttentionItems,
             value);
     }
 
@@ -605,6 +693,67 @@ public sealed class MediaAnalyzerViewModel
     public bool HasSelectedFile =>
         SelectedFileItem is not null;
 
+    public async Task RestoreLastAnalysisAsync()
+    {
+        if (_hasRestoredAnalysisHistory)
+        {
+            return;
+        }
+
+        _hasRestoredAnalysisHistory = true;
+
+        try
+        {
+            var entry =
+                await _analysisHistoryStore.LoadLastAsync();
+
+            if (entry is null
+                || !string.IsNullOrWhiteSpace(SelectedPath))
+            {
+                return;
+            }
+
+            SelectedPath = entry.SourcePath;
+            IncludeSubdirectories = entry.IncludeSubdirectories;
+
+            var sourceAvailable =
+                entry.IsFolder
+                    ? Directory.Exists(entry.SourcePath)
+                    : File.Exists(entry.SourcePath);
+
+            var snapshot =
+                await _analysisHistoryStore.LoadLastResultAsync();
+
+            if (snapshot is not null
+                && snapshot.CompletedUtc == entry.CompletedUtc
+                && PathComparer.Equals(snapshot.RootPath, entry.SourcePath))
+            {
+                ApplyResult(snapshot.ToResult());
+
+                StatusMessage = sourceAvailable
+                    ? $"Letzte Prüfung: {entry.CompletedUtc.ToLocalTime():dd.MM.yyyy, HH:mm} · {entry.MediaCount:N0} Dateien · {FormatProblemCount(entry.ProblemCount)}."
+                    : $"Letzte Prüfung: {entry.CompletedUtc.ToLocalTime():dd.MM.yyyy, HH:mm} · {entry.MediaCount:N0} Dateien · {FormatProblemCount(entry.ProblemCount)}. Die Quelle ist derzeit nicht erreichbar.";
+
+                return;
+            }
+
+            StatusMessage = sourceAvailable
+                ? $"Letzte Prüfung: {entry.CompletedUtc.ToLocalTime():dd.MM.yyyy, HH:mm} · {entry.MediaCount:N0} Dateien · {FormatProblemCount(entry.ProblemCount)}. Ergebnisdetails bitte einmal neu prüfen."
+                : $"Letzte Prüfung: {entry.CompletedUtc.ToLocalTime():dd.MM.yyyy, HH:mm} · {entry.MediaCount:N0} Dateien · {FormatProblemCount(entry.ProblemCount)}. Die Quelle ist derzeit nicht erreichbar.";
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or InvalidOperationException
+                or NotSupportedException
+                or ArgumentException)
+        {
+            StatusMessage =
+                "Die letzte Prüfung konnte nicht vollständig geladen werden. Der gespeicherte Pfad bleibt erhalten; du kannst die Quelle erneut prüfen.";
+        }
+    }
+
     private bool CanChooseSource()
     {
         return !IsAnalyzing;
@@ -632,7 +781,7 @@ public sealed class MediaAnalyzerViewModel
         {
             SelectedPath = path;
             StatusMessage =
-                "Ordner ausgewählt. Bereit für die read-only Analyse.";
+                "Ordner ausgewählt. Bereit zum Prüfen.";
         }
     }
 
@@ -645,7 +794,7 @@ public sealed class MediaAnalyzerViewModel
         {
             SelectedPath = path;
             StatusMessage =
-                "Datei ausgewählt. Bereit für die read-only Analyse.";
+                "Datei ausgewählt. Bereit zum Prüfen.";
         }
     }
 
@@ -655,6 +804,10 @@ public sealed class MediaAnalyzerViewModel
         {
             return;
         }
+
+        var analyzedPath = SelectedPath;
+        var analyzedAsFolder = Directory.Exists(analyzedPath);
+        var includeSubdirectories = IncludeSubdirectories;
 
         _analysisCancellation?.Dispose();
         _analysisCancellation =
@@ -697,7 +850,7 @@ public sealed class MediaAnalyzerViewModel
             Array.Empty<MediaGalleryItemViewModel>());
 
         GalleryStatus =
-            "Galerie wartet auf Analyseergebnisse.";
+            "Galerie wartet auf Prüfergebnisse.";
 
         SelectedFileItem = null;
         PreviewImage = null;
@@ -708,10 +861,10 @@ public sealed class MediaAnalyzerViewModel
             "Analyse-Cache wird geprüft …";
 
         InspectorSummary =
-            "Analyse läuft …";
+            "Prüfung läuft …";
 
         StatusMessage =
-            "Dateien werden read-only gescannt …";
+            "Dateien werden geprüft … es wird nichts verändert.";
 
         try
         {
@@ -721,11 +874,11 @@ public sealed class MediaAnalyzerViewModel
 
             var result =
                 await _mediaAnalyzer.AnalyzeAsync(
-                    SelectedPath,
+                    analyzedPath,
                     new MediaAnalysisOptions
                     {
                         Recursive =
-                            IncludeSubdirectories,
+                            includeSubdirectories,
                         IncludeUnknownFiles =
                             true
                     },
@@ -734,22 +887,28 @@ public sealed class MediaAnalyzerViewModel
 
             ApplyResult(result);
 
+            await SaveAnalysisHistorySafeAsync(
+                result,
+                result.RootPath,
+                analyzedAsFolder,
+                includeSubdirectories);
+
             await LoadCacheStatusCoreAsync();
 
             StatusMessage =
                 result.ProblemCount > 0
-                    ? $"Analyse abgeschlossen. {result.ProblemCount:N0} echte Problem(e), {result.InfoCount:N0} Parser-Hinweis(e)."
-                    : $"Analyse abgeschlossen. Keine echten Probleme; {result.InfoCount:N0} Parser-Hinweis(e).";
+                    ? $"Prüfung abgeschlossen · {FormatProblemCount(result.ProblemCount)} gefunden."
+                    : "Prüfung abgeschlossen · keine Probleme gefunden.";
         }
         catch (OperationCanceledException)
         {
             StatusMessage =
-                "Analyse abgebrochen. Es wurden keine Dateien verändert.";
+                "Prüfung abgebrochen. Es wurden keine Dateien verändert.";
         }
         catch (Exception exception)
         {
             StatusMessage =
-                "Analyse konnte nicht abgeschlossen werden: "
+                "Prüfung konnte nicht abgeschlossen werden: "
                 + exception.GetBaseException().Message;
         }
         finally
@@ -801,6 +960,121 @@ public sealed class MediaAnalyzerViewModel
                 ProgressPercent = 100;
                 break;
         }
+    }
+
+    private async Task SaveAnalysisHistorySafeAsync(
+        MediaAnalysisResult result,
+        string sourcePath,
+        bool isFolder,
+        bool includeSubdirectories)
+    {
+        try
+        {
+            var completedUtc = DateTimeOffset.UtcNow;
+
+            await _analysisHistoryStore.SaveLastAsync(
+                new MediaAnalysisHistoryEntry(
+                    SourcePath: sourcePath,
+                    IncludeSubdirectories: includeSubdirectories,
+                    IsFolder: isFolder,
+                    CompletedUtc: completedUtc,
+                    MediaCount: result.TotalFiles,
+                    ProblemCount: result.ProblemCount));
+
+            await _analysisHistoryStore.SaveLastResultAsync(
+                MediaAnalysisResultSnapshot.FromResult(
+                    result,
+                    completedUtc));
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or InvalidOperationException
+                or NotSupportedException
+                or System.Text.Json.JsonException)
+        {
+            Console.Error.WriteLine(
+                $"Analyseverlauf konnte nicht vollständig gespeichert werden: {exception.Message}");
+        }
+    }
+
+    private bool CanPrepareImport()
+    {
+        return HasResult
+            && !IsAnalyzing
+            && _lastResult is not null
+            && PathComparer.Equals(_lastResult.RootPath, SelectedPath)
+            && Directory.Exists(SelectedPath);
+    }
+
+    private void UpdateFriendlyResultSummary(
+        MediaAnalysisResult result)
+    {
+        HasAttentionItems =
+            result.ProblemCount > 0
+            || result.InfoCount > 0
+            || result.MissingCaptureDateCount > 0;
+
+        MissingCaptureDateSummary =
+            result.MissingCaptureDateCount switch
+            {
+                0 => "Bei allen erkannten Bildern wurde ein Aufnahmedatum gefunden.",
+                1 => "Bei 1 Bild konnte kein Aufnahmedatum gefunden werden. Das ist kein Fehler und kann später ergänzt werden.",
+                _ => $"Bei {result.MissingCaptureDateCount:N0} Bildern konnte kein Aufnahmedatum gefunden werden. Das ist kein Fehler und kann später ergänzt werden."
+            };
+
+        if (result.ProblemCount > 0)
+        {
+            ResultHeadline =
+                "Prüfung abgeschlossen – bitte Hinweise ansehen";
+
+            ResultSummary =
+                $"{result.TotalFiles:N0} Dateien wurden geprüft. "
+                + $"Dabei wurden {FormatProblemCount(result.ProblemCount)} gefunden. "
+                + (result.MissingCaptureDateCount > 0
+                    ? MissingCaptureDateSummary
+                    : "Die übrigen Dateiinformationen kannst du in Ruhe ansehen.");
+
+            return;
+        }
+
+        if (HasAttentionItems)
+        {
+            ResultHeadline =
+                "Prüfung abgeschlossen – Dateien sind grundsätzlich in Ordnung";
+
+            var technicalInfo =
+                result.InfoCount switch
+                {
+                    0 => string.Empty,
+                    1 => " Bei 1 Datei konnten zusätzliche Informationen nicht vollständig gelesen werden.",
+                    _ => $" Bei {result.InfoCount:N0} Dateien konnten zusätzliche Informationen nicht vollständig gelesen werden."
+                };
+
+            ResultSummary =
+                $"{result.TotalFiles:N0} Dateien wurden geprüft. Es wurden keine beschädigten oder problematischen Dateien gefunden. "
+                + MissingCaptureDateSummary
+                + technicalInfo;
+
+            return;
+        }
+
+        ResultHeadline =
+            "Prüfung abgeschlossen – alles sieht gut aus";
+
+        ResultSummary =
+            $"{result.TotalFiles:N0} Dateien wurden geprüft. Es wurden keine Probleme oder fehlenden Aufnahmedaten gefunden.";
+    }
+
+    private static string FormatProblemCount(int problemCount)
+    {
+        return problemCount switch
+        {
+            0 => "keine Probleme",
+            1 => "1 Problem",
+            _ => $"{problemCount:N0} Probleme"
+        };
     }
 
     private void ApplyResult(
@@ -911,6 +1185,8 @@ public sealed class MediaAnalyzerViewModel
                     new AnalysisIssueViewModel(issue))
                 .ToArray();
 
+        UpdateFriendlyResultSummary(result);
+        SelectedTabIndex = 0;
         HasResult = true;
 
         RefreshVisibleFiles();
@@ -924,7 +1200,7 @@ public sealed class MediaAnalyzerViewModel
                 Array.Empty<MediaFileItemViewModel>();
 
             InspectorSummary =
-                "Noch keine Analyse vorhanden.";
+                "Noch keine Prüfung vorhanden.";
 
             SelectedFileItem = null;
 
@@ -1062,7 +1338,7 @@ public sealed class MediaAnalyzerViewModel
                         file.File.FileName,
                         StringComparer.CurrentCultureIgnoreCase),
 
-            "Probleme zuerst" =>
+            "Auffällige zuerst" =>
                 source
                     .OrderByDescending(file =>
                         GetSeverityRank(
@@ -1582,6 +1858,7 @@ public sealed class MediaAnalyzerViewModel
         RefreshCacheCommand.NotifyCanExecuteChanged();
         ClearAnalysisCacheCommand.NotifyCanExecuteChanged();
         ClearThumbnailCacheCommand.NotifyCanExecuteChanged();
+        PrepareImportCommand.NotifyCanExecuteChanged();
     }
 
     private static bool IsRawExtension(

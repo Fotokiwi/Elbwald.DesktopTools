@@ -5,11 +5,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Importing;
 using Elbwald.DesktopTools.Contracts.Media.Dates;
 using Elbwald.DesktopTools.Contracts.Media.Sorting;
 using Elbwald.DesktopTools.Contracts.Media.Sorting.Execution;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
 using Elbwald.DesktopTools.Contracts.OperationHistory;
+using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.UI.Formatting;
 
 namespace Elbwald.DesktopTools.PhotoSort.ViewModels;
@@ -22,12 +24,16 @@ public sealed class PhotoSortViewModel
     private const int DateContextHintLimit = 30;
 
     private readonly IMediaAnalyzer _mediaAnalyzer;
+    private readonly IMediaDateResolver _mediaDateResolver;
     private readonly IMediaSourcePicker _sourcePicker;
     private readonly IMediaSortPlanner _sortPlanner;
     private readonly IMediaSortExecutionPlanner _executionPlanner;
     private readonly IMediaSortExecutionExecutor _executionExecutor;
     private readonly IMediaIndexService _mediaIndex;
     private readonly IOperationHistoryStore _operationHistory;
+    private readonly IMediaImportHistoryStore _importHistoryStore;
+    private readonly IStorageSettingsStore _storageSettingsStore;
+    private readonly IStorageLocationResolver _storageLocationResolver;
 
     private readonly Stopwatch _stopwatch = new();
     private readonly DispatcherTimer _durationTimer;
@@ -36,6 +42,23 @@ public sealed class PhotoSortViewModel
     private MediaSortPlan? _currentSortPlan;
     private MediaSortExecutionPlan? _currentExecutionPlan;
     private PhotoSortExecutionReportViewModel? _executionReport;
+
+    private IReadOnlyList<MediaAnalyzedFile> _currentAnalyzedFiles =
+        Array.Empty<MediaAnalyzedFile>();
+
+    private IReadOnlyDictionary<string, MediaSortMetadataContext> _currentMetadataBySourcePath =
+        new Dictionary<string, MediaSortMetadataContext>(StringComparer.Ordinal);
+
+    private readonly Dictionary<string, MediaSortDateDecision> _dateDecisions =
+        new(OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal);
+
+    private string _sourceContextText =
+        "Import-Wartehalle";
+
+    private string _destinationContextText =
+        "Medienbibliothek";
 
     private string _sourcePath =
         string.Empty;
@@ -65,10 +88,10 @@ public sealed class PhotoSortViewModel
         "Kopieren";
 
     private string _selectedDateConfidence =
-        "Hoch (empfohlen)";
+        "Empfohlen";
 
     private string _statusMessage =
-        "Quelle und Ziel auswählen. 0037 erlaubt verifiziertes Kopieren und recovery-gesichertes Verschieben.";
+        "Quelle und Ziel werden vorbereitet. Wähle anschließend eine Ordnerstruktur und erstelle eine Vorschau.";
 
     private string _elapsedTimeText =
         "Dauer: 00:00:00";
@@ -95,10 +118,10 @@ public sealed class PhotoSortViewModel
         "Noch keine Vorschau";
 
     private string _previewSummary =
-        "Noch kein Dry Run vorhanden.";
+        "Noch keine Vorschau erstellt.";
 
     private string _executionSafetyMessage =
-        "Nach dem Dry Run kann eine erneute Sicherheitsprüfung für Kopieren oder sicheres Verschieben erzeugt werden.";
+        "Nach der Vorschau prüft Elbwald Digital Quelle, Ziel und mögliche Konflikte noch einmal, bevor Dateien verändert werden.";
 
     private string _confirmationText =
         string.Empty;
@@ -115,30 +138,45 @@ public sealed class PhotoSortViewModel
     private IReadOnlyList<PhotoSortDateContextHintViewModel> _dateContextHints =
         Array.Empty<PhotoSortDateContextHintViewModel>();
 
+    private IReadOnlyList<PhotoSortDateReviewItemViewModel> _dateReviewItems =
+        Array.Empty<PhotoSortDateReviewItemViewModel>();
+
     public PhotoSortViewModel(
         IMediaAnalyzer mediaAnalyzer,
+        IMediaDateResolver mediaDateResolver,
         IMediaSourcePicker sourcePicker,
         IMediaSortPlanner sortPlanner,
         IMediaSortExecutionPlanner executionPlanner,
         IMediaSortExecutionExecutor executionExecutor,
         IMediaIndexService mediaIndex,
-        IOperationHistoryStore operationHistory)
+        IOperationHistoryStore operationHistory,
+        IMediaImportHistoryStore importHistoryStore,
+        IStorageSettingsStore storageSettingsStore,
+        IStorageLocationResolver storageLocationResolver)
     {
         ArgumentNullException.ThrowIfNull(mediaAnalyzer);
+        ArgumentNullException.ThrowIfNull(mediaDateResolver);
         ArgumentNullException.ThrowIfNull(sourcePicker);
         ArgumentNullException.ThrowIfNull(sortPlanner);
         ArgumentNullException.ThrowIfNull(executionPlanner);
         ArgumentNullException.ThrowIfNull(executionExecutor);
         ArgumentNullException.ThrowIfNull(mediaIndex);
         ArgumentNullException.ThrowIfNull(operationHistory);
+        ArgumentNullException.ThrowIfNull(importHistoryStore);
+        ArgumentNullException.ThrowIfNull(storageSettingsStore);
+        ArgumentNullException.ThrowIfNull(storageLocationResolver);
 
         _mediaAnalyzer = mediaAnalyzer;
+        _mediaDateResolver = mediaDateResolver;
         _sourcePicker = sourcePicker;
         _sortPlanner = sortPlanner;
         _executionPlanner = executionPlanner;
         _executionExecutor = executionExecutor;
         _mediaIndex = mediaIndex;
         _operationHistory = operationHistory;
+        _importHistoryStore = importHistoryStore;
+        _storageSettingsStore = storageSettingsStore;
+        _storageLocationResolver = storageLocationResolver;
 
         _durationTimer =
             new DispatcherTimer
@@ -175,6 +213,16 @@ public sealed class PhotoSortViewModel
                 ExecuteOperationAsync,
                 CanExecuteOperation);
 
+        UseAllSuggestedDatesCommand =
+            new AsyncRelayCommand(
+                UseAllSuggestedDatesAsync,
+                () => DateReviewItems.Any(item => item.HasSuggestedDate) && !IsBusy);
+
+        SortAllUnclearDatesCommand =
+            new AsyncRelayCommand(
+                SortAllUnclearDatesAsync,
+                () => DateReviewItems.Count > 0 && !IsBusy);
+
         CancelCommand =
             new RelayCommand(
                 Cancel,
@@ -192,6 +240,18 @@ public sealed class PhotoSortViewModel
             new RelayCommand(
                 () => PathPattern = "{year}/{camera}/{month}");
 
+        UseYearMonthDayPresetCommand =
+            new RelayCommand(
+                () => PathPattern = "{year}/{month}/{day}");
+
+        UseYearFolderPresetCommand =
+            new RelayCommand(
+                () => PathPattern = "{year}/{folder}");
+
+        UseMediaTypePresetCommand =
+            new RelayCommand(
+                () => PathPattern = "{year}/{type}/{month}");
+
         InsertTokenCommand =
             new RelayCommand<string>(
                 token =>
@@ -201,6 +261,8 @@ public sealed class PhotoSortViewModel
                         PathPattern += token;
                     }
                 });
+
+        _ = LoadSuggestedPathsAsync();
     }
 
     public IAsyncRelayCommand ChooseSourceCommand { get; }
@@ -213,6 +275,10 @@ public sealed class PhotoSortViewModel
 
     public IAsyncRelayCommand ExecuteOperationCommand { get; }
 
+    public IAsyncRelayCommand UseAllSuggestedDatesCommand { get; }
+
+    public IAsyncRelayCommand SortAllUnclearDatesCommand { get; }
+
     public IRelayCommand CancelCommand { get; }
 
     public IRelayCommand UseYearMonthPresetCommand { get; }
@@ -221,13 +287,23 @@ public sealed class PhotoSortViewModel
 
     public IRelayCommand UseCameraPresetCommand { get; }
 
+    public IRelayCommand UseYearMonthDayPresetCommand { get; }
+
+    public IRelayCommand UseYearFolderPresetCommand { get; }
+
+    public IRelayCommand UseMediaTypePresetCommand { get; }
+
     public IRelayCommand<string> InsertTokenCommand { get; }
 
     public IReadOnlyList<string> RuleOptions { get; } =
         new[]
         {
             "Jahr / Monat",
-            "Jahr / Kamera / Monat"
+            "Jahr / Monat / Tag",
+            "Jahr / Quellordner",
+            "Jahr / Titel",
+            "Jahr / Kamera / Monat",
+            "Jahr / Medientyp / Monat"
         };
 
     public IReadOnlyList<string> PreviewFilterOptions { get; } =
@@ -249,9 +325,43 @@ public sealed class PhotoSortViewModel
     public IReadOnlyList<string> DateConfidenceOptions { get; } =
         new[]
         {
-            "Sehr hoch",
-            "Hoch (empfohlen)",
-            "Mittel"
+            "Sehr vorsichtig",
+            "Empfohlen",
+            "Mehr Datumsangaben nutzen"
+        };
+
+    public string SourceContextText
+    {
+        get => _sourceContextText;
+        private set => SetProperty(ref _sourceContextText, value);
+    }
+
+    public string DestinationContextText
+    {
+        get => _destinationContextText;
+        private set => SetProperty(ref _destinationContextText, value);
+    }
+
+    public string OperationHelpText =>
+        IsMoveSelected
+            ? "Die Originale werden erst entfernt, nachdem die neuen Kopien vollständig geprüft wurden."
+            : "Die Originale bleiben am bisherigen Ort. Für den Einstieg ist Kopieren die sichere Empfehlung.";
+
+    public string PreviewActionText =>
+        HasPlan
+            ? "Vorschau aktualisieren"
+            : "Vorschau erstellen";
+
+    public string StructurePreviewText =>
+        PathPattern switch
+        {
+            "{year}/{month}" => "2026 / 10",
+            "{year}/{month}/{day}" => "2026 / 10 / 11",
+            "{year}/{folder}" => "2026 / Urlaub",
+            "{year}/{title}" => "2026 / Familienfeier",
+            "{year}/{camera}/{month}" => "2026 / Kamera / 10",
+            "{year}/{type}/{month}" => "2026 / Bilder / 10",
+            _ => PathPattern.Replace("/", " / ", StringComparison.Ordinal)
         };
 
     public string SourcePath
@@ -263,6 +373,10 @@ public sealed class PhotoSortViewModel
                     ref _sourcePath,
                     value))
             {
+                _dateDecisions.Clear();
+                _currentAnalyzedFiles = Array.Empty<MediaAnalyzedFile>();
+                _currentMetadataBySourcePath =
+                    new Dictionary<string, MediaSortMetadataContext>(StringComparer.Ordinal);
                 InvalidateDryRun();
                 BuildPreviewCommand.NotifyCanExecuteChanged();
             }
@@ -323,6 +437,7 @@ public sealed class PhotoSortViewModel
             {
                 InvalidateDryRun();
                 BuildPreviewCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(StructurePreviewText));
             }
         }
     }
@@ -374,10 +489,16 @@ public sealed class PhotoSortViewModel
                     nameof(ConfirmationPlaceholder));
 
                 OnPropertyChanged(
+                    nameof(ShowConfirmationText));
+
+                OnPropertyChanged(
                     nameof(ExecuteActionText));
 
                 OnPropertyChanged(
                     nameof(ExecutionInstructionText));
+
+                OnPropertyChanged(
+                    nameof(OperationHelpText));
 
                 InvalidateDryRun();
             }
@@ -418,6 +539,8 @@ public sealed class PhotoSortViewModel
             BuildPreviewCommand.NotifyCanExecuteChanged();
             PrepareExecutionCommand.NotifyCanExecuteChanged();
             ExecuteOperationCommand.NotifyCanExecuteChanged();
+            UseAllSuggestedDatesCommand.NotifyCanExecuteChanged();
+            SortAllUnclearDatesCommand.NotifyCanExecuteChanged();
             CancelCommand.NotifyCanExecuteChanged();
         }
     }
@@ -435,6 +558,7 @@ public sealed class PhotoSortViewModel
                     value))
             {
                 PrepareExecutionCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(PreviewActionText));
             }
         }
     }
@@ -504,16 +628,20 @@ public sealed class PhotoSortViewModel
     public string RequiredConfirmationText =>
         IsMoveSelected
             ? MediaSortExecutionConfirmation.MoveRequiredText
-            : MediaSortExecutionConfirmation.CopyRequiredText;
+            : string.Empty;
 
     public string ConfirmationPlaceholder =>
-        RequiredConfirmationText
-        + " eingeben";
+        IsMoveSelected
+            ? RequiredConfirmationText + " eingeben"
+            : string.Empty;
+
+    public bool ShowConfirmationText =>
+        IsMoveSelected;
 
     public string ExecuteActionText =>
         IsMoveSelected
-            ? "Jetzt sicher verschieben"
-            : "Jetzt kopieren";
+            ? $"{PlannedFiles} Dateien sicher verschieben"
+            : $"{PlannedFiles} Dateien kopieren";
 
     public string ExecutionInstructionText =>
         IsMoveSelected
@@ -555,9 +683,13 @@ public sealed class PhotoSortViewModel
     public string PlannedFiles
     {
         get => _plannedFiles;
-        private set => SetProperty(
-            ref _plannedFiles,
-            value);
+        private set
+        {
+            if (SetProperty(ref _plannedFiles, value))
+            {
+                OnPropertyChanged(nameof(ExecuteActionText));
+            }
+        }
     }
 
     public string PlannedSize
@@ -714,6 +846,32 @@ public sealed class PhotoSortViewModel
     public bool HasDateContextHints =>
         DateContextHints.Count > 0;
 
+    public IReadOnlyList<PhotoSortDateReviewItemViewModel> DateReviewItems
+    {
+        get => _dateReviewItems;
+        private set
+        {
+            if (SetProperty(
+                    ref _dateReviewItems,
+                    value))
+            {
+                OnPropertyChanged(nameof(HasDateReviews));
+                OnPropertyChanged(nameof(DateReviewCountText));
+                UseAllSuggestedDatesCommand.NotifyCanExecuteChanged();
+                SortAllUnclearDatesCommand.NotifyCanExecuteChanged();
+                PrepareExecutionCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool HasDateReviews =>
+        DateReviewItems.Count > 0;
+
+    public string DateReviewCountText =>
+        DateReviewItems.Count == 1
+            ? "1 Datei braucht deine Entscheidung"
+            : $"{DateReviewItems.Count:N0} Dateien brauchen deine Entscheidung";
+
     private bool CanChoosePath()
     {
         return !IsBusy;
@@ -731,7 +889,8 @@ public sealed class PhotoSortViewModel
     {
         return !IsBusy
                && HasPlan
-               && _currentSortPlan is not null;
+               && _currentSortPlan is not null
+               && !HasDateReviews;
     }
 
     private bool CanExecuteOperation()
@@ -761,10 +920,101 @@ public sealed class PhotoSortViewModel
             return false;
         }
 
+        if (!IsMoveSelected)
+        {
+            return true;
+        }
+
         return string.Equals(
             ConfirmationText.Trim(),
             RequiredConfirmationText,
             StringComparison.Ordinal);
+    }
+
+    private async Task LoadSuggestedPathsAsync()
+    {
+        try
+        {
+            var lastImport =
+                await _importHistoryStore.LoadLastAsync();
+
+            var settings =
+                await _storageSettingsStore.LoadAsync();
+
+            var importEndpoint =
+                settings.Find(StorageEndpoint.DefaultImportId);
+
+            var libraryEndpoint =
+                settings.Find(StorageEndpoint.DefaultLibraryId);
+
+            string? importRoot = null;
+
+            if (importEndpoint is not null)
+            {
+                var importResolution =
+                    _storageLocationResolver.Resolve(importEndpoint.Location);
+
+                if (importResolution.IsAvailable)
+                {
+                    importRoot = importResolution.ResolvedPath;
+                }
+            }
+
+            string? libraryRoot = null;
+
+            if (libraryEndpoint is not null)
+            {
+                var libraryResolution =
+                    _storageLocationResolver.Resolve(libraryEndpoint.Location);
+
+                if (libraryResolution.IsAvailable)
+                {
+                    libraryRoot = libraryResolution.ResolvedPath;
+                }
+            }
+
+            if (lastImport is not null
+                && !string.IsNullOrWhiteSpace(lastImport.DestinationPath)
+                && Directory.Exists(lastImport.DestinationPath))
+            {
+                SourcePath = lastImport.DestinationPath;
+                SourceContextText = "Zuletzt importierter Ordner";
+            }
+            else if (!string.IsNullOrWhiteSpace(importRoot)
+                     && Directory.Exists(importRoot))
+            {
+                SourcePath = importRoot;
+                SourceContextText = "Import-Wartehalle";
+            }
+            else
+            {
+                SourceContextText = "Quelle auswählen";
+            }
+
+            if (!string.IsNullOrWhiteSpace(libraryRoot)
+                && Directory.Exists(libraryRoot))
+            {
+                DestinationPath = libraryRoot;
+                DestinationContextText = "Medienbibliothek";
+            }
+            else
+            {
+                DestinationContextText = "Ziel auswählen";
+            }
+
+            StatusMessage =
+                CanBuildPreview()
+                    ? "Quelle und Ziel sind vorbereitet. Wähle eine Ordnerstruktur und erstelle eine Vorschau."
+                    : "Quelle oder Ziel fehlen noch. Du kannst jederzeit auch eigene Ordner auswählen.";
+        }
+        catch (Exception exception)
+        {
+            StatusMessage =
+                "Die vorgeschlagenen Ordner konnten nicht automatisch geladen werden. Du kannst Quelle und Ziel manuell auswählen.";
+
+            Debug.WriteLine(
+                $"PhotoSort-Standardpfade konnten nicht geladen werden: {exception.Message}");
+        }
     }
 
     private async Task ChooseSourceAsync()
@@ -777,8 +1027,11 @@ public sealed class PhotoSortViewModel
             SourcePath =
                 path;
 
+            SourceContextText =
+                "Eigener Ordner";
+
             StatusMessage =
-                "Quelle gewählt. Zielordner auswählen und Dry Run erzeugen.";
+                "Quelle gewählt. Prüfe das Ziel und erstelle anschließend eine Vorschau.";
         }
     }
 
@@ -792,8 +1045,11 @@ public sealed class PhotoSortViewModel
             DestinationPath =
                 path;
 
+            DestinationContextText =
+                "Eigenes Ziel";
+
             StatusMessage =
-                "Ziel gewählt. Der Dry Run verändert weiterhin keine Dateien.";
+                "Ziel gewählt. Eine Vorschau zeigt dir vorab genau, wie die Ordner angelegt werden.";
         }
     }
 
@@ -825,6 +1081,9 @@ public sealed class PhotoSortViewModel
         DateContextHints =
             Array.Empty<PhotoSortDateContextHintViewModel>();
 
+        DateReviewItems =
+            Array.Empty<PhotoSortDateReviewItemViewModel>();
+
         PlannedFiles = "0";
         PlannedSize = "0 B";
         MissingDateCount = "0";
@@ -833,7 +1092,7 @@ public sealed class PhotoSortViewModel
         DateContextHintCount = "0";
         PlanState = "Analyse läuft";
         PreviewSummary =
-            "Dry Run wird vorbereitet …";
+            "Vorschau wird vorbereitet …";
 
         StartDuration();
 
@@ -858,45 +1117,22 @@ public sealed class PhotoSortViewModel
 
             _cancellation.Token.ThrowIfCancellationRequested();
 
+            _currentAnalyzedFiles = analysis.Files;
+
             IsProgressIndeterminate = true;
             StatusMessage =
-                "Sortierplan wird read-only berechnet …";
+                "Vorschau der neuen Ordnerstruktur wird berechnet …";
             PlanState =
                 "Planung läuft";
 
-            var metadataBySourcePath =
+            _currentMetadataBySourcePath =
                 await BuildTemplateMetadataAsync(
                     analysis.Files,
                     PathPattern,
                     _cancellation.Token);
 
             var sortOptions =
-                new MediaSortOptions
-                {
-                    PathPattern =
-                        PathPattern,
-
-                    MetadataBySourcePath =
-                        metadataBySourcePath,
-
-                    OperationKind =
-                        SelectedOperation == "Verschieben"
-                            ? FileOperationKind.Move
-                            : FileOperationKind.Copy,
-
-                    MinimumDateConfidence =
-                        SelectedDateConfidence switch
-                        {
-                            "Sehr hoch" =>
-                                MediaDateConfidence.VeryHigh,
-
-                            "Mittel" =>
-                                MediaDateConfidence.Medium,
-
-                            _ =>
-                                MediaDateConfidence.High
-                        }
-                };
+                BuildCurrentSortOptions();
 
             var plan =
                 await Task.Run(
@@ -922,7 +1158,7 @@ public sealed class PhotoSortViewModel
         catch (OperationCanceledException)
         {
             StatusMessage =
-                "Dry Run abgebrochen. Es wurden keine Dateien verändert.";
+                "Vorschau abgebrochen. Es wurden keine Dateien verändert.";
 
             PlanState =
                 "Abgebrochen";
@@ -930,7 +1166,7 @@ public sealed class PhotoSortViewModel
         catch (Exception exception)
         {
             StatusMessage =
-                "Dry Run konnte nicht abgeschlossen werden: "
+                "Vorschau konnte nicht abgeschlossen werden: "
                 + exception.GetBaseException().Message;
 
             PlanState =
@@ -1008,36 +1244,30 @@ public sealed class PhotoSortViewModel
             }
             else
             {
-                var reviewText =
-                    executionPlan.HasDateReviewApprovalRequirement
-                        ? " Datums-Prüffälle müssen zusätzlich ausdrücklich bestätigt werden."
-                        : string.Empty;
+                if (IsMoveSelected)
+                {
+                    ExecutionSafetyMessage =
+                        $"Bereit zum sicheren Verschieben: {executionPlan.OperationCount:N0} Dateioperation(en). "
+                        + "Die Originale werden erst entfernt, wenn die Zielkopien vollständig geprüft wurden.";
 
-                var operationText =
-                    IsMoveSelected
-                        ? "sicheres Verschieben"
-                        : "Kopieren";
+                    StatusMessage =
+                        "Sicherheitsprüfung abgeschlossen. Prüfe die Löschfreigabe und bestätige anschließend mit VERSCHIEBEN.";
 
-                var moveText =
-                    IsMoveSelected
-                        ? $" Persistente Recovery-Spitze: {FormatBytes(executionPlan.PeakPersistentRecoveryBytes)}. "
-                          + "Vor der ersten Quelllöschung müssen Recovery, Quelle und endgültiges Ziel für die gesamte Gruppe verifiziert sein."
-                        : string.Empty;
+                    PlanState =
+                        "Bestätigung erforderlich";
+                }
+                else
+                {
+                    ExecutionSafetyMessage =
+                        $"Bereit zum Kopieren: {executionPlan.OperationCount:N0} Dateioperation(en). "
+                        + "Vorhandene Dateien werden nicht überschrieben und die Originale bleiben unverändert.";
 
-                ExecutionSafetyMessage =
-                    $"Bereit für explizite Freigabe: {executionPlan.OperationCount:N0} Operation(en) für {operationText}, "
-                    + $"{executionPlan.GroupCount:N0} Gruppe(n), "
-                    + $"{executionPlan.SidecarOperationCount:N0} Sidecar(s)."
-                    + moveText
-                    + reviewText;
+                    StatusMessage =
+                        "Sicherheitsprüfung abgeschlossen. Du kannst den Kopiervorgang jetzt starten.";
 
-                StatusMessage =
-                    IsMoveSelected
-                        ? "Sicherheitsprüfung abgeschlossen. Für Verschieben sind Löschfreigabe und die Texteingabe VERSCHIEBEN erforderlich."
-                        : "Sicherheitsprüfung abgeschlossen. Zum Kopieren ist jetzt eine explizite Freigabe erforderlich.";
-
-                PlanState =
-                    "Freigabe erforderlich";
+                    PlanState =
+                        "Bereit zum Kopieren";
+                }
             }
 
             ProgressPercent = 100;
@@ -1202,7 +1432,7 @@ public sealed class PhotoSortViewModel
                               + "Die Quelldateien wurden nicht verändert.";
 
                     ExecutionSafetyMessage =
-                        "Ausführung abgeschlossen. Für weitere Dateioperationen bitte einen neuen Dry Run erzeugen.";
+                        "Ausführung abgeschlossen. Für weitere Dateioperationen bitte eine neue Vorschau erstellen.";
 
                     _currentSortPlan = null;
                     _currentExecutionPlan = null;
@@ -1229,10 +1459,10 @@ public sealed class PhotoSortViewModel
 
                     ExecutionSafetyMessage =
                         firstProblem is null
-                            ? "Ausführung mit übersprungenen Quelldateien abgeschlossen. Bitte Probleme prüfen und anschließend einen neuen Dry Run erzeugen."
+                            ? "Ausführung mit übersprungenen Quelldateien abgeschlossen. Bitte Probleme prüfen und anschließend eine neue Vorschau erstellen."
                             : BuildExecutionProblemMessage(
                                 firstProblem)
-                              + " Für weitere Dateioperationen bitte einen neuen Dry Run erzeugen.";
+                              + " Für weitere Dateioperationen bitte eine neue Vorschau erstellen.";
 
                     Issues =
                         result.Problems
@@ -1384,6 +1614,9 @@ public sealed class PhotoSortViewModel
         DateContextHints =
             Array.Empty<PhotoSortDateContextHintViewModel>();
 
+        DateReviewItems =
+            Array.Empty<PhotoSortDateReviewItemViewModel>();
+
         PlannedFiles = "0";
         PlannedSize = "0 B";
         MissingDateCount = "0";
@@ -1391,12 +1624,12 @@ public sealed class PhotoSortViewModel
         IgnoredCount = "0";
         DateContextHintCount = "0";
         PreviewSummary =
-            "Einstellungen geändert – neuer Dry Run erforderlich.";
+            "Einstellungen geändert – neue Vorschau erforderlich.";
 
         if (!IsBusy)
         {
             PlanState =
-                "Dry Run erforderlich";
+                "Neue Vorschau erforderlich";
         }
     }
 
@@ -1410,7 +1643,7 @@ public sealed class PhotoSortViewModel
         ExecutionFingerprint = string.Empty;
 
         ExecutionSafetyMessage =
-            "Nach dem Dry Run kann eine erneute Sicherheitsprüfung für Kopieren oder recovery-gesichertes Verschieben erzeugt werden.";
+            "Nach der Vorschau kann die letzte Sicherheitsprüfung für Kopieren oder sicheres Verschieben gestartet werden.";
 
         ExecuteOperationCommand?.NotifyCanExecuteChanged();
     }
@@ -1542,7 +1775,7 @@ public sealed class PhotoSortViewModel
         if (executionPlan.HasDateReviewApprovalRequirement)
         {
             summary +=
-                " Datums-Prüffälle sind separat bestätigbar und sind nicht der hier angezeigte Blocker.";
+                " Offene Datumsentscheidungen werden separat geklärt und sind nicht der hier angezeigte Blocker.";
         }
 
         return "Nicht freigegeben: "
@@ -1707,6 +1940,171 @@ public sealed class PhotoSortViewModel
         return Convert.ToHexString(hash);
     }
 
+    private MediaSortOptions BuildCurrentSortOptions()
+    {
+        return new MediaSortOptions
+        {
+            PathPattern = PathPattern,
+            MetadataBySourcePath = _currentMetadataBySourcePath,
+            DateDecisionsBySourcePath = new Dictionary<string, MediaSortDateDecision>(
+                _dateDecisions,
+                _dateDecisions.Comparer),
+            OperationKind =
+                SelectedOperation == "Verschieben"
+                    ? FileOperationKind.Move
+                    : FileOperationKind.Copy,
+            MinimumDateConfidence =
+                SelectedDateConfidence switch
+                {
+                    "Sehr vorsichtig" => MediaDateConfidence.VeryHigh,
+                    "Mehr Datumsangaben nutzen" => MediaDateConfidence.Medium,
+                    _ => MediaDateConfidence.High
+                }
+        };
+    }
+
+    private async Task ApplyDateDecisionAsync(
+        string path,
+        MediaSortDateDecision decision)
+    {
+        if (IsBusy
+            || _currentAnalyzedFiles.Count == 0)
+        {
+            return;
+        }
+
+        var normalizedPath = Path.GetFullPath(path);
+        _dateDecisions[normalizedPath] = decision;
+
+        await RebuildPlanFromCurrentAnalysisAsync();
+    }
+
+    private async Task UseAllSuggestedDatesAsync()
+    {
+        if (IsBusy
+            || _currentAnalyzedFiles.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var item in DateReviewItems.Where(item => item.Resolution.Value.HasValue))
+        {
+            _dateDecisions[Path.GetFullPath(item.Path)] =
+                MediaSortDateDecision.UseDate(
+                    item.Resolution.Value!.Value,
+                    "Vorschlag für die Sortierung vom Nutzer gesammelt bestätigt.");
+        }
+
+        await RebuildPlanFromCurrentAnalysisAsync();
+    }
+
+    private async Task SortAllUnclearDatesAsync()
+    {
+        if (IsBusy
+            || _currentAnalyzedFiles.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var item in DateReviewItems)
+        {
+            _dateDecisions[Path.GetFullPath(item.Path)] =
+                MediaSortDateDecision.SortAsUnclear();
+        }
+
+        await RebuildPlanFromCurrentAnalysisAsync();
+    }
+
+    private async Task RebuildPlanFromCurrentAnalysisAsync()
+    {
+        if (_currentAnalyzedFiles.Count == 0)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        InvalidateExecutionPlan();
+        IsProgressIndeterminate = true;
+        StatusMessage = "Deine Datumsentscheidung wird in die Vorschau übernommen …";
+        PlanState = "Vorschau wird aktualisiert";
+
+        try
+        {
+            var sortOptions = BuildCurrentSortOptions();
+
+            var plan = await Task.Run(() =>
+                _sortPlanner.CreatePlan(
+                    SourcePath,
+                    DestinationPath,
+                    _currentAnalyzedFiles,
+                    sortOptions));
+
+            _currentSortPlan = plan;
+            ApplyPlan(plan);
+            StatusMessage = BuildCompletionStatus(plan);
+        }
+        catch (Exception exception)
+        {
+            StatusMessage =
+                "Die Vorschau konnte nach der Datumsentscheidung nicht aktualisiert werden: "
+                + exception.GetBaseException().Message;
+            PlanState = "Fehler";
+        }
+        finally
+        {
+            IsProgressIndeterminate = false;
+            IsBusy = false;
+        }
+    }
+
+    private void OpenDateReviewFile(string path)
+    {
+        try
+        {
+            Process.Start(
+                new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                });
+        }
+        catch (Exception exception)
+        {
+            StatusMessage =
+                "Datei konnte nicht mit der Standardanwendung geöffnet werden: "
+                + exception.GetBaseException().Message;
+        }
+    }
+
+    private IReadOnlyList<PhotoSortDateReviewItemViewModel> BuildDateReviewItems(
+        MediaSortPlan plan)
+    {
+        var dateIssuePaths = plan.Issues
+            .Where(issue => issue.Kind is
+                MediaSortIssueKind.MissingCaptureDate
+                or MediaSortIssueKind.DateReview
+                or MediaSortIssueKind.InsufficientDateConfidence
+                or MediaSortIssueKind.DateConflict)
+            .Select(issue => Path.GetFullPath(issue.Path))
+            .Distinct(_dateDecisions.Comparer)
+            .ToHashSet(_dateDecisions.Comparer);
+
+        return _currentAnalyzedFiles
+            .Where(file => dateIssuePaths.Contains(Path.GetFullPath(file.File.FullPath)))
+            .Select(file =>
+            {
+                var resolution = _mediaDateResolver.Resolve(file);
+
+                return new PhotoSortDateReviewItemViewModel(
+                    file.File.FullPath,
+                    resolution,
+                    ApplyDateDecisionAsync,
+                    OpenDateReviewFile);
+            })
+            .OrderBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+    }
+
     private void ApplyPlan(
         MediaSortPlan plan)
     {
@@ -1736,8 +2134,16 @@ public sealed class PhotoSortViewModel
                         hint))
                 .ToArray();
 
+        DateReviewItems =
+            BuildDateReviewItems(plan);
+
         Issues =
             plan.Issues
+                .Where(issue => issue.Kind is not (
+                    MediaSortIssueKind.MissingCaptureDate
+                    or MediaSortIssueKind.DateReview
+                    or MediaSortIssueKind.InsufficientDateConfidence
+                    or MediaSortIssueKind.DateConflict))
                 .OrderByDescending(issue =>
                     issue.Severity)
                 .ThenBy(
@@ -1793,7 +2199,7 @@ public sealed class PhotoSortViewModel
     {
         if (plan.ProblemCount > 0)
         {
-            return $"Dry Run abgeschlossen: {plan.ProblemCount:N0} Problem(e). Es wird nichts ausgeführt.";
+            return $"Vorschau abgeschlossen: {plan.ProblemCount:N0} Problem(e). Es wird nichts ausgeführt.";
         }
 
         var details =
@@ -1802,7 +2208,7 @@ public sealed class PhotoSortViewModel
         if (plan.DateReviewCount > 0)
         {
             details.Add(
-                $"{plan.DateReviewCount:N0} Datumsfall/-fälle zur Prüfung");
+                $"{plan.DateReviewCount:N0} Datei(en) mit unklarem Aufnahmedatum");
         }
 
         if (plan.DateContextHintCount > 0)
@@ -1813,11 +2219,11 @@ public sealed class PhotoSortViewModel
 
         if (details.Count == 0)
         {
-            return $"Dry Run abgeschlossen: {plan.PlannedFileCount:N0} Datei(en) konfliktfrei geplant. "
+            return $"Vorschau abgeschlossen: {plan.PlannedFileCount:N0} Datei(en) konfliktfrei geplant. "
                    + "Es wird nichts ausgeführt.";
         }
 
-        return $"Dry Run abgeschlossen: {plan.PlannedFileCount:N0} Datei(en) geplant, "
+        return $"Vorschau abgeschlossen: {plan.PlannedFileCount:N0} Datei(en) geplant, "
                + string.Join(
                    ", ",
                    details)
