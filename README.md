@@ -1,12 +1,12 @@
 # 🌲 Elbwald Digital – Desktop Tools
 
-> **A collection of intuitive, cross-platform tools for organizing and managing photos, audio, and other media files.**
+> **A local-first, cross-platform media workspace for organizing, understanding and safely managing real files.**
 
 <p align="left">
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white">
   <img alt="Avalonia UI" src="https://img.shields.io/badge/Avalonia-Desktop_UI-7B2CBF">
   <img alt="Platforms" src="https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows-2E7D32">
-  <img alt="Status" src="https://img.shields.io/badge/Status-Early_Development-F59E0B">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Alpha_Development-F59E0B">
   <img alt="License" src="https://img.shields.io/badge/License-Apache--2.0-blue">
 </p>
 
@@ -14,56 +14,135 @@
 
 ## What is Elbwald Desktop Tools?
 
-**Elbwald Desktop Tools** is a modular desktop application for people who want to keep their media libraries organized without fighting complicated software.
+**Elbwald Desktop Tools** is a local media workspace built around a simple idea:
 
-The goal is simple:
+> **The filesystem provides physical organization. Elbwald provides logical organization.**
 
-- make common media-management tasks easy to understand,
-- keep file operations safe and transparent,
-- work consistently on **Linux and Windows**,
-- and provide one coherent interface instead of a pile of unrelated utilities.
+Your photos and other media remain normal files and folders. Elbwald does not require a proprietary media vault, cloud account or online service in order to organize them.
 
-The project is being built as a collection of independent tools that share the same UI, safety mechanisms and application infrastructure.
+The application combines:
 
----
+- a local media library and index,
+- safe file organization workflows,
+- project-based collections that reference existing files instead of duplicating them,
+- media analysis and metadata-aware tools,
+- a modular extension system for additional formats and future features,
+- and a safety layer designed for operations on irreplaceable user data.
 
-## ✨ Planned tools
-
-### 📷 Photo Sort
-
-Organize large photo collections using metadata and configurable rules.
-
-Planned capabilities include:
-
-- analyze folders before changing anything,
-- sort photos into a clean directory structure,
-- use EXIF and other metadata,
-- preview every planned operation,
-- detect conflicts before execution,
-- avoid silent overwrites,
-- recover safely from interrupted operations.
+The primary targets are **Linux x64** and **Windows x64**.
 
 ---
 
-### 🎵 Audio Tag
+# ✨ Current feature set
 
-A modern, lightweight alternative for editing audio metadata on Linux and Windows.
+## 📚 Library
 
-Planned capabilities include:
+Elbwald maintains a local media index above the normal filesystem.
 
-- edit MP3 metadata,
-- manage cover artwork,
-- batch-edit tags,
-- rename and organize audio files,
-- later support formats such as **FLAC, OGG and M4A**.
+Current foundations include:
+
+- stable internal media IDs,
+- indexed files and metadata,
+- thumbnail and preview caching,
+- folder and timeline-oriented library data,
+- search/filter foundations,
+- project references without duplicating the source media,
+- persistent application state across restarts.
+
+The library is intended to remain useful even when optional format or feature extensions are not installed.
 
 ---
 
-### 🧩 More tools
+## 🔎 Analyze
 
-Desktop Tools is designed around a modular architecture.
+The analyzer is designed as a **read-only first step** for unknown or newly added media collections.
 
-Additional tools can be added without turning the application into one monolithic codebase.
+It can inspect a folder before any file operation is performed and provides information about the discovered media, dates and possible issues.
+
+Analysis results can be persisted and reopened later.
+
+---
+
+## 🗂️ Organize
+
+### Import
+
+Media can be imported through a safety-aware workflow instead of being copied blindly.
+
+### Sort
+
+Files can be organized using metadata and configurable path rules.
+
+The sorting workflow includes:
+
+- planning before execution,
+- date resolution,
+- handling of uncertain dates,
+- configurable path patterns,
+- conflict detection,
+- companion-file handling,
+- previews before file operations are committed.
+
+### Rename
+
+The rename workflow includes:
+
+- presets,
+- live filename examples,
+- real source previews,
+- collision detection,
+- controlled execution through the file-operation layer.
+
+---
+
+## 🧭 Projects
+
+Projects form a logical layer above the filesystem.
+
+A media file can be referenced by projects without being copied into a project-specific storage format.
+
+Current project foundations include:
+
+- project overview,
+- project workspace,
+- project metadata,
+- media assignments,
+- overview, media, journal and information areas,
+- stable references to indexed media.
+
+Planned project development includes galleries, highlights, travel/holiday workflows, journal features and later content-studio / photo-book workflows.
+
+---
+
+## 🖼️ Image formats
+
+### Built-in base formats
+
+The base application includes support for:
+
+| Format | Detection | Metadata | Thumbnail | Export |
+|---|---:|---:|---:|---:|
+| JPEG / JPG | ✅ | ✅ | ✅ | ✅ |
+| PNG | ✅ | ✅ | ✅ | ✅ |
+
+These formats are part of the normal application baseline.
+
+### Extended Image Formats
+
+Additional image formats are provided through an optional extension backed by **Magick.NET / ImageMagick**.
+
+Current vertically integrated formats are:
+
+| Format | Detection | Metadata | Thumbnail | Export |
+|---|---:|---:|---:|---:|
+| WebP | ✅ | ✅ | ✅ | ✅ |
+| TIFF / TIF | ✅ | ✅ | ✅ | ✅ |
+
+Additional formats may be added later, but Elbwald only advertises capabilities that have been explicitly integrated and tested.
+
+RAW formats are planned as a separate package because camera RAW workflows require different handling from normal raster formats.
+
+JPEG XL is also being considered as a separate specialized package, particularly for possible future archival / backup workflows.
 
 ---
 
@@ -71,12 +150,13 @@ Additional tools can be added without turning the application into one monolithi
 
 Media files are often irreplaceable.
 
-For that reason, file safety is not an afterthought in this project — it is part of the architecture.
+For that reason, file safety is not an afterthought in Elbwald — it is part of the architecture.
 
-The core file-operation layer is being designed around principles such as:
+The core file-operation layer follows principles such as:
 
 - **never silently overwrite existing files,**
 - validate operations before execution,
+- detect conflicts before committing changes,
 - check available storage before writing,
 - keep a configurable free-space reserve,
 - stage copies using temporary files,
@@ -84,20 +164,20 @@ The core file-operation layer is being designed around principles such as:
 - verify copied data with **SHA-256**,
 - keep persistent operation journals,
 - detect interrupted transactions,
-- retain recovery data when a filesystem state is ambiguous,
+- retain recovery information when filesystem state is ambiguous,
 - prefer stopping over guessing.
 
 For potentially destructive operations, the rule is:
 
 > **If the application cannot prove that an operation is safe, it does not proceed.**
 
-Cross-volume moves are intentionally treated differently from simple same-volume renames because a safe implementation requires a verified copy before the original can ever be removed.
+Cross-volume moves are intentionally treated differently from same-volume renames because a safe cross-volume move requires a verified copy before the original may be removed.
 
 ---
 
 # ♻️ Recovery architecture
 
-Desktop Tools contains the foundation for a layered recovery system.
+Elbwald contains a layered recovery and operation-journal foundation.
 
 ```text
 Source file
@@ -109,7 +189,7 @@ Preflight checks
 Persistent journal
     │
     ▼
-Recovery copy when required
+Recovery data when required
     │
     ▼
 Temporary / staged write
@@ -124,18 +204,117 @@ Commit
 Journal completion
 ```
 
-Recovery storage is designed to support both:
+The central principle is that incomplete or ambiguous operations should remain diagnosable instead of being silently treated as successful.
 
-- a small, fast **RAM cache** for suitable temporary operations,
-- persistent recovery storage for crash-safe workflows.
+---
 
-A future settings page will allow the recovery location and limits to be configured. Fast SSD/NVMe storage is preferred for larger recovery workloads.
+# 🔌 Module API v2
+
+Elbwald uses a capability-oriented extension system.
+
+Extensions are not limited to adding standalone screens. They can also add capabilities to existing workflows.
+
+Examples include:
+
+- media-format recognition,
+- metadata readers,
+- thumbnail providers,
+- image exporters,
+- navigation entries,
+- settings contributions,
+- future editor tools,
+- future backup providers and remote services.
+
+The host is designed to ask:
+
+> **Which active capability can perform this operation?**
+
+rather than:
+
+> **Is a specific hard-coded module installed?**
+
+This allows an installed format extension to become available automatically to existing parts of the application.
+
+## Extension lifecycle
+
+The current startup model is broadly:
+
+```text
+Discover extensions
+        ↓
+Read and validate manifests
+        ↓
+Resolve dependencies
+        ↓
+Load extensions
+        ↓
+Register services and providers
+        ↓
+Build dependency-injection container
+        ↓
+Resolve capability registries
+        ↓
+Register navigation / settings contributions
+        ↓
+Start UI
+```
+
+## Current extension infrastructure
+
+Module API v2 currently provides:
+
+- manifest API versioning,
+- dependency declarations,
+- capability declarations,
+- permission/trust fields prepared in manifests,
+- extension service registration before DI is built,
+- graceful isolation of incompatible or broken extensions,
+- central extension registry,
+- media-format registry,
+- metadata registry,
+- thumbnail registry,
+- export registry,
+- dynamic navigation contributions,
+- settings contributions,
+- live enable/disable state in Settings,
+- generic module build and publish collection.
+
+Capability-only extensions do not need to provide their own page or navigation entry.
+
+Disabling an extension removes its active contributions immediately. Assemblies currently remain loaded until the application exits; full hot-unloading is intentionally not required at this stage.
+
+---
+
+# 🧩 Current modules
+
+The repository currently contains first-party modules such as:
+
+```text
+src/Modules/
+├── Elbwald.DesktopTools.MediaAnalyzer/
+├── Elbwald.DesktopTools.PhotoSort/
+└── Elbwald.DesktopTools.Image.Formats.Extended/
+```
+
+### Media Analyzer
+
+Provides the main analysis workflow through a navigation contribution.
+
+### Photo Sort
+
+Provides sorting functionality and contributes itself to the appropriate navigation area.
+
+### Extended Image Formats
+
+A capability-oriented extension rather than a standalone tool page.
+
+It currently contributes WebP and TIFF capabilities through Magick.NET, including format recognition, metadata, thumbnails and export support.
 
 ---
 
 # 🏗️ Architecture
 
-The application is split into a small host and reusable modules.
+The solution is split into a small host, shared contracts, reusable core services and independent modules.
 
 ```text
 Elbwald.DesktopTools/
@@ -145,8 +324,9 @@ Elbwald.DesktopTools/
 │   ├── Elbwald.DesktopTools.Core/
 │   ├── Elbwald.DesktopTools.UI/
 │   └── Modules/
+│       ├── Elbwald.DesktopTools.MediaAnalyzer/
 │       ├── Elbwald.DesktopTools.PhotoSort/
-│       └── Elbwald.DesktopTools.AudioTag/
+│       └── Elbwald.DesktopTools.Image.Formats.Extended/
 ├── tests/
 ├── docs/
 └── Elbwald.DesktopTools.sln
@@ -155,42 +335,66 @@ Elbwald.DesktopTools/
 ### Main projects
 
 **Elbwald.DesktopTools.App**  
-Application host, dependency injection and shell.
+Application host, startup, dependency-injection composition and shell.
 
 **Elbwald.DesktopTools.Contracts**  
-Shared interfaces and contracts used across the host and modules.
+Shared interfaces, extension contracts and capability abstractions.
 
 **Elbwald.DesktopTools.Core**  
-Core services, file-operation safety, recovery and infrastructure.
+Core services, media index, file-operation safety, recovery and application infrastructure.
 
 **Elbwald.DesktopTools.UI**  
 Shared UI components and visual foundations.
 
 **Modules**  
-Independent tools loaded into the application.
+First-party and future optional extensions loaded through Module API v2.
+
+## Platform core vs. extensions
+
+Not everything is intended to become a plugin.
+
+The platform core intentionally owns areas such as:
+
+- application shell,
+- library / media index,
+- projects,
+- settings host,
+- file safety,
+- recovery,
+- stable media IDs,
+- storage abstractions,
+- operation history infrastructure,
+- central cache / thumbnail infrastructure,
+- extension and capability registries.
+
+Extensions provide optional tools and capabilities without owning the underlying media library.
 
 ---
 
-# 🔌 Module system
+# ⚙️ Generic module build and publish
 
-Tools are designed to be loaded as modules instead of being hard-wired into the application.
+Projects under:
 
-The module loader supports:
+```text
+src/Modules/*/*.csproj
+```
 
-- module manifests,
-- API-version validation,
-- minimum host-version checks,
-- isolated assembly loading,
-- graceful module-load failures,
-- dynamic navigation registration.
+are discovered by the application build infrastructure and collected into the module output automatically.
 
-A broken or incompatible add-on should not prevent the main application from starting.
+The goal is that adding a new module does **not** require hard-coded copy logic or application-project changes for every new extension.
+
+Typical output:
+
+```text
+Modules/
+├── Elbwald.DesktopTools.MediaAnalyzer/
+├── Elbwald.DesktopTools.PhotoSort/
+└── Elbwald.DesktopTools.Image.Formats.Extended/
+```
 
 ---
 
 # 🧰 Technology
-
-The project currently uses:
 
 | Area | Technology |
 |---|---|
@@ -201,36 +405,40 @@ The project currently uses:
 | MVVM toolkit | CommunityToolkit.Mvvm |
 | Dependency injection | Microsoft.Extensions.DependencyInjection |
 | Serialization | System.Text.Json |
+| Image extension backend | Magick.NET / ImageMagick |
 | Testing | xUnit |
 | IDE | JetBrains Rider |
-
-Additional components such as structured logging and persistent application data will be added as needed.
 
 ---
 
 # 🚧 Project status
 
-**Desktop Tools is currently in early development.**
+**Elbwald Desktop Tools is under active alpha development.**
 
-The architectural foundation already includes:
+The project already has a substantial functional foundation, including:
 
 - cross-platform Avalonia application shell,
-- navigation and module loading,
-- Photo Sort module integration,
-- module error isolation,
-- safe file-operation planning,
-- conflict detection,
-- runtime safety checks,
-- staged copy operations,
+- local media index and library,
+- stable media IDs,
+- analyzer workflow,
+- import workflow,
+- sorting workflow,
+- rename workflow,
+- project foundations,
+- thumbnail / preview caching,
+- metadata reading,
+- image export infrastructure,
+- file-operation safety engine,
 - SHA-256 verification,
-- disk-space safety reserves,
-- persistent operation journaling,
-- persistent recovery storage,
-- recovery inspection and coordination foundations.
+- persistent operation journals,
+- recovery infrastructure,
+- cross-process protection,
+- Module API v2 and capability registries,
+- live extension activation,
+- navigation and settings contributions,
+- generic module build / publish integration.
 
-The actual end-user Photo Sort and Audio Tag workflows are still under development.
-
-Expect APIs, UI and internal structures to change while the project matures.
+The application is **not yet considered a finished stable release**. APIs, UI details and internal structures may still change.
 
 ---
 
@@ -239,7 +447,7 @@ Expect APIs, UI and internal structures to change while the project matures.
 ## Requirements
 
 - **.NET 10 SDK**
-- Linux or Windows
+- Linux x64 or Windows x64
 
 Clone the repository:
 
@@ -266,13 +474,18 @@ Run tests:
 dotnet test Elbwald.DesktopTools.sln
 ```
 
+The application build automatically collects projects below `src/Modules/` into the module output.
+
 ---
 
 # 🌿 Design philosophy
 
-Desktop Tools aims to be usable without requiring users to understand the internals of filesystems, metadata formats or media libraries.
+Elbwald is intended to be usable without requiring users to understand filesystem internals, metadata standards or media-database implementation details.
 
-The UI is therefore designed around a few principles:
+The UI and workflows therefore follow a few principles:
+
+**Local first.**  
+The normal filesystem remains the source of truth for physical files.
 
 **Preview first.**  
 Users should see what will happen before files are changed.
@@ -286,34 +499,73 @@ Technical details should be available when useful, but normal workflows should r
 **Progressive complexity.**  
 Common tasks stay simple while advanced options remain accessible.
 
+**Graceful degradation.**  
+Removing an optional extension should remove a capability, not break the media library or project data.
+
 **Consistency.**  
-All tools should feel like parts of one application.
+All tools should feel like parts of one application rather than unrelated utilities.
 
 ---
 
 # 🗺️ Roadmap
 
-The current development direction is roughly:
+The current direction is intentionally focused on consolidating the existing product before adding too many new areas.
 
 ```text
-Application foundation
+Module API v2 foundation
+        ✓
         ↓
-Module system
+Workflow consolidation / E2E hardening
         ↓
-Safe file infrastructure
+Projects MVP refinement
         ↓
-Journal & recovery
+Library Health
         ↓
-Photo Sort MVP
+Duplicate Finder
         ↓
-Photo Sort advanced workflows
+Undo / History
         ↓
-Audio Tag MVP
+Backup Analyzer + Verify
         ↓
-Additional media tools
+Backup providers
+        ↓
+Metadata / Audio tools
+        ↓
+Image / Video / Content Studio
 ```
 
-Safety-related infrastructure is intentionally being implemented before large-scale file manipulation features.
+Near-term priorities include:
+
+- Linux end-to-end testing of the main workflow,
+- Windows smoke / end-to-end testing,
+- large-library and failure-path testing,
+- further project UX and gallery work,
+- a central Library Health view,
+- bit-identical duplicate detection,
+- operation history and undo foundations.
+
+Backup is intentionally planned **after** health and verification foundations are strong enough to prove that a backup is actually valid.
+
+---
+
+# 🔭 Planned extension areas
+
+Future work may include:
+
+- RAW image format package,
+- JPEG XL support and possible archival workflows,
+- Duplicate Finder,
+- metadata editor and cleaner,
+- Audio Analyzer / Audio Tag / Cover Manager,
+- image editing tools,
+- video inspection and organization,
+- local and remote backup providers,
+- SFTP / S3 / WebDAV-style integrations,
+- travel / holiday project profiles,
+- journal and content-studio workflows,
+- photo-book / PDF export workflows.
+
+These features are intentionally expected to build on the same capability-oriented extension infrastructure instead of introducing separate plugin mechanisms.
 
 ---
 
@@ -324,6 +576,8 @@ The repository is public primarily to make development transparent and to allow 
 Bug reports and constructive suggestions are welcome.
 
 Before larger contributions, opening an issue first is recommended so implementation details can be coordinated.
+
+The extension APIs are still evolving during alpha development, so third-party compatibility should not yet be considered stable.
 
 ---
 
@@ -341,6 +595,6 @@ See [`LICENSE`](LICENSE) for the full license text.
 
 # 🌲 Elbwald Digital
 
-Built with a focus on **useful software, understandable interfaces and careful handling of user data**.
+Built with a focus on **useful software, understandable interfaces, local data ownership and careful handling of user files**.
 
 **Linux first. Windows too. Files treated with respect.**

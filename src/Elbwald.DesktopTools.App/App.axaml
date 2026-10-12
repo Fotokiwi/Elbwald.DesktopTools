@@ -121,37 +121,79 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
 
+        <!--
+            Main navigation owns its visual states completely instead of stacking the
+            Fluent ListBoxItem and Button state layers. Hover is a quiet surface;
+            selection adds one clear left accent without a second highlight frame.
+        -->
         <Style Selector="ListBox.elbwald-nav > ListBoxItem">
             <Setter Property="Margin" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Background" Value="Transparent" />
-        </Style>
-
-        <Style Selector="ListBox.elbwald-nav > ListBoxItem:pointerover">
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-
-        <Style Selector="ListBox.elbwald-nav > ListBoxItem:selected">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter
+                        Content="{TemplateBinding Content}"
+                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch" />
+                </ControlTemplate>
+            </Setter>
         </Style>
 
         <Style Selector="Button.elbwald-nav-item-button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="12,11" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="9,10,12,10" />
             <Setter Property="Margin" Value="0,3" />
             <Setter Property="Foreground" Value="{DynamicResource ElbwaldTextBrush}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                        <Grid ColumnDefinitions="4,*">
+                            <Border
+                                Width="3"
+                                Margin="0,7,0,7"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding BorderBrush}"
+                                CornerRadius="2" />
+                            <Border
+                                Grid.Column="1"
+                                Padding="{TemplateBinding Padding}">
+                                <ContentPresenter
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
         </Style>
 
         <Style Selector="ListBox.elbwald-nav > ListBoxItem:pointerover Button.elbwald-nav-item-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardHoverBrush}" />
+        </Style>
+
+        <Style Selector="Button.elbwald-nav-item-button:pressed">
             <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
         </Style>
 
         <Style Selector="ListBox.elbwald-nav > ListBoxItem:selected Button.elbwald-nav-item-button">
-            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+        </Style>
+
+        <Style Selector="ListBox.elbwald-nav > ListBoxItem:selected:pointerover Button.elbwald-nav-item-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
         </Style>
 
