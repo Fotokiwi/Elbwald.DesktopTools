@@ -4,9 +4,9 @@ using Elbwald.DesktopTools.Contracts.Media.Formats;
 namespace Elbwald.DesktopTools.Core.Media.Formats;
 
 /// <summary>
-/// Compatibility provider for the image extensions recognized by the host
-/// before Module API v2. Individual formats can be moved out into extensions
-/// without changing scanner/analyzer code once dedicated providers exist.
+/// Host-owned compatibility provider. JPEG and PNG are intentional base formats.
+/// RAW extensions remain here temporarily until the dedicated RAW package is
+/// introduced; non-default raster/container formats belong to extensions.
 /// </summary>
 public sealed class CoreImageFormatProvider : IMediaFormatProvider
 {
@@ -15,10 +15,9 @@ public sealed class CoreImageFormatProvider : IMediaFormatProvider
         ".jpg",
         ".jpeg",
         ".png",
-        ".tif",
-        ".tiff",
-        ".heic",
-        ".heif",
+
+        // Temporary compatibility bridge. These move into the dedicated RAW
+        // package in a later patch so existing RAW detection is not regressed.
         ".dng",
         ".cr2",
         ".cr3",

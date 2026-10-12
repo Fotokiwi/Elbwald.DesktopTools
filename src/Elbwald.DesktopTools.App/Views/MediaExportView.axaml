@@ -114,9 +114,9 @@
                                 <ComboBox Grid.Column="0" ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" />
                                 <ComboBox Grid.Column="1" IsEnabled="{Binding CanResize}" ItemsSource="{Binding MaxEdgeOptions}" SelectedItem="{Binding SelectedMaxEdge, Mode=TwoWay}" />
                             </Grid>
-                            <Grid IsVisible="{Binding IsJpegExport}" ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                <TextBlock Text="JPEG-Qualität" VerticalAlignment="Center" Classes="elbwald-muted" FontSize="10" />
-                                <ComboBox Grid.Column="1" ItemsSource="{Binding JpegQualityOptions}" SelectedItem="{Binding JpegQuality, Mode=TwoWay}" />
+                            <Grid IsVisible="{Binding CanSelectQuality}" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <TextBlock Text="Qualität" VerticalAlignment="Center" Classes="elbwald-muted" FontSize="10" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding QualityOptions}" SelectedItem="{Binding ExportQuality, Mode=TwoWay}" />
                             </Grid>
                             <CheckBox IsChecked="{Binding EmbedXmp, Mode=TwoWay}" Content="Elbwald-Metadaten als XMP einbetten" />
                         </StackPanel>

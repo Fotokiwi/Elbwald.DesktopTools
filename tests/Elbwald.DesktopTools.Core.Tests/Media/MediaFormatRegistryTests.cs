@@ -23,6 +23,24 @@ public sealed class MediaFormatRegistryTests
         Assert.Equal(MediaFileType.Image, registry.DetectMediaType("/media/PHOTO.JPEG"));
     }
 
+
+    [Fact]
+    public void BuiltInProvider_KeepsJpegPngAndTemporaryRawButNotExtendedFormats()
+    {
+        var registry = CreateRegistry(
+            [new CoreImageFormatProvider()]);
+
+        Assert.Equal(MediaFileType.Image, registry.DetectMediaType("photo.jpg"));
+        Assert.Equal(MediaFileType.Image, registry.DetectMediaType("graphic.png"));
+        Assert.Equal(MediaFileType.Image, registry.DetectMediaType("camera.dng"));
+
+        Assert.Equal(MediaFileType.Unknown, registry.DetectMediaType("photo.webp"));
+        Assert.Equal(MediaFileType.Unknown, registry.DetectMediaType("scan.tiff"));
+        Assert.Equal(MediaFileType.Unknown, registry.DetectMediaType("phone.heic"));
+        Assert.Equal(MediaFileType.Unknown, registry.DetectMediaType("modern.avif"));
+        Assert.Equal(MediaFileType.Unknown, registry.DetectMediaType("archive.jp2"));
+    }
+
     [Fact]
     public void FindByFilePath_ExtensionProvider_IsDiscoveredThroughCapabilityRegistry()
     {

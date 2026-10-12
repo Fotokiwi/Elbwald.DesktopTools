@@ -33,3 +33,9 @@ Thumbs.db
 # Local publish / alpha build artifacts
 artifacts/
 
+
+# Project documentation
+docs/
+
+# Patch / archive files
+*.zip

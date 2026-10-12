@@ -13,8 +13,6 @@ public sealed class ExtensionMediaTypeDetectorTests
     [InlineData("photo.jpg")]
     [InlineData("photo.JPEG")]
     [InlineData("photo.png")]
-    [InlineData("photo.tiff")]
-    [InlineData("photo.HEIC")]
     [InlineData("photo.dng")]
     [InlineData("photo.CR3")]
     [InlineData("photo.nef")]
@@ -35,6 +33,10 @@ public sealed class ExtensionMediaTypeDetectorTests
     [InlineData("video.mp4")]
     [InlineData("audio.mp3")]
     [InlineData("photo.webp")]
+    [InlineData("photo.tiff")]
+    [InlineData("photo.HEIC")]
+    [InlineData("photo.avif")]
+    [InlineData("photo.jp2")]
     [InlineData("README")]
     public void Detect_UnsupportedExtension_ReturnsUnknown(
         string fileName)

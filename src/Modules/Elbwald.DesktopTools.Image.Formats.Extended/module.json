@@ -1,0 +1,27 @@
+{
+  "id": "elbwald.image.formats.extended",
+  "name": "Erweiterte Bildformate",
+  "description": "Optionale Bildformate über Magick.NET: WebP, TIFF, HEIC/HEIF, AVIF und JPEG 2000. WebP bietet zusätzlich Metadatenlesen und Export.",
+  "version": "0.4.0",
+  "apiVersion": 2,
+  "minimumHostVersion": "0.0.1",
+  "assembly": "Elbwald.DesktopTools.Image.Formats.Extended.dll",
+  "enabled": true,
+  "capabilities": [
+    "media.format.provider",
+    "media.image.webp.detect",
+    "media.image.tiff.detect",
+    "media.image.heic.detect",
+    "media.image.heif.detect",
+    "media.image.avif.detect",
+    "media.image.jpeg2000.detect",
+    "media.metadata.image.reader-provider",
+    "media.image.webp.metadata.read",
+    "media.export.image.provider",
+    "media.image.webp.export"
+  ],
+  "permissions": [
+    "ReadMedia"
+  ],
+  "dependencies": []
+}

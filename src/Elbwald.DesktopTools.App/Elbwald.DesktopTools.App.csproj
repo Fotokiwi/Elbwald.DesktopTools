@@ -41,9 +41,9 @@
             Include="../Modules/Elbwald.DesktopTools.MediaAnalyzer/Elbwald.DesktopTools.MediaAnalyzer.csproj"
             ReferenceOutputAssembly="false" />
 
-        <!-- Build WebP as a capability-only development module without linking it into the host assembly. -->
+        <!-- Build Extended Image Formats as a capability-only development module without linking it into the host assembly. -->
         <ProjectReference
-            Include="../Modules/Elbwald.DesktopTools.Image.WebP/Elbwald.DesktopTools.Image.WebP.csproj"
+            Include="../Modules/Elbwald.DesktopTools.Image.Formats.Extended/Elbwald.DesktopTools.Image.Formats.Extended.csproj"
             ReferenceOutputAssembly="false" />
     </ItemGroup>
 
@@ -53,19 +53,19 @@
             <PhotoSortDestination>$(TargetDir)Modules/PhotoSort/</PhotoSortDestination>
             <MediaAnalyzerOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/</MediaAnalyzerOutput>
             <MediaAnalyzerDestination>$(TargetDir)Modules/MediaAnalyzer/</MediaAnalyzerDestination>
-            <WebpOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.WebP/bin/$(Configuration)/$(TargetFramework)/</WebpOutput>
-            <WebpDestination>$(TargetDir)Modules/Image.WebP/</WebpDestination>
+            <ExtendedImageFormatsOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/</ExtendedImageFormatsOutput>
+            <ExtendedImageFormatsDestination>$(TargetDir)Modules/Image.Formats.Extended/</ExtendedImageFormatsDestination>
         </PropertyGroup>
 
         <ItemGroup>
             <PhotoSortFiles Include="$(PhotoSortOutput)**/*" />
             <MediaAnalyzerFiles Include="$(MediaAnalyzerOutput)**/*" />
-            <WebpFiles Include="$(WebpOutput)**/*" />
+            <ExtendedImageFormatsFiles Include="$(ExtendedImageFormatsOutput)**/*" />
         </ItemGroup>
 
         <MakeDir Directories="$(PhotoSortDestination)" />
         <MakeDir Directories="$(MediaAnalyzerDestination)" />
-        <MakeDir Directories="$(WebpDestination)" />
+        <MakeDir Directories="$(ExtendedImageFormatsDestination)" />
 
         <Copy
             SourceFiles="@(PhotoSortFiles)"
@@ -78,8 +78,8 @@
             SkipUnchangedFiles="true" />
 
         <Copy
-            SourceFiles="@(WebpFiles)"
-            DestinationFiles="@(WebpFiles->'$(WebpDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SourceFiles="@(ExtendedImageFormatsFiles)"
+            DestinationFiles="@(ExtendedImageFormatsFiles->'$(ExtendedImageFormatsDestination)%(RecursiveDir)%(Filename)%(Extension)')"
             SkipUnchangedFiles="true" />
     </Target>
 
@@ -97,15 +97,15 @@
             <MediaAnalyzerPublishSource
                 Condition="'$(MediaAnalyzerPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/</MediaAnalyzerPublishSource>
 
-            <WebpPublishSource
-                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.WebP/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.Image.WebP.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.WebP/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</WebpPublishSource>
+            <ExtendedImageFormatsPublishSource
+                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.Image.Formats.Extended.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</ExtendedImageFormatsPublishSource>
 
-            <WebpPublishSource
-                Condition="'$(WebpPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.WebP/bin/$(Configuration)/$(TargetFramework)/</WebpPublishSource>
+            <ExtendedImageFormatsPublishSource
+                Condition="'$(ExtendedImageFormatsPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/</ExtendedImageFormatsPublishSource>
 
             <PhotoSortPublishDestination>$(PublishDir)Modules/PhotoSort/</PhotoSortPublishDestination>
             <MediaAnalyzerPublishDestination>$(PublishDir)Modules/MediaAnalyzer/</MediaAnalyzerPublishDestination>
-            <WebpPublishDestination>$(PublishDir)Modules/Image.WebP/</WebpPublishDestination>
+            <ExtendedImageFormatsPublishDestination>$(PublishDir)Modules/Image.Formats.Extended/</ExtendedImageFormatsPublishDestination>
         </PropertyGroup>
 
         <Error
@@ -117,18 +117,18 @@
             Text="Media-Analyzer-Modul wurde für den Publish nicht gefunden: $(MediaAnalyzerPublishSource)" />
 
         <Error
-            Condition="!Exists('$(WebpPublishSource)Elbwald.DesktopTools.Image.WebP.dll')"
-            Text="WebP-Modul wurde für den Publish nicht gefunden: $(WebpPublishSource)" />
+            Condition="!Exists('$(ExtendedImageFormatsPublishSource)Elbwald.DesktopTools.Image.Formats.Extended.dll')"
+            Text="Extended-Image-Formats-Modul wurde für den Publish nicht gefunden: $(ExtendedImageFormatsPublishSource)" />
 
         <ItemGroup>
             <PhotoSortPublishFiles Include="$(PhotoSortPublishSource)**/*" />
             <MediaAnalyzerPublishFiles Include="$(MediaAnalyzerPublishSource)**/*" />
-            <WebpPublishFiles Include="$(WebpPublishSource)**/*" />
+            <ExtendedImageFormatsPublishFiles Include="$(ExtendedImageFormatsPublishSource)**/*" />
         </ItemGroup>
 
         <MakeDir Directories="$(PhotoSortPublishDestination)" />
         <MakeDir Directories="$(MediaAnalyzerPublishDestination)" />
-        <MakeDir Directories="$(WebpPublishDestination)" />
+        <MakeDir Directories="$(ExtendedImageFormatsPublishDestination)" />
 
         <Copy
             SourceFiles="@(PhotoSortPublishFiles)"
@@ -141,8 +141,8 @@
             SkipUnchangedFiles="true" />
 
         <Copy
-            SourceFiles="@(WebpPublishFiles)"
-            DestinationFiles="@(WebpPublishFiles->'$(WebpPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SourceFiles="@(ExtendedImageFormatsPublishFiles)"
+            DestinationFiles="@(ExtendedImageFormatsPublishFiles->'$(ExtendedImageFormatsPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
             SkipUnchangedFiles="true" />
     </Target>
 

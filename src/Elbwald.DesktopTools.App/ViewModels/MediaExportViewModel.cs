@@ -1,10 +1,9 @@
 using System.Security.Cryptography;
-using Avalonia;
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.App.Services;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Exporting;
 using Elbwald.DesktopTools.Contracts.Media.Knowledge;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.MetadataExporting;
@@ -21,7 +20,6 @@ public partial class MediaExportViewModel : ObservableObject
     private const string SelectionSource = "Aktuelle Bibliotheksauswahl";
     private const string ProjectSource = "Projekt";
     private const string OriginalFormat = "Originalformat behalten";
-    private const string JpegFormat = "JPEG";
 
     private readonly IMediaIndexService _mediaIndex;
     private readonly IStorageSettingsStore _storageSettings;
@@ -30,6 +28,7 @@ public partial class MediaExportViewModel : ObservableObject
     private readonly IProjectService _projects;
     private readonly IMediaNamingTemplateEngine _naming;
     private readonly IMetadataExportService _metadataExport;
+    private readonly IImageExportRegistry _imageExportRegistry;
     private readonly IOperationHistoryStore _history;
     private readonly MediaExportSelectionContext _selectionContext;
 
@@ -44,9 +43,10 @@ public partial class MediaExportViewModel : ObservableObject
     [ObservableProperty] private string targetDirectory = string.Empty;
     [ObservableProperty] private string directoryPattern = "{year}/{month}";
     [ObservableProperty] private string fileNamePattern = "{date:yyyy-MM-dd}_{original}";
+    [ObservableProperty] private IReadOnlyList<string> formatOptions = [OriginalFormat];
     [ObservableProperty] private string selectedFormat = OriginalFormat;
     [ObservableProperty] private string selectedMaxEdge = "Originalgröße";
-    [ObservableProperty] private int jpegQuality = 92;
+    [ObservableProperty] private int exportQuality = 92;
     [ObservableProperty] private bool embedXmp;
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string statusMessage = "Quelle und Ziel wählen, dann eine Exportvorschau erzeugen.";
@@ -67,6 +67,7 @@ public partial class MediaExportViewModel : ObservableObject
         IProjectService projects,
         IMediaNamingTemplateEngine naming,
         IMetadataExportService metadataExport,
+        IImageExportRegistry imageExportRegistry,
         IOperationHistoryStore history,
         MediaExportSelectionContext selectionContext)
     {
@@ -77,6 +78,7 @@ public partial class MediaExportViewModel : ObservableObject
         _projects = projects ?? throw new ArgumentNullException(nameof(projects));
         _naming = naming ?? throw new ArgumentNullException(nameof(naming));
         _metadataExport = metadataExport ?? throw new ArgumentNullException(nameof(metadataExport));
+        _imageExportRegistry = imageExportRegistry ?? throw new ArgumentNullException(nameof(imageExportRegistry));
         _history = history ?? throw new ArgumentNullException(nameof(history));
         _selectionContext = selectionContext ?? throw new ArgumentNullException(nameof(selectionContext));
 
@@ -89,13 +91,13 @@ public partial class MediaExportViewModel : ObservableObject
         InsertFileTokenCommand = new RelayCommand<string>(token => InsertToken(token, isDirectory: false));
         ApplyPresetCommand = new RelayCommand<string>(ApplyPreset);
 
+        RefreshFormatOptions();
         _ = LoadSourceOptionsAsync();
     }
 
     public IReadOnlyList<string> SourceModes { get; } = [SelectionSource, ProjectSource];
-    public IReadOnlyList<string> FormatOptions { get; } = [OriginalFormat, JpegFormat];
     public IReadOnlyList<string> MaxEdgeOptions { get; } = ["Originalgröße", "1920 px", "2560 px", "3000 px", "3840 px"];
-    public IReadOnlyList<int> JpegQualityOptions { get; } = [80, 85, 90, 92, 95, 100];
+    public IReadOnlyList<int> QualityOptions { get; } = [80, 85, 90, 92, 95, 100];
 
     public IAsyncRelayCommand ChooseTargetCommand { get; }
     public IAsyncRelayCommand RefreshSourcesCommand { get; }
@@ -109,9 +111,13 @@ public partial class MediaExportViewModel : ObservableObject
     public bool IsInputEnabled => !IsBusy;
     public bool IsProjectSource => string.Equals(SelectedSourceMode, ProjectSource, StringComparison.Ordinal);
     public bool IsSelectionSource => !IsProjectSource;
-    public bool IsJpegExport => string.Equals(SelectedFormat, JpegFormat, StringComparison.Ordinal);
-    public bool IsOriginalExport => !IsJpegExport;
-    public bool CanResize => IsJpegExport;
+    public bool IsOriginalExport => string.Equals(SelectedFormat, OriginalFormat, StringComparison.Ordinal);
+    public bool CanResize => ResolveSelectedExporter()?.SupportsResize == true;
+    public bool CanSelectQuality => ResolveSelectedExporter()?.SupportsQuality == true;
+    public bool IsJpegExport => string.Equals(
+        ResolveSelectedExporter()?.FormatId,
+        AvaloniaJpegImageExportProvider.JpegFormatId,
+        StringComparison.OrdinalIgnoreCase);
     public string SelectionSummary => LibrarySelectionCount == 0
         ? "Keine Bibliotheksauswahl vorgemerkt"
         : $"{LibrarySelectionCount:N0} Medium/Medien aus der Bibliothek";
@@ -132,14 +138,15 @@ public partial class MediaExportViewModel : ObservableObject
     partial void OnFileNamePatternChanged(string value) => InvalidatePlan();
     partial void OnSelectedMaxEdgeChanged(string value) => InvalidatePlan();
     partial void OnEmbedXmpChanged(bool value) => InvalidatePlan();
-    partial void OnJpegQualityChanged(int value) => InvalidatePlan();
+    partial void OnExportQualityChanged(int value) => InvalidatePlan();
 
     partial void OnSelectedFormatChanged(string value)
     {
         OnPropertyChanged(nameof(IsJpegExport));
         OnPropertyChanged(nameof(IsOriginalExport));
         OnPropertyChanged(nameof(CanResize));
-        if (!IsJpegExport)
+        OnPropertyChanged(nameof(CanSelectQuality));
+        if (!CanResize)
         {
             _suppressInvalidate = true;
             SelectedMaxEdge = "Originalgröße";
@@ -254,6 +261,13 @@ public partial class MediaExportViewModel : ObservableObject
             _naming.Validate(FileNamePattern);
             ValidateDirectoryPattern(DirectoryPattern);
 
+            var selectedExporter = ResolveSelectedExporter();
+            if (!IsOriginalExport && selectedExporter is null)
+            {
+                StatusMessage = "Das gewählte Ausgabeformat ist nicht mehr aktiv oder verfügbar.";
+                return;
+            }
+
             var roots = await ResolveEndpointRootsAsync();
             var planned = new List<MediaExportPlanItemViewModel>();
             var destinations = new HashSet<string>(GetPathComparer());
@@ -329,7 +343,14 @@ public partial class MediaExportViewModel : ObservableObject
                     continue;
                 }
 
-                var extension = IsJpegExport ? ".jpg" : sourceInfo.Extension;
+                var exportRequest = selectedExporter is null
+                    ? null
+                    : CreateImageExportRequest(
+                        sourcePath,
+                        item.MediaType,
+                        facts?.PixelWidth,
+                        facts?.PixelHeight);
+                var extension = selectedExporter?.FileExtension ?? sourceInfo.Extension;
                 if (string.IsNullOrWhiteSpace(extension)) extension = ".bin";
                 var destinationRoot = Path.GetFullPath(TargetDirectory);
                 var destination = Path.GetFullPath(Path.Combine(destinationRoot, relativeDirectory, stem + extension));
@@ -344,39 +365,47 @@ public partial class MediaExportViewModel : ObservableObject
                 string? issue = null;
                 var effectiveEmbedXmp = EmbedXmp
                     && exportMetadata.HasAnyExportData
-                    && (IsJpegExport || IsJpegExtension(sourceInfo.Extension));
+                    && (IsJpegExport
+                        || (selectedExporter is null && IsJpegExtension(sourceInfo.Extension)));
                 var readyStatus = effectiveEmbedXmp
                     ? "Bereit · XMP"
-                    : EmbedXmp && !IsJpegExport && !IsJpegExtension(sourceInfo.Extension)
+                    : EmbedXmp && !effectiveEmbedXmp
                         ? "Bereit · ohne XMP"
                         : "Bereit";
 
-                if (IsJpegExport && item.MediaType != MediaFileType.Image)
+                if (selectedExporter is not null && exportRequest is not null)
                 {
-                    issue = "JPEG-Ausgabe ist nur für Bilder möglich.";
+                    var support = selectedExporter.CheckSupport(exportRequest);
+                    if (!support.IsSupported)
+                    {
+                        issue = support.Reason
+                            ?? $"{selectedExporter.DisplayName}-Export wird für diese Quelle nicht unterstützt.";
+                    }
                 }
-                else if (IsJpegExport && IsRawExtension(sourceInfo.Extension))
-                {
-                    issue = "RAW-Konvertierung ist in 0062 noch nicht freigegeben. Originalformat verwenden.";
-                }
-                else if (effectiveEmbedXmp && !IsJpegExport && exportMetadata.GpsMode == MetadataGpsMode.Remove)
+
+                if (issue is null
+                    && selectedExporter is null
+                    && effectiveEmbedXmp
+                    && exportMetadata.GpsMode == MetadataGpsMode.Remove
+                    && !IsJpegExtension(sourceInfo.Extension))
                 {
                     issue = "GPS kann bei bytegenauer Originalkopie nicht aus vorhandenen EXIF-Daten entfernt werden. JPEG-Neuexport verwenden.";
                 }
-                else if (PathEquals(sourcePath, destination))
+
+                if (issue is null && PathEquals(sourcePath, destination))
                 {
                     issue = "Quelle und Exportziel wären identisch.";
                 }
-                else if (File.Exists(destination) || Directory.Exists(destination))
+                else if (issue is null && (File.Exists(destination) || Directory.Exists(destination)))
                 {
                     issue = "Exportziel existiert bereits. Es wird niemals überschrieben.";
                 }
-                else if (!destinations.Add(destination))
+                else if (issue is null && !destinations.Add(destination))
                 {
                     issue = "Mehrere Medien würden dasselbe Exportziel erzeugen.";
                 }
 
-                if (issue is null && effectiveEmbedXmp && !IsJpegExport)
+                if (issue is null && effectiveEmbedXmp && selectedExporter is null)
                 {
                     var inspection = await _metadataExport.InspectAsync(sourcePath);
                     if (inspection.EmbeddedXmpExists && !inspection.EmbeddedXmpElbwaldManaged)
@@ -663,10 +692,46 @@ public partial class MediaExportViewModel : ObservableObject
             }
             else
             {
-                firstTemp = partialBase + ".converted.jpg";
-                await ConvertToJpegAsync(item, firstTemp, cancellationToken);
+                var exporter = ResolveSelectedExporter()
+                    ?? throw new IOException("Das gewählte Ausgabeformat ist nicht mehr aktiv oder verfügbar.");
+                var request = CreateImageExportRequest(
+                    item.SourcePath,
+                    item.MediaType,
+                    item.PixelWidth,
+                    item.PixelHeight);
+                var support = exporter.CheckSupport(request);
+                if (!support.IsSupported)
+                {
+                    throw new NotSupportedException(
+                        support.Reason
+                        ?? $"{exporter.DisplayName}-Export wird für diese Quelle nicht unterstützt.");
+                }
+
+                firstTemp = partialBase + ".converted" + exporter.FileExtension;
+                await using (var output = new FileStream(
+                    firstTemp,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    128 * 1024,
+                    FileOptions.WriteThrough | FileOptions.Asynchronous))
+                {
+                    await exporter.ExportAsync(request, output, cancellationToken);
+                    await output.FlushAsync(cancellationToken);
+                    output.Flush(flushToDisk: true);
+                }
+
                 if (item.EmbedXmp)
                 {
+                    if (!string.Equals(
+                            exporter.FormatId,
+                            AvaloniaJpegImageExportProvider.JpegFormatId,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new NotSupportedException(
+                            "XMP-Einbettung ist für das gewählte Exportformat noch nicht verfügbar.");
+                    }
+
                     finalTemp = partialBase + ".metadata.jpg";
                     var write = await _metadataExport.WriteEmbeddedCopyAsync(firstTemp, finalTemp, item.Metadata, cancellationToken);
                     if (!write.Success)
@@ -715,44 +780,6 @@ public partial class MediaExportViewModel : ObservableObject
         {
             TryDelete(firstTemp);
             TryDelete(finalTemp);
-        }
-    }
-
-    private async Task ConvertToJpegAsync(MediaExportPlanItemViewModel item, string outputPath, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var maxEdge = ParseMaxEdge();
-        await using var source = new FileStream(item.SourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, FileOptions.SequentialScan | FileOptions.Asynchronous);
-
-        Bitmap bitmap;
-        if (maxEdge > 0 && item.PixelWidth is > 0 && item.PixelHeight is > 0
-            && Math.Max(item.PixelWidth.Value, item.PixelHeight.Value) > maxEdge)
-        {
-            bitmap = item.PixelWidth.Value >= item.PixelHeight.Value
-                ? Bitmap.DecodeToWidth(source, maxEdge, BitmapInterpolationMode.HighQuality)
-                : Bitmap.DecodeToHeight(source, maxEdge, BitmapInterpolationMode.HighQuality);
-        }
-        else
-        {
-            bitmap = new Bitmap(source);
-            if (maxEdge > 0 && Math.Max(bitmap.PixelSize.Width, bitmap.PixelSize.Height) > maxEdge)
-            {
-                var scale = maxEdge / (double)Math.Max(bitmap.PixelSize.Width, bitmap.PixelSize.Height);
-                var size = new PixelSize(
-                    Math.Max(1, (int)Math.Round(bitmap.PixelSize.Width * scale)),
-                    Math.Max(1, (int)Math.Round(bitmap.PixelSize.Height * scale)));
-                var scaled = bitmap.CreateScaledBitmap(size, BitmapInterpolationMode.HighQuality);
-                bitmap.Dispose();
-                bitmap = scaled;
-            }
-        }
-
-        using (bitmap)
-        {
-            await using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.WriteThrough | FileOptions.Asynchronous);
-            bitmap.Save(output, new JpegBitmapEncoderOptions { Quality = Math.Clamp(JpegQuality, 1, 100) });
-            await output.FlushAsync(cancellationToken);
-            output.Flush(flushToDisk: true);
         }
     }
 
@@ -935,9 +962,53 @@ public partial class MediaExportViewModel : ObservableObject
 
     private void Cancel() => _executionCts?.Cancel();
 
+    private void RefreshFormatOptions()
+    {
+        FormatOptions = [
+            OriginalFormat,
+            .. _imageExportRegistry.Providers
+                .Select(provider => provider.DisplayName)
+                .Distinct(StringComparer.CurrentCultureIgnoreCase)
+        ];
+
+        if (!FormatOptions.Contains(SelectedFormat, StringComparer.CurrentCultureIgnoreCase))
+        {
+            SelectedFormat = OriginalFormat;
+        }
+    }
+
+    private IImageExportProvider? ResolveSelectedExporter()
+    {
+        if (IsOriginalExport)
+        {
+            return null;
+        }
+
+        return _imageExportRegistry.Providers.FirstOrDefault(
+            provider => string.Equals(
+                provider.DisplayName,
+                SelectedFormat,
+                StringComparison.CurrentCultureIgnoreCase));
+    }
+
+    private ImageExportRequest CreateImageExportRequest(
+        string sourcePath,
+        MediaFileType mediaType,
+        int? pixelWidth,
+        int? pixelHeight)
+    {
+        return new ImageExportRequest(
+            sourcePath,
+            mediaType,
+            pixelWidth,
+            pixelHeight,
+            CanResize ? ParseMaxEdge() : null,
+            CanSelectQuality ? ExportQuality : null);
+    }
+
     private int ParseMaxEdge()
     {
-        if (!IsJpegExport || SelectedMaxEdge.StartsWith("Original", StringComparison.OrdinalIgnoreCase)) return 0;
+        if (!CanResize || SelectedMaxEdge.StartsWith("Original", StringComparison.OrdinalIgnoreCase)) return 0;
         var token = SelectedMaxEdge.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         return int.TryParse(token, out var parsed) ? Math.Clamp(parsed, 320, 12000) : 0;
     }
@@ -950,17 +1021,6 @@ public partial class MediaExportViewModel : ObservableObject
     private static bool IsJpegExtension(string extension) =>
         string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase)
         || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsRawExtension(string extension) =>
-        extension.Equals(".arw", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".dng", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".cr2", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".cr3", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".nef", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".raf", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".orf", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".rw2", StringComparison.OrdinalIgnoreCase)
-        || extension.Equals(".pef", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsUnderRoot(string root, string candidate)
     {

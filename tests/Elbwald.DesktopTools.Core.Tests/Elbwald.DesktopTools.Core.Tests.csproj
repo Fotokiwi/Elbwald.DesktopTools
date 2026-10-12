@@ -21,7 +21,7 @@
         <ProjectReference Include="../../src/Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
         <ProjectReference Include="../../src/Elbwald.DesktopTools.Core/Elbwald.DesktopTools.Core.csproj" />
         <ProjectReference Include="../../src/Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj" />
-        <ProjectReference Include="../../src/Modules/Elbwald.DesktopTools.Image.WebP/Elbwald.DesktopTools.Image.WebP.csproj"
+        <ProjectReference Include="../../src/Modules/Elbwald.DesktopTools.Image.Formats.Extended/Elbwald.DesktopTools.Image.Formats.Extended.csproj"
                           ReferenceOutputAssembly="false" />
         <ProjectReference Include="../Fixtures/Elbwald.DesktopTools.TestModule/Elbwald.DesktopTools.TestModule.csproj"
                           ReferenceOutputAssembly="false" />
@@ -31,17 +31,17 @@
         <PropertyGroup>
             <TestModuleOutput>$(MSBuildProjectDirectory)/../Fixtures/Elbwald.DesktopTools.TestModule/bin/$(Configuration)/$(TargetFramework)/</TestModuleOutput>
             <TestModuleDestination>$(TargetDir)TestModules/TestModule/</TestModuleDestination>
-            <WebpModuleOutput>$(MSBuildProjectDirectory)/../../src/Modules/Elbwald.DesktopTools.Image.WebP/bin/$(Configuration)/$(TargetFramework)/</WebpModuleOutput>
-            <WebpModuleDestination>$(TargetDir)TestModules/Image.WebP/</WebpModuleDestination>
+            <ExtendedImageFormatsModuleOutput>$(MSBuildProjectDirectory)/../../src/Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/</ExtendedImageFormatsModuleOutput>
+            <ExtendedImageFormatsModuleDestination>$(TargetDir)TestModules/Image.Formats.Extended/</ExtendedImageFormatsModuleDestination>
         </PropertyGroup>
 
         <ItemGroup>
             <TestModuleFiles Include="$(TestModuleOutput)**/*" />
-            <WebpModuleFiles Include="$(WebpModuleOutput)**/*" />
+            <ExtendedImageFormatsModuleFiles Include="$(ExtendedImageFormatsModuleOutput)**/*" />
         </ItemGroup>
 
         <MakeDir Directories="$(TestModuleDestination)" />
-        <MakeDir Directories="$(WebpModuleDestination)" />
+        <MakeDir Directories="$(ExtendedImageFormatsModuleDestination)" />
 
         <Copy
             SourceFiles="@(TestModuleFiles)"
@@ -49,8 +49,8 @@
             SkipUnchangedFiles="true" />
 
         <Copy
-            SourceFiles="@(WebpModuleFiles)"
-            DestinationFiles="@(WebpModuleFiles->'$(WebpModuleDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SourceFiles="@(ExtendedImageFormatsModuleFiles)"
+            DestinationFiles="@(ExtendedImageFormatsModuleFiles->'$(ExtendedImageFormatsModuleDestination)%(RecursiveDir)%(Filename)%(Extension)')"
             SkipUnchangedFiles="true" />
     </Target>
 

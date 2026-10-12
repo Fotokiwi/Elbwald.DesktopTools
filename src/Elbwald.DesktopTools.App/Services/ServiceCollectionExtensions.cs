@@ -5,6 +5,8 @@ using Elbwald.DesktopTools.Contracts.LibraryHealth;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Importing;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
+using Elbwald.DesktopTools.Contracts.Media.Exporting;
+using Elbwald.DesktopTools.Contracts.Media.Metadata;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.MetadataExporting;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
@@ -25,6 +27,8 @@ using Elbwald.DesktopTools.Core.LibraryHealth;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.Media.Importing;
 using Elbwald.DesktopTools.Core.Media.Formats;
+using Elbwald.DesktopTools.Core.Media.Exporting;
+using Elbwald.DesktopTools.Core.Media.Metadata;
 using Elbwald.DesktopTools.Core.Media.MetadataEditing;
 using Elbwald.DesktopTools.Core.Media.MetadataExporting;
 using Elbwald.DesktopTools.Core.MediaIndex;
@@ -98,6 +102,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMediaTypeDetector, ExtensionMediaTypeDetector>();
         services.AddSingleton<IMediaScanner, FileSystemMediaScanner>();
 
+        services.AddSingleton<AvaloniaJpegImageExportProvider>();
+        services.AddSingleton<AvaloniaPngImageExportProvider>();
+        services.AddSingleton<IImageExportRegistry>(
+            serviceProvider =>
+                new ImageExportRegistry(
+                    serviceProvider.GetRequiredService<IExtensionRegistry>(),
+                    [
+                        serviceProvider.GetRequiredService<AvaloniaJpegImageExportProvider>(),
+                        serviceProvider.GetRequiredService<AvaloniaPngImageExportProvider>()
+                    ]));
+
         services.AddSingleton(
             serviceProvider =>
             {
@@ -115,12 +130,25 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IMediaAnalysisCache, SqliteMediaAnalysisCache>();
         services.AddSingleton<MetadataExtractorImageMetadataReader>();
-
-        services.AddSingleton<IImageMetadataReader>(
+        services.AddSingleton(
             serviceProvider =>
                 new CachedImageMetadataReader(
                     serviceProvider.GetRequiredService<MetadataExtractorImageMetadataReader>(),
                     serviceProvider.GetRequiredService<IMediaAnalysisCache>()));
+        services.AddSingleton(
+            serviceProvider =>
+                new CoreImageMetadataProvider(
+                    serviceProvider.GetRequiredService<CachedImageMetadataReader>(),
+                    serviceProvider.GetRequiredService<CoreImageFormatProvider>()));
+        services.AddSingleton<IImageMetadataRegistry>(
+            serviceProvider =>
+                new ImageMetadataRegistry(
+                    serviceProvider.GetRequiredService<IExtensionRegistry>(),
+                    [serviceProvider.GetRequiredService<CoreImageMetadataProvider>()]));
+        services.AddSingleton<RegistryImageMetadataReader>();
+        services.AddSingleton<IImageMetadataReader>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<RegistryImageMetadataReader>());
 
         services.AddSingleton<IMediaAnalyzer, MediaAnalyzerService>();
         services.AddSingleton<IMediaAnalysisHistoryStore, JsonMediaAnalysisHistoryStore>();

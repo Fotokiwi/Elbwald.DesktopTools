@@ -5,11 +5,11 @@ namespace Elbwald.DesktopTools.Core.Media;
 public sealed class CachedImageMetadataReader
     : IImageMetadataReader
 {
-    private readonly MetadataExtractorImageMetadataReader _inner;
+    private readonly IImageMetadataReader _inner;
     private readonly IMediaAnalysisCache _cache;
 
     public CachedImageMetadataReader(
-        MetadataExtractorImageMetadataReader inner,
+        IImageMetadataReader inner,
         IMediaAnalysisCache cache)
     {
         ArgumentNullException.ThrowIfNull(inner);

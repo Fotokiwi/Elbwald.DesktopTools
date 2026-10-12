@@ -18,15 +18,56 @@ public sealed class JsonExtensionActivationServiceTests
             var paths = new TestAppPaths(root);
             var service = new JsonExtensionActivationService(paths);
 
-            Assert.True(service.IsEnabled("elbwald.image.webp"));
-            Assert.True(service.SetEnabled("elbwald.image.webp", false));
-            Assert.False(service.IsEnabled("elbwald.image.webp"));
+            Assert.True(service.IsEnabled("elbwald.image.formats.extended"));
+            Assert.True(service.SetEnabled("elbwald.image.formats.extended", false));
+            Assert.False(service.IsEnabled("elbwald.image.formats.extended"));
 
             var reloaded = new JsonExtensionActivationService(paths);
 
-            Assert.False(reloaded.IsEnabled("ELBWALD.IMAGE.WEBP"));
-            Assert.True(reloaded.SetEnabled("elbwald.image.webp", true));
-            Assert.True(reloaded.IsEnabled("elbwald.image.webp"));
+            Assert.False(reloaded.IsEnabled("ELBWALD.IMAGE.FORMATS.EXTENDED"));
+            Assert.True(reloaded.SetEnabled("elbwald.image.formats.extended", true));
+            Assert.True(reloaded.IsEnabled("elbwald.image.formats.extended"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+
+    [Fact]
+    public void Constructor_LegacyDisabledWebp_PreservesDisabledStateForExtendedImageFormats()
+    {
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            "elbwald-extension-activation-tests",
+            Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var paths = new TestAppPaths(root);
+            Directory.CreateDirectory(paths.ConfigDirectory);
+            File.WriteAllText(
+                Path.Combine(paths.ConfigDirectory, "extensions.json"),
+                """
+                {
+                  "disabledExtensionIds": [
+                    "elbwald.image.webp"
+                  ]
+                }
+                """);
+
+            var service = new JsonExtensionActivationService(paths);
+
+            Assert.False(service.IsEnabled("elbwald.image.formats.extended"));
+            Assert.True(service.IsEnabled("elbwald.image.webp"));
+            Assert.True(service.SetEnabled("elbwald.image.formats.extended", true));
+
+            var reloaded = new JsonExtensionActivationService(paths);
+            Assert.True(reloaded.IsEnabled("elbwald.image.formats.extended"));
         }
         finally
         {

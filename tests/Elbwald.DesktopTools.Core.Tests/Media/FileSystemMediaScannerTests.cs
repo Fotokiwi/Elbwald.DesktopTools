@@ -102,7 +102,7 @@ public sealed class FileSystemMediaScannerTests
             "one");
 
         directory.CreateFile(
-            "nested/deeper/two.tiff",
+            "nested/deeper/two.jpeg",
             "two");
 
         var result =

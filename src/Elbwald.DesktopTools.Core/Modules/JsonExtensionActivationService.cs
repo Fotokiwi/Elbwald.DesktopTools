@@ -8,6 +8,8 @@ namespace Elbwald.DesktopTools.Core.Modules;
 public sealed class JsonExtensionActivationService : IExtensionActivationService
 {
     private const string FileName = "extensions.json";
+    private const string LegacyWebpExtensionId = "elbwald.image.webp";
+    private const string ExtendedImageFormatsExtensionId = "elbwald.image.formats.extended";
 
     private static readonly JsonSerializerOptions JsonOptions =
         new()
@@ -26,6 +28,11 @@ public sealed class JsonExtensionActivationService : IExtensionActivationService
 
         _configPath = Path.Combine(appPaths.ConfigDirectory, FileName);
         _disabledIds = LoadDisabledIds(_configPath);
+
+        if (MigrateLegacyExtensionIds(_disabledIds))
+        {
+            TryPersistMigration();
+        }
     }
 
     public event EventHandler<ExtensionActivationChangedEventArgs>? ActivationChanged;
@@ -84,6 +91,37 @@ public sealed class JsonExtensionActivationService : IExtensionActivationService
         }
 
         return true;
+    }
+
+    private static bool MigrateLegacyExtensionIds(HashSet<string> disabledIds)
+    {
+        // Patch 0101 replaces the former standalone WebP package with the shared
+        // Extended Image Formats package. Preserve a user's explicit "disabled"
+        // choice while removing the obsolete id so a later re-enable persists.
+        if (!disabledIds.Remove(LegacyWebpExtensionId))
+        {
+            return false;
+        }
+
+        disabledIds.Add(ExtendedImageFormatsExtensionId);
+        return true;
+    }
+
+    private void TryPersistMigration()
+    {
+        try
+        {
+            Persist(_disabledIds);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine(
+                "Extension-ID-Migration konnte nicht gespeichert werden; "
+                + "der aktuelle Lauf verwendet dennoch den migrierten Zustand: "
+                + exception.Message);
+        }
     }
 
     private void Persist(IReadOnlyCollection<string> disabledIds)

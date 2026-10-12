@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GenerateDependencyFile>true</GenerateDependencyFile>
+
+        <!--
+          Extended image formats are loaded from their own module directory.
+          Copy all NuGet runtime dependencies so AssemblyDependencyResolver can
+          resolve Magick.NET, ImageMagick and MetadataExtractor locally.
+        -->
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+        <!-- Elbwald currently targets Windows x64 and Linux x64. -->
+        <MagickCopyNativeWindows>true</MagickCopyNativeWindows>
+        <MagickCopyNativeLinux>true</MagickCopyNativeLinux>
+        <MagickCopyNativeLinuxMusl>false</MagickCopyNativeLinuxMusl>
+        <MagickCopyNativeMacOS>false</MagickCopyNativeMacOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MetadataExtractor" Version="2.9.3" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+        <PackageReference Include="Magick.NET-Q8-x64" Version="14.17.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="module.json"
+              CopyToOutputDirectory="PreserveNewest"
+              CopyToPublishDirectory="Never" />
+    </ItemGroup>
+
+</Project>
