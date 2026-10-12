@@ -7,6 +7,7 @@ using Elbwald.DesktopTools.Contracts.Media.Importing;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
 using Elbwald.DesktopTools.Contracts.Media.Exporting;
 using Elbwald.DesktopTools.Contracts.Media.Metadata;
+using Elbwald.DesktopTools.Contracts.Media.Thumbnailing;
 using Elbwald.DesktopTools.Contracts.Media.MetadataEditing;
 using Elbwald.DesktopTools.Contracts.Media.MetadataExporting;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
@@ -20,6 +21,7 @@ using Elbwald.DesktopTools.Contracts.Paths;
 using Elbwald.DesktopTools.Contracts.Projects;
 using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Contracts.Storage;
+using Elbwald.DesktopTools.Contracts.Settings;
 using Elbwald.DesktopTools.Core.Diagnostics;
 using Elbwald.DesktopTools.Core.FileOperations;
 using Elbwald.DesktopTools.Core.Journaling;
@@ -29,12 +31,14 @@ using Elbwald.DesktopTools.Core.Media.Importing;
 using Elbwald.DesktopTools.Core.Media.Formats;
 using Elbwald.DesktopTools.Core.Media.Exporting;
 using Elbwald.DesktopTools.Core.Media.Metadata;
+using Elbwald.DesktopTools.Core.Media.Thumbnailing;
 using Elbwald.DesktopTools.Core.Media.MetadataEditing;
 using Elbwald.DesktopTools.Core.Media.MetadataExporting;
 using Elbwald.DesktopTools.Core.MediaIndex;
 using Elbwald.DesktopTools.Core.Media.Naming;
 using Elbwald.DesktopTools.Core.OperationHistory;
 using Elbwald.DesktopTools.Core.Modules;
+using Elbwald.DesktopTools.Core.Navigation;
 using Elbwald.DesktopTools.Core.Paths;
 using Elbwald.DesktopTools.Core.Projects;
 using Elbwald.DesktopTools.Core.Recovery;
@@ -70,6 +74,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModuleLoadReport>(moduleLoadReport);
         services.AddSingleton<IExtensionActivationService>(extensionActivationService);
         services.AddSingleton<IExtensionRegistry, ExtensionRegistry>();
+        services.AddSingleton<INavigationContributionRegistry, NavigationContributionRegistry>();
+        services.AddSingleton<ISettingsContributionRegistry, SettingsContributionRegistry>();
+        services.AddSingleton<ISettingsContributionContentFactory, SettingsContributionContentFactory>();
 
         services.AddSingleton<IAppPaths>(appPaths);
         services.AddSingleton<WindowPlacementStore>();
@@ -149,6 +156,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IImageMetadataReader>(
             serviceProvider =>
                 serviceProvider.GetRequiredService<RegistryImageMetadataReader>());
+
+        services.AddSingleton<AvaloniaBaseImageThumbnailProvider>();
+        services.AddSingleton<IImageThumbnailRegistry>(
+            serviceProvider =>
+                new ImageThumbnailRegistry(
+                    serviceProvider.GetRequiredService<IExtensionRegistry>(),
+                    [serviceProvider.GetRequiredService<AvaloniaBaseImageThumbnailProvider>()]));
 
         services.AddSingleton<IMediaAnalyzer, MediaAnalyzerService>();
         services.AddSingleton<IMediaAnalysisHistoryStore, JsonMediaAnalysisHistoryStore>();

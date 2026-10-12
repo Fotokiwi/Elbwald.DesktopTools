@@ -2,11 +2,13 @@ using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Exporting;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
 using Elbwald.DesktopTools.Contracts.Media.Metadata;
+using Elbwald.DesktopTools.Contracts.Media.Thumbnailing;
 using Elbwald.DesktopTools.Contracts.Modules;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.Media.Exporting;
 using Elbwald.DesktopTools.Core.Media.Formats;
 using Elbwald.DesktopTools.Core.Media.Metadata;
+using Elbwald.DesktopTools.Core.Media.Thumbnailing;
 using Elbwald.DesktopTools.Core.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -23,7 +25,7 @@ public sealed class ExtendedImageFormatsIntegrationTests
         "UklGRhwAAABXRUJQVlA4TA8AAAAvAYAAAAcQ/Y/+ByKi/wEA";
 
     [Fact]
-    public async Task LoadExtendedImageFormats_EnablesDeclaredFormatsAndWebpCapabilitiesWithoutToolModule()
+    public async Task LoadExtendedImageFormats_EnablesWebpAndTiffVerticalCapabilitiesWithoutToolModule()
     {
         using var environment = ExtendedImageFormatsModuleEnvironment.Create();
         var activation = new TestActivationService();
@@ -50,6 +52,7 @@ public sealed class ExtendedImageFormatsIntegrationTests
         var metadataRegistry = serviceProvider.GetRequiredService<IImageMetadataRegistry>();
         var metadataReader = serviceProvider.GetRequiredService<IImageMetadataReader>();
         var exportRegistry = serviceProvider.GetRequiredService<IImageExportRegistry>();
+        var thumbnailRegistry = serviceProvider.GetRequiredService<IImageThumbnailRegistry>();
         var scanner = serviceProvider.GetRequiredService<IMediaScanner>();
 
         Assert.True(extensionRegistry.HasCapability(MediaCapabilityIds.FormatProvider));
@@ -61,8 +64,13 @@ public sealed class ExtendedImageFormatsIntegrationTests
         Assert.True(extensionRegistry.HasCapability("media.image.jpeg2000.detect"));
         Assert.True(extensionRegistry.HasCapability(MetadataCapabilityIds.ImageReaderProvider));
         Assert.True(extensionRegistry.HasCapability("media.image.webp.metadata.read"));
+        Assert.True(extensionRegistry.HasCapability("media.image.tiff.metadata.read"));
         Assert.True(extensionRegistry.HasCapability(ExportCapabilityIds.ImageExporterProvider));
         Assert.True(extensionRegistry.HasCapability("media.image.webp.export"));
+        Assert.True(extensionRegistry.HasCapability("media.image.tiff.export"));
+        Assert.True(extensionRegistry.HasCapability(ThumbnailCapabilityIds.ImageProvider));
+        Assert.True(extensionRegistry.HasCapability("media.image.webp.thumbnail"));
+        Assert.True(extensionRegistry.HasCapability("media.image.tiff.thumbnail"));
 
         var webpExtension = Assert.Single(
             extensionRegistry.FindExtensionsByCapability("media.image.webp.metadata.read"));
@@ -100,6 +108,14 @@ public sealed class ExtendedImageFormatsIntegrationTests
         Assert.Equal(2, metadata.PixelWidth);
         Assert.Equal(3, metadata.PixelHeight);
 
+        var webpThumbnailProvider = Assert.Single(thumbnailRegistry.FindProviders(scannedFile));
+        Assert.Equal("extended.magicknet.webp-tiff", webpThumbnailProvider.ProviderId);
+
+        var webpThumbnail = await webpThumbnailProvider.CreateAsync(scannedFile, 96);
+        Assert.True(webpThumbnail.IsSuccessful, webpThumbnail.ErrorMessage);
+        Assert.Equal("image/png", webpThumbnail.MimeType);
+        Assert.True(HasPngSignature(webpThumbnail.EncodedImage!));
+
         var exporter = Assert.IsAssignableFrom<IImageExportProvider>(
             exportRegistry.FindByFormatId("image/webp"));
         Assert.Equal("webp.magicknet", exporter.ProviderId);
@@ -133,10 +149,57 @@ public sealed class ExtendedImageFormatsIntegrationTests
         var roundtripMetadata = Assert.IsType<ImageMetadata>(exportedMetadata.Metadata);
         Assert.Equal(2, roundtripMetadata.PixelWidth);
         Assert.Equal(3, roundtripMetadata.PixelHeight);
+
+        var tiffExporter = Assert.IsAssignableFrom<IImageExportProvider>(
+            exportRegistry.FindByFormatId("image/tiff"));
+        Assert.Equal("tiff.magicknet", tiffExporter.ProviderId);
+        Assert.Equal(".tiff", tiffExporter.FileExtension);
+        Assert.True(tiffExporter.SupportsResize);
+        Assert.False(tiffExporter.SupportsQuality);
+
+        var tiffRequest = new ImageExportRequest(
+            mediaPath,
+            MediaFileType.Image,
+            metadata.PixelWidth,
+            metadata.PixelHeight,
+            MaxEdge: null,
+            Quality: null);
+
+        Assert.True(tiffExporter.CheckSupport(tiffRequest).IsSupported);
+
+        await using var tiffEncoded = new MemoryStream();
+        await tiffExporter.ExportAsync(tiffRequest, tiffEncoded);
+
+        var tiffBytes = tiffEncoded.ToArray();
+        Assert.True(tiffBytes.Length > 20);
+        Assert.True(HasTiffSignature(tiffBytes));
+
+        var tiffPath = environment.CreateFile("roundtrip.tiff", tiffBytes);
+        var tiffFile = CreateImageMediaFile(tiffPath);
+
+        Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType(tiffPath));
+
+        var tiffReader = Assert.Single(metadataRegistry.FindReaders(tiffFile));
+        Assert.Equal("tiff.metadata-extractor-magick", tiffReader.ProviderId);
+
+        var tiffMetadataResult = await metadataReader.ReadAsync(tiffFile);
+        Assert.True(tiffMetadataResult.IsSuccessful, tiffMetadataResult.ErrorMessage);
+
+        var tiffMetadata = Assert.IsType<ImageMetadata>(tiffMetadataResult.Metadata);
+        Assert.Equal(2, tiffMetadata.PixelWidth);
+        Assert.Equal(3, tiffMetadata.PixelHeight);
+
+        var tiffThumbnailProvider = Assert.Single(thumbnailRegistry.FindProviders(tiffFile));
+        Assert.Equal("extended.magicknet.webp-tiff", tiffThumbnailProvider.ProviderId);
+
+        var tiffThumbnail = await tiffThumbnailProvider.CreateAsync(tiffFile, 96);
+        Assert.True(tiffThumbnail.IsSuccessful, tiffThumbnail.ErrorMessage);
+        Assert.Equal("image/png", tiffThumbnail.MimeType);
+        Assert.True(HasPngSignature(tiffThumbnail.EncodedImage!));
     }
 
     [Fact]
-    public async Task ActivationToggle_RemovesAndRestoresExtendedFormatsAndWebpCapabilitiesImmediately()
+    public async Task ActivationToggle_RemovesAndRestoresExtendedFormatsWebpAndTiffCapabilitiesImmediately()
     {
         using var environment = ExtendedImageFormatsModuleEnvironment.Create();
         var activation = new TestActivationService();
@@ -159,14 +222,35 @@ public sealed class ExtendedImageFormatsIntegrationTests
         var metadataRegistry = serviceProvider.GetRequiredService<IImageMetadataRegistry>();
         var metadataReader = serviceProvider.GetRequiredService<IImageMetadataReader>();
         var exportRegistry = serviceProvider.GetRequiredService<IImageExportRegistry>();
+        var thumbnailRegistry = serviceProvider.GetRequiredService<IImageThumbnailRegistry>();
 
         var mediaPath = environment.CreateWebpFile("toggle.webp");
         var file = CreateImageMediaFile(mediaPath);
 
+        var tiffExporter = Assert.IsAssignableFrom<IImageExportProvider>(
+            exportRegistry.FindByFormatId("image/tiff"));
+        var tiffRequest = new ImageExportRequest(
+            mediaPath,
+            MediaFileType.Image,
+            PixelWidth: 2,
+            PixelHeight: 3,
+            MaxEdge: null,
+            Quality: null);
+
+        await using var tiffEncoded = new MemoryStream();
+        await tiffExporter.ExportAsync(tiffRequest, tiffEncoded);
+        var tiffPath = environment.CreateFile("toggle.tiff", tiffEncoded.ToArray());
+        var tiffFile = CreateImageMediaFile(tiffPath);
+
         Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType(mediaPath));
         Assert.Single(metadataRegistry.FindReaders(file));
+        Assert.Single(metadataRegistry.FindReaders(tiffFile));
         Assert.NotNull(exportRegistry.FindByFormatId("image/webp"));
+        Assert.NotNull(exportRegistry.FindByFormatId("image/tiff"));
+        Assert.Single(thumbnailRegistry.FindProviders(file));
+        Assert.Single(thumbnailRegistry.FindProviders(tiffFile));
         Assert.True((await metadataReader.ReadAsync(file)).IsSuccessful);
+        Assert.True((await metadataReader.ReadAsync(tiffFile)).IsSuccessful);
         Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType("sample.tiff"));
         Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType("sample.heic"));
         Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType("sample.avif"));
@@ -176,14 +260,22 @@ public sealed class ExtendedImageFormatsIntegrationTests
 
         Assert.False(extensionRegistry.HasCapability("media.image.webp.detect"));
         Assert.False(extensionRegistry.HasCapability("media.image.webp.metadata.read"));
+        Assert.False(extensionRegistry.HasCapability("media.image.tiff.metadata.read"));
         Assert.False(extensionRegistry.HasCapability("media.image.webp.export"));
+        Assert.False(extensionRegistry.HasCapability("media.image.tiff.export"));
+        Assert.False(extensionRegistry.HasCapability("media.image.webp.thumbnail"));
+        Assert.False(extensionRegistry.HasCapability("media.image.tiff.thumbnail"));
         Assert.Equal(MediaFileType.Unknown, formatRegistry.DetectMediaType(mediaPath));
         Assert.Equal(MediaFileType.Unknown, formatRegistry.DetectMediaType("sample.tiff"));
         Assert.Equal(MediaFileType.Unknown, formatRegistry.DetectMediaType("sample.heic"));
         Assert.Equal(MediaFileType.Unknown, formatRegistry.DetectMediaType("sample.avif"));
         Assert.Equal(MediaFileType.Unknown, formatRegistry.DetectMediaType("sample.jp2"));
         Assert.Empty(metadataRegistry.FindReaders(file));
+        Assert.Empty(metadataRegistry.FindReaders(tiffFile));
         Assert.Null(exportRegistry.FindByFormatId("image/webp"));
+        Assert.Null(exportRegistry.FindByFormatId("image/tiff"));
+        Assert.Empty(thumbnailRegistry.FindProviders(file));
+        Assert.Empty(thumbnailRegistry.FindProviders(tiffFile));
 
         var disabledResult = await metadataReader.ReadAsync(file);
         Assert.Equal(ImageMetadataReadState.UnsupportedFormat, disabledResult.State);
@@ -196,8 +288,41 @@ public sealed class ExtendedImageFormatsIntegrationTests
         Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType("sample.avif"));
         Assert.Equal(MediaFileType.Image, formatRegistry.DetectMediaType("sample.jp2"));
         Assert.Single(metadataRegistry.FindReaders(file));
+        Assert.Single(metadataRegistry.FindReaders(tiffFile));
         Assert.NotNull(exportRegistry.FindByFormatId("image/webp"));
+        Assert.NotNull(exportRegistry.FindByFormatId("image/tiff"));
+        Assert.Single(thumbnailRegistry.FindProviders(file));
+        Assert.Single(thumbnailRegistry.FindProviders(tiffFile));
         Assert.True((await metadataReader.ReadAsync(file)).IsSuccessful);
+        Assert.True((await metadataReader.ReadAsync(tiffFile)).IsSuccessful);
+    }
+
+    private static bool HasPngSignature(IReadOnlyList<byte> bytes)
+    {
+        byte[] signature = [137, 80, 78, 71, 13, 10, 26, 10];
+
+        return bytes.Count >= signature.Length
+               && signature.Select((value, index) => bytes[index] == value).All(matches => matches);
+    }
+
+    private static bool HasTiffSignature(IReadOnlyList<byte> bytes)
+    {
+        if (bytes.Count < 4)
+        {
+            return false;
+        }
+
+        var littleEndian = bytes[0] == (byte)'I'
+                           && bytes[1] == (byte)'I'
+                           && bytes[2] == 42
+                           && bytes[3] == 0;
+
+        var bigEndian = bytes[0] == (byte)'M'
+                        && bytes[1] == (byte)'M'
+                        && bytes[2] == 0
+                        && bytes[3] == 42;
+
+        return littleEndian || bigEndian;
     }
 
     private static void AddHostServices(
@@ -226,6 +351,11 @@ public sealed class ExtendedImageFormatsIntegrationTests
         services.AddSingleton<IImageExportRegistry>(
             serviceProvider =>
                 new ImageExportRegistry(
+                    serviceProvider.GetRequiredService<IExtensionRegistry>(),
+                    []));
+        services.AddSingleton<IImageThumbnailRegistry>(
+            serviceProvider =>
+                new ImageThumbnailRegistry(
                     serviceProvider.GetRequiredService<IExtensionRegistry>(),
                     []));
     }

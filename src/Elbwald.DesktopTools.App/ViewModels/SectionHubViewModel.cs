@@ -1,32 +1,29 @@
 using Elbwald.DesktopTools.App.Services;
-using Elbwald.DesktopTools.Core.Modules;
+using Elbwald.DesktopTools.Contracts.Navigation;
 
 namespace Elbwald.DesktopTools.App.ViewModels;
 
 public sealed class SectionHubViewModel
 {
-    private const string PhotoSortModuleId = "elbwald.photosort";
-
     public SectionHubViewModel(
         string sectionId,
-        IModuleRegistry moduleRegistry,
+        INavigationContributionRegistry navigationContributionRegistry,
         INavigationService navigationService)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sectionId);
-        ArgumentNullException.ThrowIfNull(moduleRegistry);
+        ArgumentNullException.ThrowIfNull(navigationContributionRegistry);
         ArgumentNullException.ThrowIfNull(navigationService);
 
-        var loadedModuleIds = moduleRegistry.Modules
-            .Select(module => module.GetDescriptor().Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var contributions =
+            navigationContributionRegistry.GetSectionContributions(sectionId);
 
-        (Title, Subtitle, Actions) = sectionId switch
+        var section = sectionId switch
         {
             "analyze" => CreateAnalyzeFallback(
                 navigationService),
 
             "organize" => CreateOrganize(
-                loadedModuleIds,
+                contributions,
                 navigationService),
 
             "edit" => CreateEdit(
@@ -44,8 +41,14 @@ public sealed class SectionHubViewModel
             _ => (
                 "Bereich",
                 "Dieser Bereich wird schrittweise ausgebaut.",
-                Array.Empty<SectionActionViewModel>())
+                (IReadOnlyList<SectionActionViewModel>)Array.Empty<SectionActionViewModel>())
         };
+
+        Title = section.Item1;
+        Subtitle = section.Item2;
+        Actions = string.Equals(sectionId, "organize", StringComparison.OrdinalIgnoreCase)
+            ? section.Item3
+            : AppendContributions(section.Item3, contributions, navigationService);
 
         if (string.Equals(sectionId, "organize", StringComparison.OrdinalIgnoreCase))
         {
@@ -139,40 +142,38 @@ public sealed class SectionHubViewModel
         string Title,
         string Subtitle,
         IReadOnlyList<SectionActionViewModel> Actions) CreateOrganize(
-            IReadOnlySet<string> loadedModuleIds,
+            IReadOnlyList<NavigationContribution> contributions,
             INavigationService navigationService)
     {
-        var photoSortReady = loadedModuleIds.Contains(PhotoSortModuleId);
+        var actions = new List<SectionActionViewModel>
+        {
+            new(
+                "Importieren",
+                "Kamera, Smartphone, SD-Karte oder Ordner sicher in die Import-Wartehalle übernehmen.",
+                string.Empty,
+                isAvailable: true,
+                navigationId: "import",
+                navigationService)
+        };
+
+        actions.AddRange(
+            contributions
+                .OrderBy(item => item.Order)
+                .Select(item => CreateContributionAction(item, navigationService)));
+
+        actions.Add(
+            new SectionActionViewModel(
+                "Umbenennen",
+                "Dateien anhand von Datum, Kamera und Elbwald-Metadaten einheitlich benennen.",
+                string.Empty,
+                isAvailable: true,
+                navigationId: "rename",
+                navigationService));
 
         return (
             "Organisieren",
             "Medien sicher übernehmen, physisch ordnen und einheitlich benennen.",
-            new[]
-            {
-                new SectionActionViewModel(
-                    "Importieren",
-                    "Kamera, Smartphone, SD-Karte oder Ordner sicher in die Import-Wartehalle übernehmen.",
-                    string.Empty,
-                    isAvailable: true,
-                    navigationId: "import",
-                    navigationService),
-
-                new SectionActionViewModel(
-                    "Sortieren",
-                    "Fotos und später Videos nach nachvollziehbaren Regeln strukturieren.",
-                    photoSortReady ? string.Empty : "Modul nicht geladen",
-                    photoSortReady,
-                    photoSortReady ? PhotoSortModuleId : null,
-                    navigationService),
-
-                new SectionActionViewModel(
-                    "Umbenennen",
-                    "Dateien anhand von Datum, Kamera und Elbwald-Metadaten einheitlich benennen.",
-                    string.Empty,
-                    isAvailable: true,
-                    navigationId: "rename",
-                    navigationService),
-            });
+            actions);
     }
 
     private static (
@@ -323,6 +324,37 @@ public sealed class SectionHubViewModel
                     "Oberfläche, lokale Verarbeitung und optionale Komfortfunktionen steuern.",
                     navigationService)
             });
+    }
+
+    private static IReadOnlyList<SectionActionViewModel> AppendContributions(
+        IReadOnlyList<SectionActionViewModel> baseActions,
+        IReadOnlyList<NavigationContribution> contributions,
+        INavigationService navigationService)
+    {
+        if (contributions.Count == 0)
+        {
+            return baseActions;
+        }
+
+        return baseActions
+            .Concat(
+                contributions
+                    .OrderBy(item => item.Order)
+                    .Select(item => CreateContributionAction(item, navigationService)))
+            .ToArray();
+    }
+
+    private static SectionActionViewModel CreateContributionAction(
+        NavigationContribution contribution,
+        INavigationService navigationService)
+    {
+        return new SectionActionViewModel(
+            contribution.Title,
+            contribution.Description,
+            string.Empty,
+            isAvailable: true,
+            navigationId: contribution.RouteId,
+            navigationService);
     }
 
     private static SectionActionViewModel Planned(

@@ -422,6 +422,43 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <StackPanel
+                            Spacing="10"
+                            IsVisible="{Binding HasSettingsContributions}">
+                            <TextBlock
+                                Text="Modulspezifische Einstellungen"
+                                Classes="elbwald-section-title"
+                                Margin="0,8,0,0" />
+                            <TextBlock
+                                Text="Erweiterungen können hier eigene Einstellungsbereiche ergänzen, ohne dass die zentrale Settings-Seite ihre Implementierung kennen muss."
+                                Classes="elbwald-muted"
+                                FontSize="10"
+                                TextWrapping="Wrap" />
+
+                            <ItemsControl ItemsSource="{Binding SettingsContributions}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SettingsContributionItemViewModel">
+                                        <Border
+                                            Classes="elbwald-card"
+                                            Padding="18"
+                                            Margin="0,0,0,10">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14" />
+                                                <TextBlock
+                                                    Text="{Binding Description}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="11"
+                                                    TextWrapping="Wrap" />
+                                                <ContentControl
+                                                    Content="{Binding Content}"
+                                                    IsVisible="{Binding HasContent}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </StackPanel>
                 </TabItem>
 

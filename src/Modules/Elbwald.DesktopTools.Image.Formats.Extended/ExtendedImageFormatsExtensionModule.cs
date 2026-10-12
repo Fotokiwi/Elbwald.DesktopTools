@@ -1,7 +1,9 @@
 using Elbwald.DesktopTools.Contracts.Media.Exporting;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
 using Elbwald.DesktopTools.Contracts.Media.Metadata;
+using Elbwald.DesktopTools.Contracts.Media.Thumbnailing;
 using Elbwald.DesktopTools.Contracts.Modules;
+using Elbwald.DesktopTools.Contracts.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Elbwald.DesktopTools.Image.Formats.Extended;
@@ -27,10 +29,22 @@ public sealed class ExtendedImageFormatsExtensionModule : IExtensionModule
         services.AddMediaFormatProvider<AvifMediaFormatProvider>(Id);
         services.AddMediaFormatProvider<Jpeg2000MediaFormatProvider>(Id);
 
-        // WebP already has proven metadata + export implementations. The other
-        // extended formats are introduced format-first and gain their own
-        // metadata/export/thumbnail capabilities in follow-up patches.
+        // Vertical support is introduced format by format. WebP and TIFF now
+        // provide proven metadata + export capabilities; the remaining formats
+        // stay detection-only until their own integration tests exist.
         services.AddImageMetadataProvider<WebpImageMetadataProvider>(Id);
+        services.AddImageMetadataProvider<TiffImageMetadataProvider>(Id);
         services.AddImageExportProvider<WebpImageExportProvider>(Id);
+        services.AddImageExportProvider<TiffImageExportProvider>(Id);
+        services.AddImageThumbnailProvider<MagickExtendedImageThumbnailProvider>(Id);
+
+        services.AddSettingsContribution(
+            new SettingsContribution(
+                ExtensionId: Id,
+                Id: "extended-image-formats",
+                Title: "Erweiterte Bildformate",
+                Description: "WebP und TIFF werden über das optionale Magick.NET-Backend bereitgestellt. Weitere Formate werden erst nach vollständiger vertikaler Prüfung freigeschaltet.",
+                Icon: "Image",
+                Order: 100));
     }
 }

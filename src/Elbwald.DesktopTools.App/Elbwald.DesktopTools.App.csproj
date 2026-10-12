@@ -30,120 +30,50 @@
         <ProjectReference Include="../Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
         <ProjectReference Include="../Elbwald.DesktopTools.Core/Elbwald.DesktopTools.Core.csproj" />
         <ProjectReference Include="../Elbwald.DesktopTools.UI/Elbwald.DesktopTools.UI.csproj" />
+    </ItemGroup>
 
-        <!-- Build PhotoSort as a development module without linking it into the host assembly. -->
+    <!--
+      Every first-party module directly below src/Modules is discovered automatically.
+      ReferenceOutputAssembly=false keeps module assemblies out of the host dependency graph;
+      they are still built before the host and loaded only through ModuleLoader at runtime.
+    -->
+    <ItemGroup>
+        <ElbwaldModuleProject Include="$(MSBuildProjectDirectory)/../Modules/*/*.csproj" />
         <ProjectReference
-            Include="../Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj"
-            ReferenceOutputAssembly="false" />
-
-        <!-- Build MediaAnalyzer as a development module without linking it into the host assembly. -->
-        <ProjectReference
-            Include="../Modules/Elbwald.DesktopTools.MediaAnalyzer/Elbwald.DesktopTools.MediaAnalyzer.csproj"
-            ReferenceOutputAssembly="false" />
-
-        <!-- Build Extended Image Formats as a capability-only development module without linking it into the host assembly. -->
-        <ProjectReference
-            Include="../Modules/Elbwald.DesktopTools.Image.Formats.Extended/Elbwald.DesktopTools.Image.Formats.Extended.csproj"
+            Include="@(ElbwaldModuleProject)"
             ReferenceOutputAssembly="false" />
     </ItemGroup>
 
-    <Target Name="CopyDevelopmentModules" AfterTargets="Build">
-        <PropertyGroup>
-            <PhotoSortOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/</PhotoSortOutput>
-            <PhotoSortDestination>$(TargetDir)Modules/PhotoSort/</PhotoSortDestination>
-            <MediaAnalyzerOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/</MediaAnalyzerOutput>
-            <MediaAnalyzerDestination>$(TargetDir)Modules/MediaAnalyzer/</MediaAnalyzerDestination>
-            <ExtendedImageFormatsOutput>$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/</ExtendedImageFormatsOutput>
-            <ExtendedImageFormatsDestination>$(TargetDir)Modules/Image.Formats.Extended/</ExtendedImageFormatsDestination>
-        </PropertyGroup>
+    <Target
+        Name="CopyDevelopmentModules"
+        AfterTargets="Build"
+        Condition="'$(DesignTimeBuild)' != 'true'">
 
-        <ItemGroup>
-            <PhotoSortFiles Include="$(PhotoSortOutput)**/*" />
-            <MediaAnalyzerFiles Include="$(MediaAnalyzerOutput)**/*" />
-            <ExtendedImageFormatsFiles Include="$(ExtendedImageFormatsOutput)**/*" />
-        </ItemGroup>
+        <!-- A normal build output is owned by the build, so remove stale module folders. -->
+        <RemoveDir Directories="$(TargetDir)Modules" />
+        <MakeDir Directories="$(TargetDir)Modules" />
 
-        <MakeDir Directories="$(PhotoSortDestination)" />
-        <MakeDir Directories="$(MediaAnalyzerDestination)" />
-        <MakeDir Directories="$(ExtendedImageFormatsDestination)" />
-
-        <Copy
-            SourceFiles="@(PhotoSortFiles)"
-            DestinationFiles="@(PhotoSortFiles->'$(PhotoSortDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true" />
-
-        <Copy
-            SourceFiles="@(MediaAnalyzerFiles)"
-            DestinationFiles="@(MediaAnalyzerFiles->'$(MediaAnalyzerDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true" />
-
-        <Copy
-            SourceFiles="@(ExtendedImageFormatsFiles)"
-            DestinationFiles="@(ExtendedImageFormatsFiles->'$(ExtendedImageFormatsDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true" />
+        <MSBuild
+            Projects="@(ElbwaldModuleProject)"
+            Targets="CopyElbwaldModuleToHost"
+            BuildInParallel="true"
+            Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);ElbwaldModuleDestinationRoot=$(TargetDir)Modules/" />
     </Target>
 
-    <Target Name="CopyPublishModules" AfterTargets="Publish">
-        <PropertyGroup>
-            <PhotoSortPublishSource
-                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.PhotoSort.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</PhotoSortPublishSource>
+    <Target
+        Name="CopyPublishModules"
+        AfterTargets="Publish"
+        Condition="'$(DesignTimeBuild)' != 'true'">
 
-            <PhotoSortPublishSource
-                Condition="'$(PhotoSortPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.PhotoSort/bin/$(Configuration)/$(TargetFramework)/</PhotoSortPublishSource>
+        <!-- Publish output must be reproducible and must not retain removed modules. -->
+        <RemoveDir Directories="$(PublishDir)Modules" />
+        <MakeDir Directories="$(PublishDir)Modules" />
 
-            <MediaAnalyzerPublishSource
-                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.MediaAnalyzer.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</MediaAnalyzerPublishSource>
-
-            <MediaAnalyzerPublishSource
-                Condition="'$(MediaAnalyzerPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.MediaAnalyzer/bin/$(Configuration)/$(TargetFramework)/</MediaAnalyzerPublishSource>
-
-            <ExtendedImageFormatsPublishSource
-                Condition="Exists('$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/Elbwald.DesktopTools.Image.Formats.Extended.dll')">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/</ExtendedImageFormatsPublishSource>
-
-            <ExtendedImageFormatsPublishSource
-                Condition="'$(ExtendedImageFormatsPublishSource)' == ''">$(MSBuildProjectDirectory)/../Modules/Elbwald.DesktopTools.Image.Formats.Extended/bin/$(Configuration)/$(TargetFramework)/</ExtendedImageFormatsPublishSource>
-
-            <PhotoSortPublishDestination>$(PublishDir)Modules/PhotoSort/</PhotoSortPublishDestination>
-            <MediaAnalyzerPublishDestination>$(PublishDir)Modules/MediaAnalyzer/</MediaAnalyzerPublishDestination>
-            <ExtendedImageFormatsPublishDestination>$(PublishDir)Modules/Image.Formats.Extended/</ExtendedImageFormatsPublishDestination>
-        </PropertyGroup>
-
-        <Error
-            Condition="!Exists('$(PhotoSortPublishSource)Elbwald.DesktopTools.PhotoSort.dll')"
-            Text="Photo-Sort-Modul wurde für den Publish nicht gefunden: $(PhotoSortPublishSource)" />
-
-        <Error
-            Condition="!Exists('$(MediaAnalyzerPublishSource)Elbwald.DesktopTools.MediaAnalyzer.dll')"
-            Text="Media-Analyzer-Modul wurde für den Publish nicht gefunden: $(MediaAnalyzerPublishSource)" />
-
-        <Error
-            Condition="!Exists('$(ExtendedImageFormatsPublishSource)Elbwald.DesktopTools.Image.Formats.Extended.dll')"
-            Text="Extended-Image-Formats-Modul wurde für den Publish nicht gefunden: $(ExtendedImageFormatsPublishSource)" />
-
-        <ItemGroup>
-            <PhotoSortPublishFiles Include="$(PhotoSortPublishSource)**/*" />
-            <MediaAnalyzerPublishFiles Include="$(MediaAnalyzerPublishSource)**/*" />
-            <ExtendedImageFormatsPublishFiles Include="$(ExtendedImageFormatsPublishSource)**/*" />
-        </ItemGroup>
-
-        <MakeDir Directories="$(PhotoSortPublishDestination)" />
-        <MakeDir Directories="$(MediaAnalyzerPublishDestination)" />
-        <MakeDir Directories="$(ExtendedImageFormatsPublishDestination)" />
-
-        <Copy
-            SourceFiles="@(PhotoSortPublishFiles)"
-            DestinationFiles="@(PhotoSortPublishFiles->'$(PhotoSortPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true" />
-
-        <Copy
-            SourceFiles="@(MediaAnalyzerPublishFiles)"
-            DestinationFiles="@(MediaAnalyzerPublishFiles->'$(MediaAnalyzerPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true" />
-
-        <Copy
-            SourceFiles="@(ExtendedImageFormatsPublishFiles)"
-            DestinationFiles="@(ExtendedImageFormatsPublishFiles->'$(ExtendedImageFormatsPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true" />
+        <MSBuild
+            Projects="@(ElbwaldModuleProject)"
+            Targets="CopyElbwaldModuleToHost"
+            BuildInParallel="true"
+            Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);ElbwaldModuleDestinationRoot=$(PublishDir)Modules/" />
     </Target>
 
 </Project>

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.App.Services;
 using Elbwald.DesktopTools.Contracts.Modules;
+using Elbwald.DesktopTools.Contracts.Navigation;
 using Elbwald.DesktopTools.Core.Modules;
 
 namespace Elbwald.DesktopTools.App.ViewModels;
@@ -12,13 +13,11 @@ public partial class MainWindowViewModel : ObservableObject
 {
     public const string PreviewVersion = "0.1.0-alpha.1";
 
-    private const string MediaAnalyzerModuleId = "elbwald.mediaanalyzer";
-    private const string PhotoSortModuleId = "elbwald.photosort";
-
     private readonly INavigationContentFactory _contentFactory;
     private readonly INavigationService _navigationService;
     private readonly IModuleRegistry _moduleRegistry;
     private readonly IExtensionRegistry _extensionRegistry;
+    private readonly INavigationContributionRegistry _navigationContributionRegistry;
     private readonly Dictionary<string, object> _pageCache =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -35,16 +34,19 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(
         IModuleRegistry moduleRegistry,
         IExtensionRegistry extensionRegistry,
+        INavigationContributionRegistry navigationContributionRegistry,
         INavigationContentFactory contentFactory,
         INavigationService navigationService)
     {
         ArgumentNullException.ThrowIfNull(moduleRegistry);
         ArgumentNullException.ThrowIfNull(extensionRegistry);
+        ArgumentNullException.ThrowIfNull(navigationContributionRegistry);
         ArgumentNullException.ThrowIfNull(contentFactory);
         ArgumentNullException.ThrowIfNull(navigationService);
 
         _moduleRegistry = moduleRegistry;
         _extensionRegistry = extensionRegistry;
+        _navigationContributionRegistry = navigationContributionRegistry;
         _contentFactory = contentFactory;
         _navigationService = navigationService;
 
@@ -193,10 +195,10 @@ public partial class MainWindowViewModel : ObservableObject
         RefreshActiveModules();
         NavigationItems = CreateNavigationItems(_navigationService.NavigateTo);
 
-        _pageCache.Remove("primary:home");
-        _pageCache.Remove("primary:analyze");
-        _pageCache.Remove("primary:organize");
-        _pageCache.Remove($"module:{args.ExtensionId}");
+        // Contributions can change primary and section navigation immediately.
+        // Keep the currently displayed settings page alive, but invalidate cached
+        // pages so the next navigation reflects the new contribution set.
+        _pageCache.Clear();
 
         if (selectedId is null)
         {
@@ -236,75 +238,112 @@ public partial class MainWindowViewModel : ObservableObject
 
     private IReadOnlyList<NavigationItemViewModel> CreateNavigationItems(Action<string> activate)
     {
-        var analyze = _modules.TryGetValue(
-            MediaAnalyzerModuleId,
-            out var analyzerModule)
-            ? NavigationItemViewModel.CreateModuleRoute(
-                "analyze",
-                "Analysieren",
-                "Bibliothek read-only prüfen",
-                "Search",
-                analyzerModule,
-                activate,
-                showSeparatorBefore: true)
-            : NavigationItemViewModel.CreateSection(
-                "analyze",
-                "Analysieren",
-                "Bibliothek read-only prüfen",
-                "Search",
-                activate,
-                showSeparatorBefore: true);
-
-        return new[]
+        var items = new List<(int Order, NavigationItemViewModel Item)>
         {
-            NavigationItemViewModel.CreateHome(activate),
-            NavigationItemViewModel.CreateSection(
+            (0, NavigationItemViewModel.CreateHome(activate)),
+            (100, NavigationItemViewModel.CreateSection(
                 "library",
                 "Bibliothek",
                 "Medien durchsuchen und auswählen",
                 "Camera",
                 activate,
-                showSeparatorBefore: true),
-            NavigationItemViewModel.CreateSection(
+                showSeparatorBefore: true)),
+            (200, NavigationItemViewModel.CreateSection(
                 "projects",
                 "Projekte",
                 "Medien zu Vorhaben und Sammlungen zusammenstellen",
                 "Project",
-                activate),
-            analyze,
-            NavigationItemViewModel.CreateSection(
+                activate)),
+            (300, NavigationItemViewModel.CreateSection(
+                "analyze",
+                "Analysieren",
+                "Bibliothek read-only prüfen",
+                "Search",
+                activate,
+                showSeparatorBefore: true)),
+            (400, NavigationItemViewModel.CreateSection(
                 "organize",
                 "Organisieren",
                 "Importieren, sortieren und umbenennen",
                 "Folder",
-                activate),
-            NavigationItemViewModel.CreateSection(
+                activate)),
+            (500, NavigationItemViewModel.CreateSection(
                 "edit",
                 "Bearbeiten",
                 "Bilder, Audio und Video bearbeiten",
                 "Edit",
-                activate),
-            NavigationItemViewModel.CreateSection(
+                activate)),
+            (600, NavigationItemViewModel.CreateSection(
                 "backup",
                 "Sichern",
                 "Redundante Sicherungen prüfen und erstellen",
                 "Backup",
                 activate,
-                showSeparatorBefore: true),
-            NavigationItemViewModel.CreateSection(
+                showSeparatorBefore: true)),
+            (700, NavigationItemViewModel.CreateSection(
                 "tools",
                 "Werkzeuge",
                 "Metadaten und Konvertierung",
                 "Tools",
-                activate),
-            NavigationItemViewModel.CreateSection(
+                activate)),
+            (800, NavigationItemViewModel.CreateSection(
                 "settings",
                 "Einstellungen",
                 "Cache, Performance und Darstellung",
                 "Settings",
                 activate,
-                showSeparatorBefore: true)
+                showSeparatorBefore: true))
         };
+
+        foreach (var contribution in _navigationContributionRegistry.GetPrimaryContributions())
+        {
+            NavigationItemViewModel? contributionItem = null;
+
+            if (!string.IsNullOrWhiteSpace(contribution.ToolModuleId)
+                && _modules.TryGetValue(contribution.ToolModuleId, out var module))
+            {
+                contributionItem = NavigationItemViewModel.CreateModuleRoute(
+                    contribution.Id,
+                    contribution.Title,
+                    contribution.Description,
+                    contribution.Icon,
+                    module,
+                    activate,
+                    contribution.ShowSeparatorBefore);
+            }
+            else if (string.Equals(
+                         contribution.Id,
+                         contribution.RouteId,
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                contributionItem = NavigationItemViewModel.CreateSection(
+                    contribution.Id,
+                    contribution.Title,
+                    contribution.Description,
+                    contribution.Icon,
+                    activate,
+                    contribution.ShowSeparatorBefore);
+            }
+
+            if (contributionItem is null)
+            {
+                continue;
+            }
+
+            items.RemoveAll(
+                entry => string.Equals(
+                    entry.Item.Id,
+                    contribution.Id,
+                    StringComparison.OrdinalIgnoreCase));
+
+            items.Add((contribution.Order, contributionItem));
+        }
+
+        return items
+            .OrderBy(entry => entry.Order)
+            .ThenBy(entry => entry.Item.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(entry => entry.Item)
+            .ToArray();
     }
 
     private object GetOrCreatePage(
@@ -686,25 +725,21 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private static string GetPrimaryOwnerId(
-        string moduleId)
+    private string GetPrimaryOwnerId(string moduleId)
     {
-        if (string.Equals(
-                moduleId,
-                MediaAnalyzerModuleId,
-                StringComparison.OrdinalIgnoreCase))
+        var contribution = _navigationContributionRegistry.FindByRoute(moduleId);
+
+        if (contribution is null)
         {
-            return "analyze";
+            return "tools";
         }
 
-        if (string.Equals(
-                moduleId,
-                PhotoSortModuleId,
-                StringComparison.OrdinalIgnoreCase))
+        return contribution.Placement switch
         {
-            return "organize";
-        }
-
-        return "tools";
+            NavigationContributionPlacement.Primary => contribution.Id,
+            NavigationContributionPlacement.Section when !string.IsNullOrWhiteSpace(contribution.SectionId)
+                => contribution.SectionId,
+            _ => "tools"
+        };
     }
 }

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Avalonia.Media.Imaging;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Thumbnailing;
 
 namespace Elbwald.DesktopTools.App.Services;
 
@@ -12,19 +13,23 @@ public sealed class AvaloniaMediaThumbnailService
 
     private readonly MediaThumbnailOptions _options;
     private readonly IRawPreviewExtractor _rawPreviewExtractor;
+    private readonly IImageThumbnailRegistry _thumbnailRegistry;
 
     public AvaloniaMediaThumbnailService(
         MediaThumbnailOptions options,
-        IRawPreviewExtractor rawPreviewExtractor)
+        IRawPreviewExtractor rawPreviewExtractor,
+        IImageThumbnailRegistry thumbnailRegistry)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(rawPreviewExtractor);
+        ArgumentNullException.ThrowIfNull(thumbnailRegistry);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.CacheDirectory);
 
         _options = options;
         _options.Normalize();
 
         _rawPreviewExtractor = rawPreviewExtractor;
+        _thumbnailRegistry = thumbnailRegistry;
     }
 
     public Task<MediaThumbnailResult> GetThumbnailAsync(
@@ -119,13 +124,85 @@ public sealed class AvaloniaMediaThumbnailService
             }
         }
 
-        return await Task.Run(
-            () => CreateThumbnailFromFile(
-                file,
-                cachePath,
-                targetWidth,
-                cancellationToken),
+        return await CreateThumbnailFromProvidersAsync(
+            file,
+            cachePath,
+            targetWidth,
             cancellationToken);
+    }
+
+    private async Task<MediaThumbnailResult> CreateThumbnailFromProvidersAsync(
+        MediaFile file,
+        string cachePath,
+        int targetWidth,
+        CancellationToken cancellationToken)
+    {
+        var providers = _thumbnailRegistry.FindProviders(file);
+
+        if (providers.Count == 0)
+        {
+            return new MediaThumbnailResult(
+                MediaThumbnailState.UnsupportedFormat,
+                errorMessage: "Für dieses Bildformat ist kein aktiver Thumbnail-Provider installiert.");
+        }
+
+        MediaThumbnailResult? lastUnsupported = null;
+
+        foreach (var provider in providers)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            MediaThumbnailResult result;
+
+            try
+            {
+                result = await provider.CreateAsync(
+                    file,
+                    targetWidth,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                result = new MediaThumbnailResult(
+                    MediaThumbnailState.Failed,
+                    errorMessage: exception.Message);
+            }
+
+            if (result.IsSuccessful)
+            {
+                if (!string.Equals(result.MimeType, "image/png", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new MediaThumbnailResult(
+                        MediaThumbnailState.Failed,
+                        errorMessage: $"Thumbnail-Provider '{provider.ProviderId}' lieferte kein PNG.");
+                }
+
+                TryStoreCache(
+                    cachePath,
+                    result.EncodedImage!,
+                    cancellationToken);
+
+                return new MediaThumbnailResult(
+                    MediaThumbnailState.Success,
+                    result.EncodedImage,
+                    "image/png");
+            }
+
+            if (result.State == MediaThumbnailState.UnsupportedFormat)
+            {
+                lastUnsupported = result;
+                continue;
+            }
+
+            return result;
+        }
+
+        return lastUnsupported
+               ?? new MediaThumbnailResult(MediaThumbnailState.UnsupportedFormat);
     }
 
     public Task<MediaCacheStatistics> GetCacheStatisticsAsync(
@@ -280,71 +357,6 @@ public sealed class AvaloniaMediaThumbnailService
                 or UnauthorizedAccessException)
         {
             return null;
-        }
-    }
-
-    private static MediaThumbnailResult CreateThumbnailFromFile(
-        MediaFile file,
-        string cachePath,
-        int targetWidth,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            using var stream =
-                new FileStream(
-                    file.FullPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    64 * 1024,
-                    FileOptions.SequentialScan);
-
-            return DecodeAndStore(
-                stream,
-                cachePath,
-                targetWidth,
-                cancellationToken);
-        }
-        catch (OperationCanceledException)
-            when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (FileNotFoundException exception)
-        {
-            return Failure(
-                MediaThumbnailState.FileNotFound,
-                exception);
-        }
-        catch (DirectoryNotFoundException exception)
-        {
-            return Failure(
-                MediaThumbnailState.FileNotFound,
-                exception);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return Failure(
-                MediaThumbnailState.AccessDenied,
-                exception);
-        }
-        catch (IOException exception)
-        {
-            return Failure(
-                MediaThumbnailState.IoError,
-                exception);
-        }
-        catch (Exception exception) when (
-            exception is ArgumentException
-                or InvalidOperationException
-                or NotSupportedException)
-        {
-            return Failure(
-                MediaThumbnailState.UnsupportedFormat,
-                exception);
         }
     }
 

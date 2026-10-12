@@ -6,17 +6,20 @@ namespace Elbwald.DesktopTools.App.ViewModels;
 public sealed class ExtensionSettingsItemViewModel : ObservableObject
 {
     private readonly IExtensionActivationService _activationService;
+    private readonly Action? _activationChanged;
     private bool _isEnabled;
     private string _statusText = string.Empty;
 
     public ExtensionSettingsItemViewModel(
         ExtensionDescriptor descriptor,
-        IExtensionActivationService activationService)
+        IExtensionActivationService activationService,
+        Action? activationChanged = null)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(activationService);
 
         _activationService = activationService;
+        _activationChanged = activationChanged;
 
         Id = descriptor.Id;
         Name = descriptor.Name;
@@ -65,6 +68,7 @@ public sealed class ExtensionSettingsItemViewModel : ObservableObject
                 _activationService.SetEnabled(Id, value);
                 SetProperty(ref _isEnabled, value);
                 StatusText = BuildStatusText(value);
+                _activationChanged?.Invoke();
             }
             catch (Exception exception) when (
                 exception is IOException

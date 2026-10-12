@@ -1,0 +1,30 @@
+<Project>
+
+    <!--
+      Shared packaging convention for all first-party Elbwald modules.
+      The host invokes this target with ElbwaldModuleDestinationRoot set to its
+      Build/Publish Modules directory. New module projects therefore require no
+      host-specific copy target.
+    -->
+    <Target
+        Name="CopyElbwaldModuleToHost"
+        DependsOnTargets="Build"
+        Condition="'$(ElbwaldModuleDestinationRoot)' != ''">
+
+        <PropertyGroup>
+            <_ElbwaldModuleDestination>$(ElbwaldModuleDestinationRoot)$(MSBuildProjectName)/</_ElbwaldModuleDestination>
+        </PropertyGroup>
+
+        <ItemGroup>
+            <_ElbwaldModuleFiles Include="$(TargetDir)**/*" />
+        </ItemGroup>
+
+        <MakeDir Directories="$(_ElbwaldModuleDestination)" />
+
+        <Copy
+            SourceFiles="@(_ElbwaldModuleFiles)"
+            DestinationFiles="@(_ElbwaldModuleFiles->'$(_ElbwaldModuleDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true" />
+    </Target>
+
+</Project>

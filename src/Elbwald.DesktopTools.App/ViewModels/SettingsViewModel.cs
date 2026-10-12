@@ -7,6 +7,7 @@ using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Modules;
 using Elbwald.DesktopTools.Contracts.Paths;
 using Elbwald.DesktopTools.Contracts.Storage;
+using Elbwald.DesktopTools.Contracts.Settings;
 using Elbwald.DesktopTools.UI.Formatting;
 
 namespace Elbwald.DesktopTools.App.ViewModels;
@@ -21,6 +22,8 @@ public sealed class SettingsViewModel
     private readonly IAppPaths _appPaths;
     private readonly IStorageSettingsStore _storageSettingsStore;
     private readonly IStorageLocationResolver _storageLocationResolver;
+    private readonly ISettingsContributionRegistry _settingsContributionRegistry;
+    private readonly ISettingsContributionContentFactory _settingsContributionContentFactory;
 
     private readonly Stopwatch _operationStopwatch = new();
     private readonly DispatcherTimer _durationTimer;
@@ -46,6 +49,7 @@ public sealed class SettingsViewModel
     private int _selectedGridThumbnailWidth;
     private int _selectedDetailThumbnailWidth;
     private int _selectedViewerThumbnailWidth;
+    private IReadOnlyList<SettingsContributionItemViewModel> _settingsContributions = [];
 
     public SettingsViewModel(
         IMediaAnalysisCache analysisCache,
@@ -55,6 +59,8 @@ public sealed class SettingsViewModel
         IAppPaths appPaths,
         IStorageSettingsStore storageSettingsStore,
         IStorageLocationResolver storageLocationResolver,
+        ISettingsContributionRegistry settingsContributionRegistry,
+        ISettingsContributionContentFactory settingsContributionContentFactory,
         IExtensionRegistry extensionRegistry,
         IExtensionActivationService extensionActivationService)
     {
@@ -65,6 +71,8 @@ public sealed class SettingsViewModel
         ArgumentNullException.ThrowIfNull(appPaths);
         ArgumentNullException.ThrowIfNull(storageSettingsStore);
         ArgumentNullException.ThrowIfNull(storageLocationResolver);
+        ArgumentNullException.ThrowIfNull(settingsContributionRegistry);
+        ArgumentNullException.ThrowIfNull(settingsContributionContentFactory);
         ArgumentNullException.ThrowIfNull(extensionRegistry);
         ArgumentNullException.ThrowIfNull(extensionActivationService);
 
@@ -75,15 +83,20 @@ public sealed class SettingsViewModel
         _appPaths = appPaths;
         _storageSettingsStore = storageSettingsStore;
         _storageLocationResolver = storageLocationResolver;
+        _settingsContributionRegistry = settingsContributionRegistry;
+        _settingsContributionContentFactory = settingsContributionContentFactory;
 
         Extensions = extensionRegistry.Extensions
             .Select(
                 descriptor =>
                     new ExtensionSettingsItemViewModel(
                         descriptor,
-                        extensionActivationService))
+                        extensionActivationService,
+                        RefreshSettingsContributions))
             .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
+
+        RefreshSettingsContributions();
 
         _selectedGridThumbnailWidth = _thumbnailOptions.GridWidth;
         _selectedDetailThumbnailWidth = _thumbnailOptions.DetailWidth;
@@ -164,6 +177,20 @@ public sealed class SettingsViewModel
     public IReadOnlyList<ExtensionSettingsItemViewModel> Extensions { get; }
 
     public bool HasExtensions => Extensions.Count > 0;
+
+    public IReadOnlyList<SettingsContributionItemViewModel> SettingsContributions
+    {
+        get => _settingsContributions;
+        private set
+        {
+            if (SetProperty(ref _settingsContributions, value))
+            {
+                OnPropertyChanged(nameof(HasSettingsContributions));
+            }
+        }
+    }
+
+    public bool HasSettingsContributions => SettingsContributions.Count > 0;
 
     public bool IsBusy
     {
@@ -341,6 +368,17 @@ public sealed class SettingsViewModel
         "Medienorte werden als stabile Laufwerkskennung plus relativer Pfad gespeichert. "
         + "Laufwerksbuchstaben und Linux-Mountpoints dienen nur zur aktuellen Auflösung. "
         + "Stimmt die Kennung nicht eindeutig, verwendet Elbwald den Ort nicht.";
+
+    private void RefreshSettingsContributions()
+    {
+        SettingsContributions = _settingsContributionRegistry.Contributions
+            .Select(
+                contribution =>
+                    new SettingsContributionItemViewModel(
+                        contribution,
+                        _settingsContributionContentFactory))
+            .ToArray();
+    }
 
     private async Task InitializeAsync()
     {
