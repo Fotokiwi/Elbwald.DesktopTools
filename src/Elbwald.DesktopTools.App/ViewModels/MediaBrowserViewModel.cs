@@ -1665,7 +1665,11 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
                 metadata.TitleOverridden ? metadata.Title : null,
                 metadata.CaptureDateOverridden ? metadata.CaptureDate : facts?.CaptureDate,
                 metadata.DescriptionOverridden ? metadata.Description : null,
-                knowledge.Rating));
+                knowledge.Rating,
+                facts?.CameraMake,
+                facts?.CameraModel,
+                facts?.Latitude,
+                facts?.Longitude));
 
             if (matches.Count >= PageSize)
             {

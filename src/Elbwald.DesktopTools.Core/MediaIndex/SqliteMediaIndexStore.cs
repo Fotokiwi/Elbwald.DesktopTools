@@ -1127,7 +1127,19 @@ internal sealed class SqliteMediaIndexStore
                            (SELECT f.CaptureDate FROM MediaFacts f WHERE f.MediaItemId = i.Id)
                        ) AS EffectiveCaptureDate,
                        (SELECT m.Description FROM MediaMetadata m WHERE m.MediaItemId = i.Id AND m.DescriptionOverridden = 1) AS MetadataDescription,
-                       COALESCE((SELECT r.Rating FROM MediaRatings r WHERE r.MediaItemId = i.Id), 0) AS Rating
+                       COALESCE((SELECT r.Rating FROM MediaRatings r WHERE r.MediaItemId = i.Id), 0) AS Rating,
+                       (SELECT f.CameraMake FROM MediaFacts f WHERE f.MediaItemId = i.Id) AS CameraMake,
+                       (SELECT f.CameraModel FROM MediaFacts f WHERE f.MediaItemId = i.Id) AS CameraModel,
+                       CASE COALESCE((SELECT m.GpsMode FROM MediaMetadata m WHERE m.MediaItemId = i.Id), 0)
+                           WHEN 1 THEN (SELECT m.Latitude FROM MediaMetadata m WHERE m.MediaItemId = i.Id)
+                           WHEN 2 THEN NULL
+                           ELSE (SELECT f.Latitude FROM MediaFacts f WHERE f.MediaItemId = i.Id)
+                       END AS Latitude,
+                       CASE COALESCE((SELECT m.GpsMode FROM MediaMetadata m WHERE m.MediaItemId = i.Id), 0)
+                           WHEN 1 THEN (SELECT m.Longitude FROM MediaMetadata m WHERE m.MediaItemId = i.Id)
+                           WHEN 2 THEN NULL
+                           ELSE (SELECT f.Longitude FROM MediaFacts f WHERE f.MediaItemId = i.Id)
+                       END AS Longitude
                 FROM MediaItems i
                 WHERE 1 = 1
                 {presencePredicate}
@@ -1205,7 +1217,11 @@ internal sealed class SqliteMediaIndexStore
                     reader.IsDBNull(11) ? null : reader.GetString(11),
                     captureDate,
                     reader.IsDBNull(13) ? null : reader.GetString(13),
-                    reader.IsDBNull(14) ? 0 : reader.GetInt32(14)));
+                    reader.IsDBNull(14) ? 0 : reader.GetInt32(14),
+                    reader.IsDBNull(15) ? null : reader.GetString(15),
+                    reader.IsDBNull(16) ? null : reader.GetString(16),
+                    reader.IsDBNull(17) ? null : reader.GetDouble(17),
+                    reader.IsDBNull(18) ? null : reader.GetDouble(18)));
             }
 
             return result;

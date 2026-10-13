@@ -8,7 +8,11 @@ public partial class ProjectSearchResultViewModel : ObservableObject
     [ObservableProperty]
     private bool isSelected;
 
-    public ProjectSearchResultViewModel(MediaIndexSearchResult result, bool isSelected = false)
+    public ProjectSearchResultViewModel(
+        MediaIndexSearchResult result,
+        bool isSelected = false,
+        int suggestionScore = 0,
+        string? suggestionReasons = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         IsSelected = isSelected;
@@ -20,6 +24,16 @@ public partial class ProjectSearchResultViewModel : ObservableObject
         LocationSummary = $"{result.PresentLocationCount:N0} aktuell · {result.HistoricalLocationCount:N0} historisch";
         CaptureDateText = result.CaptureDate?.ToString("dd.MM.yyyy HH:mm") ?? "Datum unbekannt";
         RatingText = result.Rating > 0 ? new string('★', Math.Clamp(result.Rating, 0, 3)) : string.Empty;
+        SuggestionScore = Math.Clamp(suggestionScore, 0, 100);
+        SuggestionReasons = suggestionReasons?.Trim() ?? string.Empty;
+        SuggestionStrengthText = SuggestionScore switch
+        {
+            >= 85 => "Sehr passend",
+            >= 70 => "Gut passend",
+            >= 55 => "Passend",
+            > 0 => "Im Zeitraum",
+            _ => string.Empty
+        };
     }
 
     public string MediaItemId { get; }
@@ -30,4 +44,8 @@ public partial class ProjectSearchResultViewModel : ObservableObject
     public string LocationSummary { get; }
     public string CaptureDateText { get; }
     public string RatingText { get; }
+    public int SuggestionScore { get; }
+    public string SuggestionStrengthText { get; }
+    public string SuggestionReasons { get; }
+    public bool HasSuggestionDetails => SuggestionScore > 0 && !string.IsNullOrWhiteSpace(SuggestionReasons);
 }

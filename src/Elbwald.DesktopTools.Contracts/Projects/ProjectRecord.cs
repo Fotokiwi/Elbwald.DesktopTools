@@ -9,4 +9,5 @@ public sealed record ProjectRecord(
     DateOnly? StartDate = null,
     DateOnly? EndDate = null,
     string? Location = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? CoverMediaItemId = null);

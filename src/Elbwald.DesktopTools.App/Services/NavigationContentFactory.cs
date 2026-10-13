@@ -74,6 +74,25 @@ public sealed class NavigationContentFactory : INavigationContentFactory
             return settingsView;
         }
 
+        if (string.Equals(
+                sectionId,
+                "supporters",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var supportersViewModel =
+                ActivatorUtilities.CreateInstance<SupportersViewModel>(
+                    _serviceProvider);
+
+            var supportersView =
+                ActivatorUtilities.CreateInstance<SupportersView>(
+                    _serviceProvider);
+
+            supportersView.DataContext =
+                supportersViewModel;
+
+            return supportersView;
+        }
+
         var viewModel =
             ActivatorUtilities.CreateInstance<SectionHubViewModel>(
                 _serviceProvider,

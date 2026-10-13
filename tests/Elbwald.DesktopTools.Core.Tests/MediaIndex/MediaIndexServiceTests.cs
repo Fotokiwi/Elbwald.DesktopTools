@@ -143,6 +143,49 @@ public sealed class MediaIndexServiceTests
         Assert.Equal(1, currentResult.HistoricalLocationCount);
     }
 
+
+    [Fact]
+    public async Task SearchResultsExposeCameraAndGpsFacts()
+    {
+        using var fixture = new TempFixture();
+        var root = fixture.CreateDirectory("library");
+        var filePath = Path.Combine(root, "trip.jpg");
+        await File.WriteAllBytesAsync(filePath, new byte[] { 1, 4, 1, 4, 2, 1 });
+
+        var service = new MediaIndexService(
+            new FileSystemMediaScanner(TestMediaFormatServices.CreateMediaTypeDetector()),
+            new TestStorageResolver(),
+            new FixedImageMetadataReader(new ImageMetadata(
+                PixelWidth: 4000,
+                PixelHeight: 3000,
+                CapturedAt: new DateTime(2026, 7, 14, 12, 30, 0),
+                CameraMake: "ExampleCam",
+                CameraModel: "Trail 5",
+                LensModel: null,
+                Orientation: 1,
+                HasExif: true,
+                HasGps: true,
+                Latitude: 50.95,
+                Longitude: 13.94)),
+            new MediaIndexOptions { DatabasePath = fixture.DatabasePath });
+
+        var settings = new StorageSettings(new[]
+        {
+            Endpoint("library", StorageEndpointKind.MediaLibrary, "VOL-A", root)
+        });
+
+        await service.IndexAsync(settings);
+
+        var result = Assert.Single(await service.SearchAsync(
+            new MediaIndexSearchQuery(PresentOnly: true)));
+
+        Assert.Equal("ExampleCam", result.CameraMake);
+        Assert.Equal("Trail 5", result.CameraModel);
+        Assert.Equal(50.95, result.Latitude);
+        Assert.Equal(13.94, result.Longitude);
+        Assert.Equal(new DateTime(2026, 7, 14, 12, 30, 0), result.CaptureDate);
+    }
+
     [Fact]
     public async Task IncompleteScanDoesNotMarkPreviouslyKnownLocationsMissing()
     {
@@ -214,6 +257,29 @@ public sealed class MediaIndexServiceTests
                 absolutePath,
                 absolutePath));
 
+
+
+    private sealed class FixedImageMetadataReader : IImageMetadataReader
+    {
+        private readonly ImageMetadata _metadata;
+
+        public FixedImageMetadataReader(ImageMetadata metadata)
+        {
+            _metadata = metadata;
+        }
+
+        public Task<ImageMetadataReadResult> ReadAsync(
+            MediaFile file,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult(
+                new ImageMetadataReadResult(
+                    ImageMetadataReadState.Success,
+                    _metadata));
+        }
+    }
 
     private sealed class NoOpImageMetadataReader : IImageMetadataReader
     {

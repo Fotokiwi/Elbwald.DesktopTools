@@ -1,0 +1,380 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+             x:Class="Elbwald.DesktopTools.App.Views.SupportersView"
+             x:DataType="vm:SupportersViewModel">
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+
+        <Grid
+            Margin="44,34,44,44"
+            RowDefinitions="Auto,Auto,*"
+            RowSpacing="22">
+
+            <StackPanel Spacing="7">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <TextBlock
+                        Text="Unterstützer"
+                        Classes="elbwald-title" />
+
+                    <Border
+                        Grid.Column="1"
+                        Padding="10,5"
+                        CornerRadius="999"
+                        Background="{DynamicResource ElbwaldWarningSoftBrush}"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            Text="PLATZHALTER"
+                            Foreground="{DynamicResource ElbwaldWarningBrush}"
+                            FontSize="9"
+                            FontWeight="SemiBold" />
+                    </Border>
+                </Grid>
+
+                <TextBlock
+                    MaxWidth="920"
+                    Text="Elbwald Digital bleibt kostenlos. Wenn du das Projekt unterstützen möchtest, kannst du künftig freiwillig per PayPal helfen. Vielen Dank an alle Unterstützer."
+                    Classes="elbwald-muted"
+                    FontSize="14"
+                    LineHeight="20"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border
+                Grid.Row="1"
+                Classes="elbwald-card"
+                Padding="24,22"
+                Background="{DynamicResource ElbwaldSurfaceRaisedBrush}">
+
+                <Grid ColumnDefinitions="Auto,36,Auto,36,Auto,*,300" ColumnSpacing="16">
+                    <Border
+                        Width="66"
+                        Height="66"
+                        CornerRadius="33"
+                        Background="{DynamicResource ElbwaldAccentSoftStrongBrush}"
+                        VerticalAlignment="Center">
+                        <PathIcon
+                            Data="{StaticResource ElbwaldIconTree}"
+                            Width="30"
+                            Height="30"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel
+                        Grid.Column="2"
+                        MinWidth="260"
+                        Spacing="3"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            Text="Gesamte Unterstützung"
+                            Classes="elbwald-muted"
+                            FontSize="12" />
+                        <TextBlock
+                            Text="{Binding TotalSupportText}"
+                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                            FontSize="34"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <Border
+                        Grid.Column="3"
+                        Width="1"
+                        Margin="12,0"
+                        Background="{DynamicResource ElbwaldBorderBrush}" />
+
+                    <StackPanel
+                        Grid.Column="4"
+                        MinWidth="130"
+                        Spacing="3"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            Text="Unterstützer"
+                            Classes="elbwald-muted"
+                            FontSize="12" />
+                        <TextBlock
+                            Text="{Binding SupporterCountText}"
+                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                            FontSize="34"
+                            FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="6"
+                        Spacing="8"
+                        VerticalAlignment="Center">
+                        <Button
+                            Classes="elbwald-primary-button"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            IsEnabled="False"
+                            ToolTip.Tip="Die PayPal-Anbindung folgt später."
+                            Content="Mit PayPal unterstützen" />
+                        <TextBlock
+                            Text="PayPal-Anbindung folgt später"
+                            Classes="elbwald-muted"
+                            FontSize="10"
+                            HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid
+                Grid.Row="2"
+                ColumnDefinitions="1.55*,0.85*"
+                ColumnSpacing="18">
+
+                <Border
+                    Classes="elbwald-card"
+                    Padding="22">
+
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <PathIcon
+                                Data="{StaticResource ElbwaldIconHeart}"
+                                Width="22"
+                                Height="22"
+                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock
+                                    Text="Unterstützerwand"
+                                    Classes="elbwald-section-title" />
+                                <TextBlock
+                                    Text="Vielen Dank an alle, die Elbwald Digital unterstützen."
+                                    Classes="elbwald-muted"
+                                    FontSize="11.5" />
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl
+                            Grid.Row="1"
+                            ItemsSource="{Binding Supporters}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SupporterWallEntryViewModel">
+                                    <Border
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="0,1,0,0"
+                                        Padding="4,10">
+                                        <Grid ColumnDefinitions="46,*,130,110" ColumnSpacing="12">
+                                            <Border
+                                                Width="38"
+                                                Height="38"
+                                                CornerRadius="19"
+                                                Background="{DynamicResource ElbwaldSurfaceRaisedBrush}"
+                                                VerticalAlignment="Center">
+                                                <TextBlock
+                                                    Text="{Binding Initials}"
+                                                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                    FontSize="12"
+                                                    FontWeight="SemiBold"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center" />
+                                            </Border>
+
+                                            <StackPanel
+                                                Grid.Column="1"
+                                                Spacing="1"
+                                                VerticalAlignment="Center">
+                                                <TextBlock
+                                                    Text="{Binding DisplayName}"
+                                                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                    FontSize="13"
+                                                    FontWeight="SemiBold" />
+                                                <TextBlock
+                                                    Text="{Binding DateText}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="10.5" />
+                                            </StackPanel>
+
+                                            <Border
+                                                Grid.Column="2"
+                                                Padding="10,5"
+                                                CornerRadius="8"
+                                                Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                                <TextBlock
+                                                    Text="{Binding Tier}"
+                                                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                    FontSize="10.5"
+                                                    FontWeight="SemiBold" />
+                                            </Border>
+
+                                            <TextBlock
+                                                Grid.Column="3"
+                                                Text="{Binding AmountText}"
+                                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                FontSize="13"
+                                                FontWeight="SemiBold"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border
+                            Grid.Row="2"
+                            Padding="12,10"
+                            CornerRadius="10"
+                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}">
+                            <Grid ColumnDefinitions="22,*" ColumnSpacing="8">
+                                <TextBlock
+                                    Text="i"
+                                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                    FontWeight="Bold"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Text="{Binding PlaceholderNotice}"
+                                    Classes="elbwald-muted"
+                                    FontSize="10.5"
+                                    TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border
+                    Grid.Column="1"
+                    Classes="elbwald-card"
+                    Padding="22">
+
+                    <StackPanel Spacing="18">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <PathIcon
+                                Data="{StaticResource ElbwaldIconTree}"
+                                Width="22"
+                                Height="22"
+                                Foreground="{DynamicResource ElbwaldAccentBrush}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Text="Über die Unterstützung"
+                                Classes="elbwald-section-title" />
+                        </Grid>
+
+                        <TextBlock
+                            Text="Mit deiner freiwilligen Unterstützung hilfst du, Elbwald Digital weiterzuentwickeln und langfristig kostenlos bereitzustellen."
+                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                            FontSize="12.5"
+                            LineHeight="18"
+                            TextWrapping="Wrap" />
+
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="42,*" ColumnSpacing="10">
+                                <Border
+                                    Width="38"
+                                    Height="38"
+                                    CornerRadius="19"
+                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                                    <PathIcon
+                                        Data="{StaticResource ElbwaldIconHeart}"
+                                        Width="17"
+                                        Height="17"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock
+                                        Text="Freiwillige Unterstützung"
+                                        Foreground="{DynamicResource ElbwaldTextBrush}"
+                                        FontSize="12"
+                                        FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="Hilft bei Entwicklung, Pflege und Veröffentlichung des Projekts."
+                                        Classes="elbwald-muted"
+                                        FontSize="10.5"
+                                        LineHeight="15"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="42,*" ColumnSpacing="10">
+                                <Border
+                                    Width="38"
+                                    Height="38"
+                                    CornerRadius="19"
+                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                                    <PathIcon
+                                        Data="{StaticResource ElbwaldIconCheck}"
+                                        Width="17"
+                                        Height="17"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock
+                                        Text="Keine Pflicht, keine Werbung"
+                                        Foreground="{DynamicResource ElbwaldTextBrush}"
+                                        FontSize="12"
+                                        FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="Die Basis bleibt für alle kostenlos und ohne Werbezwang."
+                                        Classes="elbwald-muted"
+                                        FontSize="10.5"
+                                        LineHeight="15"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="42,*" ColumnSpacing="10">
+                                <Border
+                                    Width="38"
+                                    Height="38"
+                                    CornerRadius="19"
+                                    Background="{DynamicResource ElbwaldAccentSoftBrush}">
+                                    <PathIcon
+                                        Data="{StaticResource ElbwaldIconEye}"
+                                        Width="17"
+                                        Height="17"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock
+                                        Text="Nennung optional"
+                                        Foreground="{DynamicResource ElbwaldTextBrush}"
+                                        FontSize="12"
+                                        FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="Später soll jeder selbst entscheiden, ob und unter welchem Namen er auf der Wand erscheint."
+                                        Classes="elbwald-muted"
+                                        FontSize="10.5"
+                                        LineHeight="15"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+
+                        <Border
+                            Height="1"
+                            Background="{DynamicResource ElbwaldBorderBrush}" />
+
+                        <StackPanel Spacing="5">
+                            <TextBlock
+                                Text="Jede Unterstützung zählt"
+                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                FontSize="12.5"
+                                FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="Egal ob klein oder groß – vielen Dank, dass du Teil von Elbwald Digital bist."
+                                Classes="elbwald-muted"
+                                FontSize="10.5"
+                                LineHeight="15"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

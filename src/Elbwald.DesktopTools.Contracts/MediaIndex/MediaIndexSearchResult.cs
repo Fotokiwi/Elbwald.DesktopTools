@@ -10,4 +10,8 @@ public sealed record MediaIndexSearchResult(
     string? Title = null,
     DateTime? CaptureDate = null,
     string? Description = null,
-    int Rating = 0);
+    int Rating = 0,
+    string? CameraMake = null,
+    string? CameraModel = null,
+    double? Latitude = null,
+    double? Longitude = null);

@@ -113,6 +113,10 @@ public partial class MainWindowViewModel : ObservableObject
             new RelayCommand(
                 () => navigationService.NavigateTo("rename"));
 
+        OpenSupportersCommand =
+            new RelayCommand(
+                OpenSupportersPage);
+
         OpenAboutCommand =
             new RelayCommand(
                 OpenAboutPage);
@@ -170,6 +174,8 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand NavigateMetadataCommand { get; }
 
     public IRelayCommand NavigateRenameCommand { get; }
+
+    public IRelayCommand OpenSupportersCommand { get; }
 
     public IRelayCommand OpenAboutCommand { get; }
 
@@ -692,6 +698,27 @@ public partial class MainWindowViewModel : ObservableObject
 
         CurrentContent =
             modulePage;
+    }
+
+    private void OpenSupportersPage()
+    {
+        const string cacheKey =
+            "special:supporters";
+
+        if (!_pageCache.TryGetValue(
+                cacheKey,
+                out var page))
+        {
+            page =
+                _contentFactory.CreateSectionPage("supporters");
+
+            _pageCache[cacheKey] =
+                page;
+        }
+
+        // Supporters is an informational help page, not a primary workspace.
+        SelectedItem = null;
+        CurrentContent = page;
     }
 
     private void OpenAboutPage()

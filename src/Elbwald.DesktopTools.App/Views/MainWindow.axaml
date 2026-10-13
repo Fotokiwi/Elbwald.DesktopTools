@@ -107,6 +107,8 @@
                         </MenuItem>
 
                         <MenuItem Header="Hilfe">
+                            <MenuItem Header="Unterstützer" Command="{Binding OpenSupportersCommand}" />
+                            <Separator />
                             <MenuItem Header="Über Elbwald Digital" Command="{Binding OpenAboutCommand}" />
                         </MenuItem>
                     </Menu>
