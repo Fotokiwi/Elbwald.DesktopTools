@@ -26,6 +26,12 @@ public partial class ProjectMediaItemViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(CoverBadgeText))]
     private bool isCover;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProjectDate))]
+    [NotifyPropertyChangedFor(nameof(ProjectDateText))]
+    [NotifyPropertyChangedFor(nameof(ProjectDayBadgeText))]
+    private DateOnly? projectDate;
+
     public ProjectMediaItemViewModel(
         ProjectMediaReference reference,
         MediaIndexSearchResult? result,
@@ -39,6 +45,7 @@ public partial class ProjectMediaItemViewModel : ObservableObject, IDisposable
         AddedAtText = reference.AddedAtUtc.ToLocalTime().ToString("dd.MM.yyyy");
         IsHighlight = reference.IsHighlight;
         IsCover = isCover;
+        ProjectDate = reference.ProjectDate;
 
         if (result is null)
         {
@@ -66,6 +73,7 @@ public partial class ProjectMediaItemViewModel : ObservableObject, IDisposable
         MediaType = MediaIndexBrowseItemViewModel.GetMediaTypeLabel(result.Item.MediaType);
         SizeText = MediaIndexBrowseItemViewModel.FormatBytes(result.Item.Length);
         IsResolved = true;
+        CaptureDate = result.CaptureDate;
         ThumbnailStatus = IsImage ? "Vorschau wird geladen …" : MediaType;
     }
 
@@ -87,6 +95,12 @@ public partial class ProjectMediaItemViewModel : ObservableObject, IDisposable
     public string HighlightActionText => IsHighlight ? "Highlight entfernen" : "Als Highlight markieren";
     public string HighlightBadgeText => IsHighlight ? "★ Highlight" : string.Empty;
     public string CoverBadgeText => IsCover ? "Cover" : string.Empty;
+    public DateTime? CaptureDate { get; }
+    public bool HasProjectDate => ProjectDate.HasValue;
+    public string ProjectDateText => ProjectDate?.ToString("dd.MM.yyyy") ?? string.Empty;
+    public string ProjectDayBadgeText => ProjectDate.HasValue
+        ? $"Tag · {ProjectDate.Value:dd.MM.yyyy}"
+        : string.Empty;
 
     partial void OnThumbnailChanged(Bitmap? value)
     {

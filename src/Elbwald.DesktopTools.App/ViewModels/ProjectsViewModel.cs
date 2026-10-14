@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Globalization;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,6 +28,10 @@ public partial class ProjectsViewModel : ObservableObject
     private int _projectCoverLoadVersion;
     private int _projectJournalLoadVersion;
     private int _journalEditorLoadVersion;
+    private readonly SemaphoreSlim _journalSaveGate = new(1, 1);
+    private CancellationTokenSource? _journalAutosaveCancellation;
+    private int _journalEditRevision;
+    private bool _suppressJournalAutosave;
     private bool _journalDeleteArmed;
 
     [ObservableProperty] private IReadOnlyList<ProjectListItemViewModel> projects = Array.Empty<ProjectListItemViewModel>();
@@ -33,6 +39,8 @@ public partial class ProjectsViewModel : ObservableObject
     [ObservableProperty] private IReadOnlyList<ProjectMediaItemViewModel> projectMedia = Array.Empty<ProjectMediaItemViewModel>();
     [ObservableProperty] private IReadOnlyList<ProjectMediaItemViewModel> highlightedMedia = Array.Empty<ProjectMediaItemViewModel>();
     [ObservableProperty] private ProjectMediaItemViewModel? selectedProjectMedia;
+    [ObservableProperty] private string mediaDayDateText = string.Empty;
+    [ObservableProperty] private string mediaDayStatus = "Medium auswählen und bei Bedarf einem Projekttag zuordnen.";
     [ObservableProperty] private string newProjectName = string.Empty;
     [ObservableProperty] private string newProjectKind = "Sammlung";
     [ObservableProperty] private string editName = string.Empty;
@@ -51,6 +59,8 @@ public partial class ProjectsViewModel : ObservableObject
     [ObservableProperty] private bool hasProjectMedia;
     [ObservableProperty] private bool hasNoProjectMedia = true;
     [ObservableProperty] private IReadOnlyList<ProjectJournalEntryItemViewModel> journalEntries = Array.Empty<ProjectJournalEntryItemViewModel>();
+    [ObservableProperty] private IReadOnlyList<ProjectTimelineDayViewModel> projectTimeline = Array.Empty<ProjectTimelineDayViewModel>();
+    [ObservableProperty] private IReadOnlyList<ProjectTravelDayViewModel> travelDays = Array.Empty<ProjectTravelDayViewModel>();
     [ObservableProperty] private ProjectJournalEntryItemViewModel? selectedJournalEntry;
     [ObservableProperty] private IReadOnlyList<ProjectJournalMediaOptionViewModel> journalMediaOptions = Array.Empty<ProjectJournalMediaOptionViewModel>();
     [ObservableProperty] private string journalDateText = string.Empty;
@@ -58,6 +68,9 @@ public partial class ProjectsViewModel : ObservableObject
     [ObservableProperty] private string journalBody = string.Empty;
     [ObservableProperty] private string journalLocation = string.Empty;
     [ObservableProperty] private string journalStatus = "Noch keine Tagebucheinträge.";
+    [ObservableProperty] private string journalAutosaveStatus = "Autosave aktiv";
+    [ObservableProperty] private int journalSelectionStart;
+    [ObservableProperty] private int journalSelectionEnd;
 
     public ProjectsViewModel(
         IProjectService projectService,
@@ -83,17 +96,26 @@ public partial class ProjectsViewModel : ObservableObject
         SetCoverCommand = new AsyncRelayCommand(SetSelectedMediaAsCoverAsync, CanSetCover);
         ClearCoverCommand = new AsyncRelayCommand(ClearCoverAsync, CanClearCover);
         ToggleHighlightCommand = new AsyncRelayCommand(ToggleSelectedHighlightAsync, () => !IsBusy && SelectedProject is not null && SelectedProjectMedia is not null);
+        AssignMediaDayCommand = new AsyncRelayCommand(AssignSelectedMediaDayAsync, CanAssignMediaDay);
+        ClearMediaDayCommand = new AsyncRelayCommand(ClearSelectedMediaDayAsync, CanClearMediaDay);
         FindMediaCommand = new AsyncRelayCommand(FindMediaAsync, () => !IsBusy && SelectedProject is not null);
         AddSuggestedMediaCommand = new AsyncRelayCommand(AddSuggestedMediaAsync, () => !IsBusy && SelectedProject is not null && SuggestedMedia.Any(item => item.IsSelected));
         NewJournalEntryCommand = new RelayCommand(StartNewJournalEntry, () => !IsBusy && SelectedProject is not null);
         SaveJournalEntryCommand = new AsyncRelayCommand(SaveJournalEntryAsync, CanSaveJournalEntry);
         DeleteJournalEntryCommand = new AsyncRelayCommand(DeleteJournalEntryAsync, () => !IsBusy && SelectedProject is not null && SelectedJournalEntry is not null);
+        FormatJournalBoldCommand = new RelayCommand(() => WrapJournalSelection("**", "**", "fetter Text"));
+        FormatJournalItalicCommand = new RelayCommand(() => WrapJournalSelection("*", "*", "kursiver Text"));
+        FormatJournalHeadingCommand = new RelayCommand(() => PrefixJournalLines("## "));
+        FormatJournalListCommand = new RelayCommand(() => PrefixJournalLines("- "));
+        FormatJournalQuoteCommand = new RelayCommand(() => PrefixJournalLines("> "));
+        SelectJournalDayMediaCommand = new RelayCommand(SelectSuggestedJournalDayMedia, CanSelectJournalDayMedia);
+        AssignSelectedJournalMediaToDayCommand = new AsyncRelayCommand(AssignSelectedJournalMediaToDayAsync, CanAssignSelectedJournalMediaToDay);
         BackToProjectsCommand = new RelayCommand(() => SelectedProject = null);
 
         _ = RefreshAsync();
     }
 
-    public IReadOnlyList<string> ProjectKinds { get; } = new[] { "Sammlung", "Urlaub", "Hochzeit", "Geburtstag", "Fotobuch", "Kalender", "Sonstiges" };
+    public IReadOnlyList<string> ProjectKinds { get; } = new[] { "Sammlung", "Reise", "Urlaub", "Hochzeit", "Geburtstag", "Fotobuch", "Kalender", "Sonstiges" };
 
     public IAsyncRelayCommand RefreshCommand { get; }
     public IAsyncRelayCommand CreateProjectCommand { get; }
@@ -104,11 +126,20 @@ public partial class ProjectsViewModel : ObservableObject
     public IAsyncRelayCommand SetCoverCommand { get; }
     public IAsyncRelayCommand ClearCoverCommand { get; }
     public IAsyncRelayCommand ToggleHighlightCommand { get; }
+    public IAsyncRelayCommand AssignMediaDayCommand { get; }
+    public IAsyncRelayCommand ClearMediaDayCommand { get; }
     public IAsyncRelayCommand FindMediaCommand { get; }
     public IAsyncRelayCommand AddSuggestedMediaCommand { get; }
     public IRelayCommand NewJournalEntryCommand { get; }
     public IAsyncRelayCommand SaveJournalEntryCommand { get; }
     public IAsyncRelayCommand DeleteJournalEntryCommand { get; }
+    public IRelayCommand FormatJournalBoldCommand { get; }
+    public IRelayCommand FormatJournalItalicCommand { get; }
+    public IRelayCommand FormatJournalHeadingCommand { get; }
+    public IRelayCommand FormatJournalListCommand { get; }
+    public IRelayCommand FormatJournalQuoteCommand { get; }
+    public IRelayCommand SelectJournalDayMediaCommand { get; }
+    public IAsyncRelayCommand AssignSelectedJournalMediaToDayCommand { get; }
     public IRelayCommand BackToProjectsCommand { get; }
 
     public bool HasProjects => Projects.Count > 0;
@@ -118,13 +149,187 @@ public partial class ProjectsViewModel : ObservableObject
     public bool HasSuggestedMedia => SuggestedMedia.Count > 0;
     public bool HasHighlights => HighlightedMedia.Count > 0;
     public bool HasNoHighlights => HighlightedMedia.Count == 0;
+    public bool HasSelectedProjectMedia => SelectedProjectMedia is not null;
     public bool SelectedProjectHasCover => SelectedProject?.HasConfiguredCover == true;
     public string SelectedProjectMediaCountText => SelectedProject?.MediaCountText ?? "0 Medien";
     public bool HasJournalEntries => JournalEntries.Count > 0;
     public bool HasNoJournalEntries => JournalEntries.Count == 0;
+    public bool HasProjectTimeline => ProjectTimeline.Count > 0;
+    public bool HasNoProjectTimeline => ProjectTimeline.Count == 0;
+    public string ProjectTimelineSummaryText
+    {
+        get
+        {
+            var dayCount = ProjectTimeline.Count;
+            var assignedMediaCount = ProjectMedia.Count(item => item.ProjectDate.HasValue);
+            var journalCount = JournalEntries.Count;
+
+            var days = dayCount == 1 ? "1 Projekttag" : $"{dayCount:N0} Projekttage";
+            var entries = journalCount == 1 ? "1 Tagebucheintrag" : $"{journalCount:N0} Tagebucheinträge";
+            var media = assignedMediaCount == 1 ? "1 zugeordnetes Medium" : $"{assignedMediaCount:N0} zugeordnete Medien";
+            return $"{days} · {entries} · {media}";
+        }
+    }
+    public string UnassignedProjectMediaText
+    {
+        get
+        {
+            var count = ProjectMedia.Count(item => !item.ProjectDate.HasValue);
+            return count switch
+            {
+                0 => "Alle Projektmedien mit Tageszuordnung sind chronologisch eingeordnet.",
+                1 => "1 Projektmedium hat noch keinen Projekttag.",
+                _ => $"{count:N0} Projektmedien haben noch keinen Projekttag."
+            };
+        }
+    }
+    public bool IsTravelProject => SelectedProject is not null && IsTravelKind(SelectedProject.Project.Kind);
+
+    public bool HasTravelProfileDates =>
+        IsTravelProject
+        && SelectedProject?.Project.StartDate is DateOnly startDate
+        && SelectedProject.Project.EndDate is DateOnly endDate
+        && endDate >= startDate;
+
+    public bool HasTravelDays => TravelDays.Count > 0;
+
+    public bool HasNoTravelDays => TravelDays.Count == 0;
+
+    public string TravelDestinationText => string.IsNullOrWhiteSpace(SelectedProject?.Project.Location)
+        ? "Reiseziel noch nicht eingetragen"
+        : SelectedProject.Project.Location!;
+
+    public string TravelPeriodText
+    {
+        get
+        {
+            var project = SelectedProject?.Project;
+            if (project?.StartDate is null || project.EndDate is null)
+            {
+                return "Reisezeitraum noch nicht vollständig";
+            }
+
+            var culture = CultureInfo.GetCultureInfo("de-DE");
+            return $"{project.StartDate.Value.ToString("dd. MMMM yyyy", culture)} – {project.EndDate.Value.ToString("dd. MMMM yyyy", culture)}";
+        }
+    }
+
+    public string TravelDurationText
+    {
+        get
+        {
+            var count = GetTravelDurationDays();
+            return count switch
+            {
+                null => "Zeitraum ergänzen",
+                1 => "1 Reisetag",
+                _ => $"{count.Value:N0} Reisetage"
+            };
+        }
+    }
+
+    public string TravelDocumentationText
+    {
+        get
+        {
+            var total = GetTravelDurationDays();
+            if (!total.HasValue)
+            {
+                return "Start- und Enddatum ergänzen";
+            }
+
+            var documented = GetDocumentedTravelDates().Count;
+            return $"{documented:N0} von {total.Value:N0} Tagen dokumentiert";
+        }
+    }
+
+    public string TravelMediaSummaryText
+    {
+        get
+        {
+            var assigned = CountTravelDayAssignedMedia();
+            var total = ProjectMedia.Count;
+            if (total == 0)
+            {
+                return "Noch keine Projektmedien";
+            }
+
+            return assigned == total
+                ? $"{total:N0} Medien zeitlich eingeordnet"
+                : $"{assigned:N0} von {total:N0} Medien Reisetagen zugeordnet";
+        }
+    }
+
+    public string TravelJournalSummaryText
+    {
+        get
+        {
+            var count = CountTravelJournalEntries();
+            return count switch
+            {
+                0 => "Noch keine Reisetagebucheinträge",
+                1 => "1 Reisetagebucheintrag",
+                _ => $"{count:N0} Reisetagebucheinträge"
+            };
+        }
+    }
+
+    public string TravelMissingDaysText
+    {
+        get
+        {
+            var total = GetTravelDurationDays();
+            if (!total.HasValue)
+            {
+                return "Mit Start- und Enddatum kann Elbwald automatisch alle Reisetage aufbauen.";
+            }
+
+            var documented = GetDocumentedTravelDates().Count;
+            var missing = Math.Max(0, total.Value - documented);
+            return missing switch
+            {
+                0 => "Jeder Reisetag enthält bereits Tagebuch oder zugeordnete Medien.",
+                1 => "1 Reisetag ist noch nicht dokumentiert.",
+                _ => $"{missing:N0} Reisetage sind noch nicht dokumentiert."
+            };
+        }
+    }
+
+    public bool IsTravelOverviewTruncated => GetTravelDurationDays() is > 120;
+
+    public string TravelRangeNoticeText
+    {
+        get
+        {
+            var total = GetTravelDurationDays();
+            return total is > 120
+                ? $"Die kompakte Übersicht zeigt die ersten 120 von {total.Value:N0} Reisetagen. Aktivitäten aus dem gesamten Zeitraum bleiben im Reiter „Verlauf“ sichtbar."
+                : string.Empty;
+        }
+    }
+
     public bool IsEditingExistingJournalEntry => SelectedJournalEntry is not null;
     public string JournalEditorHeading => IsEditingExistingJournalEntry ? "Tagebucheintrag bearbeiten" : "Neuer Tagebucheintrag";
     public string JournalDeleteButtonText => _journalDeleteArmed ? "Löschen bestätigen" : "Eintrag löschen";
+    public bool HasJournalDayMediaSuggestions => JournalMediaOptions.Any(item => item.IsSuggestedForEntryDay);
+    public string JournalDayMediaSuggestionText
+    {
+        get
+        {
+            if (!TryParseOptionalDate(JournalDateText, out var date) || !date.HasValue)
+            {
+                return "Datum eingeben, um Tagesmedien zu erkennen.";
+            }
+
+            var count = JournalMediaOptions.Count(item => item.IsSuggestedForEntryDay);
+            return count switch
+            {
+                0 => $"Keine Medien für {date.Value:dd.MM.yyyy} erkannt.",
+                1 => $"1 Medium passt zu {date.Value:dd.MM.yyyy}.",
+                _ => $"{count:N0} Medien passen zu {date.Value:dd.MM.yyyy}."
+            };
+        }
+    }
 
     partial void OnIsBusyChanged(bool value) => NotifyCommands();
     partial void OnNewProjectNameChanged(string value) => CreateProjectCommand.NotifyCanExecuteChanged();
@@ -136,15 +341,56 @@ public partial class ProjectsViewModel : ObservableObject
         OnPropertyChanged(nameof(HasHighlights));
         OnPropertyChanged(nameof(HasNoHighlights));
     }
+    partial void OnProjectMediaChanged(IReadOnlyList<ProjectMediaItemViewModel> value)
+    {
+        RebuildProjectTimeline();
+    }
+
     partial void OnJournalEntriesChanged(IReadOnlyList<ProjectJournalEntryItemViewModel> value)
     {
         OnPropertyChanged(nameof(HasJournalEntries));
         OnPropertyChanged(nameof(HasNoJournalEntries));
+        RefreshJournalDayHeaders(value);
+        RebuildProjectTimeline();
     }
-    partial void OnJournalTitleChanged(string value) => SaveJournalEntryCommand.NotifyCanExecuteChanged();
-    partial void OnJournalDateTextChanged(string value) => SaveJournalEntryCommand.NotifyCanExecuteChanged();
+    partial void OnJournalTitleChanged(string value)
+    {
+        SaveJournalEntryCommand.NotifyCanExecuteChanged();
+        ScheduleJournalAutosave();
+    }
+
+    partial void OnJournalDateTextChanged(string value)
+    {
+        SaveJournalEntryCommand.NotifyCanExecuteChanged();
+        RefreshJournalDaySuggestions();
+        AssignSelectedJournalMediaToDayCommand.NotifyCanExecuteChanged();
+        ScheduleJournalAutosave();
+    }
+
+    partial void OnJournalBodyChanged(string value) => ScheduleJournalAutosave();
+
+    partial void OnJournalLocationChanged(string value) => ScheduleJournalAutosave();
+
+    partial void OnJournalMediaOptionsChanged(
+        IReadOnlyList<ProjectJournalMediaOptionViewModel> oldValue,
+        IReadOnlyList<ProjectJournalMediaOptionViewModel> newValue)
+    {
+        foreach (var item in oldValue)
+        {
+            item.PropertyChanged -= OnJournalMediaOptionPropertyChanged;
+        }
+
+        foreach (var item in newValue)
+        {
+            item.PropertyChanged += OnJournalMediaOptionPropertyChanged;
+        }
+
+        RefreshJournalDaySuggestions();
+        AssignSelectedJournalMediaToDayCommand.NotifyCanExecuteChanged();
+    }
     partial void OnSelectedJournalEntryChanged(ProjectJournalEntryItemViewModel? value)
     {
+        CancelJournalAutosave();
         ResetJournalDeleteArm();
         OnPropertyChanged(nameof(IsEditingExistingJournalEntry));
         OnPropertyChanged(nameof(JournalEditorHeading));
@@ -156,10 +402,12 @@ public partial class ProjectsViewModel : ObservableObject
             return;
         }
 
-        JournalDateText = value.Entry.EntryDate.ToString("dd.MM.yyyy");
-        JournalTitle = value.Entry.Title;
-        JournalBody = value.Entry.Body ?? string.Empty;
-        JournalLocation = value.Entry.Location ?? string.Empty;
+        SetJournalEditorValues(
+            value.Entry.EntryDate.ToString("dd.MM.yyyy"),
+            value.Entry.Title,
+            value.Entry.Body ?? string.Empty,
+            value.Entry.Location ?? string.Empty);
+        JournalAutosaveStatus = "Autosave aktiv";
         var editorVersion = ++_journalEditorLoadVersion;
         _ = LoadJournalMediaOptionsAsync(
             SelectedProject.Id,
@@ -182,18 +430,44 @@ public partial class ProjectsViewModel : ObservableObject
     partial void OnSelectedSearchResultChanged(ProjectSearchResultViewModel? value) => AddSelectedMediaCommand.NotifyCanExecuteChanged();
     partial void OnSelectedProjectMediaChanged(ProjectMediaItemViewModel? value)
     {
+        OnPropertyChanged(nameof(HasSelectedProjectMedia));
         RemoveMediaCommand.NotifyCanExecuteChanged();
         SetCoverCommand.NotifyCanExecuteChanged();
         ToggleHighlightCommand.NotifyCanExecuteChanged();
+        AssignMediaDayCommand.NotifyCanExecuteChanged();
+        ClearMediaDayCommand.NotifyCanExecuteChanged();
+
+        if (value is null)
+        {
+            MediaDayDateText = string.Empty;
+            MediaDayStatus = "Medium auswählen und bei Bedarf einem Projekttag zuordnen.";
+            return;
+        }
+
+        var suggestedDate = GetSuggestedProjectDate(value);
+        MediaDayDateText = suggestedDate?.ToString("dd.MM.yyyy") ?? string.Empty;
+
+        MediaDayStatus = value.ProjectDate.HasValue
+            ? $"Dem Projekttag {value.ProjectDate.Value:dd.MM.yyyy} zugeordnet."
+            : suggestedDate.HasValue
+                ? $"Vorschlag aus dem Aufnahmedatum: {suggestedDate.Value:dd.MM.yyyy}. Noch nicht zugeordnet."
+                : "Kein Aufnahmedatum verfügbar. Projekttag bei Bedarf manuell eintragen.";
+    }
+
+    partial void OnMediaDayDateTextChanged(string value)
+    {
+        AssignMediaDayCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedProjectChanged(ProjectListItemViewModel? value)
     {
         CancelProjectThumbnailLoad();
+        CancelJournalAutosave();
         OnPropertyChanged(nameof(HasSelectedProject));
         OnPropertyChanged(nameof(HasNoSelectedProject));
         OnPropertyChanged(nameof(SelectedProjectMediaCountText));
         OnPropertyChanged(nameof(SelectedProjectHasCover));
+        NotifyTravelProfileProperties();
         SearchResults = Array.Empty<ProjectSearchResultViewModel>();
         SelectedSearchResult = null;
         var loadVersion = ++_projectMediaLoadVersion;
@@ -202,6 +476,9 @@ public partial class ProjectsViewModel : ObservableObject
         JournalEntries = Array.Empty<ProjectJournalEntryItemViewModel>();
         SelectedJournalEntry = null;
         JournalMediaOptions = Array.Empty<ProjectJournalMediaOptionViewModel>();
+        SelectedProjectMedia = null;
+        MediaDayDateText = string.Empty;
+        MediaDayStatus = "Medium auswählen und bei Bedarf einem Projekttag zuordnen.";
         ResetJournalDeleteArm();
 
         if (value is null)
@@ -214,11 +491,13 @@ public partial class ProjectsViewModel : ObservableObject
             EditEndDateText = string.Empty;
             SuggestedMedia = Array.Empty<ProjectSearchResultViewModel>();
             FindMediaStatus = "Speichere zuerst einen Zeitraum. Danach kann Elbwald passende Medien aus deiner Bibliothek vorschlagen.";
-            JournalDateText = string.Empty;
-            JournalTitle = string.Empty;
-            JournalBody = string.Empty;
-            JournalLocation = string.Empty;
+            SetJournalEditorValues(
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty);
             JournalStatus = "Wähle ein Projekt aus, um das Tagebuch zu öffnen.";
+            JournalAutosaveStatus = "Autosave inaktiv";
             SetProjectMedia(Array.Empty<ProjectMediaItemViewModel>());
         }
         else
@@ -250,6 +529,16 @@ public partial class ProjectsViewModel : ObservableObject
     private bool CanClearCover() =>
         !IsBusy
         && SelectedProject?.HasConfiguredCover == true;
+    private bool CanAssignMediaDay() =>
+        !IsBusy
+        && SelectedProject is not null
+        && SelectedProjectMedia is not null
+        && TryParseOptionalDate(MediaDayDateText, out var mediaDay)
+        && mediaDay.HasValue;
+    private bool CanClearMediaDay() =>
+        !IsBusy
+        && SelectedProject is not null
+        && SelectedProjectMedia?.ProjectDate is not null;
     private bool CanSaveJournalEntry() =>
         !IsBusy
         && SelectedProject is not null
@@ -729,11 +1018,17 @@ public partial class ProjectsViewModel : ObservableObject
         {
             var entries = await _projectService.GetJournalEntriesAsync(projectId);
             var items = new List<ProjectJournalEntryItemViewModel>(entries.Count);
+            DateOnly? previousDate = null;
 
             foreach (var entry in entries)
             {
                 var media = await _projectService.GetJournalMediaReferencesAsync(entry.Id);
-                items.Add(new ProjectJournalEntryItemViewModel(entry, media.Count));
+                var showDayHeader = previousDate != entry.EntryDate;
+                items.Add(new ProjectJournalEntryItemViewModel(
+                    entry,
+                    media.Count,
+                    showDayHeader));
+                previousDate = entry.EntryDate;
             }
 
             if (loadVersion != _projectJournalLoadVersion
@@ -783,18 +1078,15 @@ public partial class ProjectsViewModel : ObservableObject
 
         var today = DateOnly.FromDateTime(DateTime.Today);
         var project = SelectedProject.Project;
-        var defaultDate = project.StartDate.HasValue
-            && project.EndDate.HasValue
-            && today >= project.StartDate.Value
-            && today <= project.EndDate.Value
-                ? today
-                : project.StartDate ?? today;
+        var defaultDate = GetDefaultJournalDate(project, today);
 
-        JournalDateText = defaultDate.ToString("dd.MM.yyyy");
-        JournalTitle = string.Empty;
-        JournalBody = string.Empty;
-        JournalLocation = project.Location ?? string.Empty;
-        JournalStatus = "Neuer Eintrag – Datum, Titel und Notiz erfassen und anschließend speichern.";
+        SetJournalEditorValues(
+            defaultDate.ToString("dd.MM.yyyy"),
+            string.Empty,
+            string.Empty,
+            project.Location ?? string.Empty);
+        JournalStatus = "Neuer Eintrag – sobald Datum und Titel gesetzt sind, speichert Elbwald automatisch.";
+        JournalAutosaveStatus = "Autosave wartet auf Datum und Titel";
 
         var editorVersion = ++_journalEditorLoadVersion;
         _ = LoadJournalMediaOptionsAsync(
@@ -808,30 +1100,88 @@ public partial class ProjectsViewModel : ObservableObject
 
     private async Task SaveJournalEntryAsync()
     {
-        if (!CanSaveJournalEntry() || SelectedProject is null)
+        if (!CanSaveJournalEntry())
         {
             return;
         }
 
-        if (!TryParseOptionalDate(JournalDateText, out var entryDate)
-            || !entryDate.HasValue)
+        CancelJournalAutosave();
+        var revision = ++_journalEditRevision;
+
+        IsBusy = true;
+        try
         {
-            JournalStatus = "Bitte ein gültiges Datum eingeben, z. B. 16.07.2026.";
+            await SaveJournalEntryCoreAsync(
+                isAutosave: false,
+                revision,
+                CancellationToken.None);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task SaveJournalEntryCoreAsync(
+        bool isAutosave,
+        int revision,
+        CancellationToken cancellationToken)
+    {
+        if (SelectedProject is null
+            || !TryParseOptionalDate(JournalDateText, out var entryDate)
+            || !entryDate.HasValue
+            || string.IsNullOrWhiteSpace(JournalTitle))
+        {
+            if (revision == _journalEditRevision)
+            {
+                JournalAutosaveStatus = "Autosave wartet auf Datum und Titel";
+            }
+
             return;
         }
 
         var projectId = SelectedProject.Id;
-        IsBusy = true;
+        var editorVersion = _journalEditorLoadVersion;
+        var entryIdAtSchedule = SelectedJournalEntry?.Id;
+        var request = new ProjectJournalEntryRequest(
+            entryDate.Value,
+            JournalTitle,
+            JournalBody,
+            JournalLocation);
+
+        var selectedMediaIds = JournalMediaOptions
+            .Where(item => item.IsSelected)
+            .Select(item => item.MediaItemId)
+            .ToArray();
+
+        await _journalSaveGate.WaitAsync(cancellationToken);
         try
         {
-            var request = new ProjectJournalEntryRequest(
-                entryDate.Value,
-                JournalTitle,
-                JournalBody,
-                JournalLocation);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var existingEntryId = entryIdAtSchedule;
+            if (string.IsNullOrWhiteSpace(existingEntryId)
+                && editorVersion == _journalEditorLoadVersion
+                && string.Equals(
+                    SelectedProject?.Id,
+                    projectId,
+                    StringComparison.Ordinal))
+            {
+                // A preceding autosave may have persisted this new draft while
+                // this newer revision was waiting for the save gate.
+                existingEntryId = SelectedJournalEntry?.Id;
+            }
+
+            if (revision == _journalEditRevision
+                && editorVersion == _journalEditorLoadVersion)
+            {
+                JournalAutosaveStatus = isAutosave
+                    ? "Autosave speichert …"
+                    : "Eintrag wird gespeichert …";
+            }
 
             ProjectJournalEntry saved;
-            if (SelectedJournalEntry is null)
+            if (string.IsNullOrWhiteSpace(existingEntryId))
             {
                 saved = await _projectService.CreateJournalEntryAsync(
                     projectId,
@@ -841,39 +1191,262 @@ public partial class ProjectsViewModel : ObservableObject
             {
                 saved = await _projectService.UpdateJournalEntryAsync(
                     projectId,
-                    SelectedJournalEntry.Id,
+                    existingEntryId,
                     request);
             }
 
-            var selectedMediaIds = JournalMediaOptions
-                .Where(item => item.IsSelected)
-                .Select(item => item.MediaItemId)
-                .ToArray();
-
+            // Once persistence has started, finish the save atomically even if a
+            // newer edit already queued the next autosave. Otherwise a new draft
+            // could be created in the database without the editor learning its ID.
             await _projectService.SetJournalMediaAsync(
                 projectId,
                 saved.Id,
                 selectedMediaIds);
 
-            var loadVersion = ++_projectJournalLoadVersion;
-            await LoadJournalForSelectionAsync(
-                projectId,
-                loadVersion,
-                saved.Id);
+            if (editorVersion == _journalEditorLoadVersion
+                && string.Equals(
+                    SelectedProject?.Id,
+                    projectId,
+                    StringComparison.Ordinal))
+            {
+                ApplySavedJournalEntry(saved, selectedMediaIds.Length);
+            }
 
-            JournalStatus = SelectedJournalEntry?.MediaCount > 0
-                ? "Tagebucheintrag gespeichert. Verknüpfte Medien bleiben unverändert."
-                : "Tagebucheintrag gespeichert.";
+            if (revision == _journalEditRevision
+                && editorVersion == _journalEditorLoadVersion
+                && string.Equals(
+                    SelectedProject?.Id,
+                    projectId,
+                    StringComparison.Ordinal))
+            {
+                JournalAutosaveStatus = $"Gespeichert · {DateTime.Now:HH:mm}";
+                JournalStatus = selectedMediaIds.Length > 0
+                    ? "Tagebucheintrag gespeichert. Verknüpfte Medien bleiben unverändert."
+                    : "Tagebucheintrag gespeichert.";
+            }
+        }
+        catch (OperationCanceledException) when (isAutosave)
+        {
+            // A newer editor revision superseded this pending autosave.
         }
         catch (Exception exception)
         {
-            JournalStatus = "Tagebucheintrag konnte nicht gespeichert werden: "
-                + exception.GetBaseException().Message;
+            if (revision == _journalEditRevision
+                && editorVersion == _journalEditorLoadVersion
+                && string.Equals(
+                    SelectedProject?.Id,
+                    projectId,
+                    StringComparison.Ordinal))
+            {
+                JournalAutosaveStatus = "Speichern fehlgeschlagen";
+                JournalStatus = "Tagebucheintrag konnte nicht gespeichert werden: "
+                    + exception.GetBaseException().Message;
+            }
         }
         finally
         {
-            IsBusy = false;
+            _journalSaveGate.Release();
         }
+    }
+
+    private void ApplySavedJournalEntry(
+        ProjectJournalEntry saved,
+        int mediaCount)
+    {
+        if (SelectedJournalEntry is not null
+            && string.Equals(
+                SelectedJournalEntry.Id,
+                saved.Id,
+                StringComparison.Ordinal))
+        {
+            SelectedJournalEntry.Update(saved, mediaCount);
+        }
+        else
+        {
+            var item = new ProjectJournalEntryItemViewModel(saved, mediaCount);
+            JournalEntries = JournalEntries
+                .Append(item)
+                .OrderByDescending(entry => entry.Entry.EntryDate)
+                .ThenByDescending(entry => entry.Entry.UpdatedAtUtc)
+                .ToArray();
+
+            // Keep the editor and caret untouched when autosave turns a new draft
+            // into a persisted entry.
+            selectedJournalEntry = item;
+            OnPropertyChanged(nameof(SelectedJournalEntry));
+            OnPropertyChanged(nameof(IsEditingExistingJournalEntry));
+            OnPropertyChanged(nameof(JournalEditorHeading));
+            DeleteJournalEntryCommand.NotifyCanExecuteChanged();
+        }
+
+        if (SelectedJournalEntry is not null)
+        {
+            JournalEntries = JournalEntries
+                .OrderByDescending(entry => entry.Entry.EntryDate)
+                .ThenByDescending(entry => entry.Entry.UpdatedAtUtc)
+                .ToArray();
+        }
+    }
+
+    private void ScheduleJournalAutosave()
+    {
+        if (_suppressJournalAutosave || SelectedProject is null)
+        {
+            return;
+        }
+
+        var revision = ++_journalEditRevision;
+        CancelJournalAutosave();
+
+        if (!TryParseOptionalDate(JournalDateText, out var entryDate)
+            || !entryDate.HasValue
+            || string.IsNullOrWhiteSpace(JournalTitle))
+        {
+            JournalAutosaveStatus = "Autosave wartet auf Datum und Titel";
+            return;
+        }
+
+        JournalAutosaveStatus = "Ungespeicherte Änderungen";
+        var cancellation = new CancellationTokenSource();
+        _journalAutosaveCancellation = cancellation;
+        _ = AutosaveJournalAfterDelayAsync(revision, cancellation.Token);
+    }
+
+    private async Task AutosaveJournalAfterDelayAsync(
+        int revision,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(1200),
+                cancellationToken);
+
+            await SaveJournalEntryCoreAsync(
+                isAutosave: true,
+                revision,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal debounce behaviour: a newer edit replaces the pending save.
+        }
+    }
+
+    private void CancelJournalAutosave()
+    {
+        var cancellation = Interlocked.Exchange(
+            ref _journalAutosaveCancellation,
+            null);
+
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+
+    private void SetJournalEditorValues(
+        string dateText,
+        string title,
+        string body,
+        string location)
+    {
+        _suppressJournalAutosave = true;
+        try
+        {
+            JournalDateText = dateText;
+            JournalTitle = title;
+            JournalBody = body;
+            JournalLocation = location;
+            JournalSelectionStart = 0;
+            JournalSelectionEnd = 0;
+        }
+        finally
+        {
+            _suppressJournalAutosave = false;
+        }
+    }
+
+    private void OnJournalMediaOptionPropertyChanged(
+        object? sender,
+        PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(ProjectJournalMediaOptionViewModel.IsSelected))
+        {
+            AssignSelectedJournalMediaToDayCommand.NotifyCanExecuteChanged();
+            ScheduleJournalAutosave();
+        }
+    }
+
+    private void WrapJournalSelection(
+        string prefix,
+        string suffix,
+        string placeholder)
+    {
+        var body = JournalBody ?? string.Empty;
+        var start = Math.Clamp(
+            Math.Min(JournalSelectionStart, JournalSelectionEnd),
+            0,
+            body.Length);
+        var end = Math.Clamp(
+            Math.Max(JournalSelectionStart, JournalSelectionEnd),
+            start,
+            body.Length);
+
+        var selected = body[start..end];
+        var content = string.IsNullOrEmpty(selected)
+            ? placeholder
+            : selected;
+
+        JournalBody =
+            body[..start]
+            + prefix
+            + content
+            + suffix
+            + body[end..];
+
+        JournalSelectionStart = start + prefix.Length;
+        JournalSelectionEnd = JournalSelectionStart + content.Length;
+    }
+
+    private void PrefixJournalLines(string prefix)
+    {
+        var body = JournalBody ?? string.Empty;
+        var start = Math.Clamp(
+            Math.Min(JournalSelectionStart, JournalSelectionEnd),
+            0,
+            body.Length);
+        var end = Math.Clamp(
+            Math.Max(JournalSelectionStart, JournalSelectionEnd),
+            start,
+            body.Length);
+
+        var lineStart = start == 0
+            ? 0
+            : body.LastIndexOf('\n', Math.Max(0, start - 1)) + 1;
+
+        var lineEndIndex = body.IndexOf('\n', end);
+        var lineEnd = lineEndIndex < 0
+            ? body.Length
+            : lineEndIndex;
+
+        var selectedLines = body[lineStart..lineEnd];
+        var formatted = string.Join(
+            "\n",
+            selectedLines
+                .Split('\n')
+                .Select(line => prefix + line));
+
+        JournalBody =
+            body[..lineStart]
+            + formatted
+            + body[lineEnd..];
+
+        JournalSelectionStart = lineStart;
+        JournalSelectionEnd = lineStart + formatted.Length;
     }
 
     private async Task DeleteJournalEntryAsync()
@@ -893,22 +1466,31 @@ public partial class ProjectsViewModel : ObservableObject
 
         var projectId = SelectedProject.Id;
         var entryId = SelectedJournalEntry.Id;
+
+        CancelJournalAutosave();
+        ++_journalEditRevision;
+        ++_journalEditorLoadVersion;
+
         IsBusy = true;
+        await _journalSaveGate.WaitAsync();
         try
         {
             await _projectService.DeleteJournalEntryAsync(projectId, entryId);
             ResetJournalDeleteArm();
             var loadVersion = ++_projectJournalLoadVersion;
             await LoadJournalForSelectionAsync(projectId, loadVersion);
+            JournalAutosaveStatus = "Autosave aktiv";
             JournalStatus = "Tagebucheintrag gelöscht. Medien und Dateien wurden nicht verändert.";
         }
         catch (Exception exception)
         {
+            JournalAutosaveStatus = "Speichern fehlgeschlagen";
             JournalStatus = "Tagebucheintrag konnte nicht gelöscht werden: "
                 + exception.GetBaseException().Message;
         }
         finally
         {
+            _journalSaveGate.Release();
             IsBusy = false;
         }
     }
@@ -946,6 +1528,14 @@ public partial class ProjectsViewModel : ObservableObject
                     ? Path.GetFileName(representative.RelativePath)
                     : reference.MediaItemId;
 
+                var facts = indexedItem is null
+                    ? null
+                    : await _mediaIndexService.GetFactsAsync(reference.MediaItemId);
+
+                var captureDate = facts?.CaptureDate is DateTime capture
+                    ? DateOnly.FromDateTime(capture)
+                    : (DateOnly?)null;
+
                 var detail = indexedItem is null
                     ? "Medium nicht mehr im Index"
                     : !string.IsNullOrWhiteSpace(representative?.RelativePath)
@@ -956,7 +1546,9 @@ public partial class ProjectsViewModel : ObservableObject
                     reference.MediaItemId,
                     title,
                     detail,
-                    linkedIds.Contains(reference.MediaItemId)));
+                    linkedIds.Contains(reference.MediaItemId),
+                    reference.ProjectDate,
+                    captureDate));
             }
 
             if (editorVersion != _journalEditorLoadVersion
@@ -976,6 +1568,363 @@ public partial class ProjectsViewModel : ObservableObject
                 JournalStatus = "Projektmedien für den Tagebucheintrag konnten nicht geladen werden: "
                     + exception.GetBaseException().Message;
             }
+        }
+    }
+
+    private static void RefreshJournalDayHeaders(
+        IReadOnlyList<ProjectJournalEntryItemViewModel> entries)
+    {
+        DateOnly? previousDate = null;
+        foreach (var entry in entries)
+        {
+            entry.ShowDayHeader = previousDate != entry.Entry.EntryDate;
+            previousDate = entry.Entry.EntryDate;
+        }
+    }
+
+    private void RebuildProjectTimeline()
+    {
+        var projectStartDate = SelectedProject?.Project.StartDate;
+        var dates = JournalEntries
+            .Select(entry => entry.Entry.EntryDate)
+            .Concat(ProjectMedia
+                .Where(media => media.ProjectDate.HasValue)
+                .Select(media => media.ProjectDate!.Value))
+            .Distinct()
+            .OrderBy(date => date)
+            .ToArray();
+
+        ProjectTimeline = dates
+            .Select(date => new ProjectTimelineDayViewModel(
+                date,
+                projectStartDate,
+                JournalEntries
+                    .Where(entry => entry.Entry.EntryDate == date)
+                    .OrderBy(entry => entry.Entry.CreatedAtUtc)
+                    .ToArray(),
+                ProjectMedia
+                    .Where(media => media.ProjectDate == date)
+                    .OrderBy(media => media.CaptureDate ?? DateTime.MaxValue)
+                    .ThenBy(media => media.DisplayTitle, StringComparer.CurrentCultureIgnoreCase)
+                    .ToArray()))
+            .ToArray();
+
+        OnPropertyChanged(nameof(HasProjectTimeline));
+        OnPropertyChanged(nameof(HasNoProjectTimeline));
+        OnPropertyChanged(nameof(ProjectTimelineSummaryText));
+        OnPropertyChanged(nameof(UnassignedProjectMediaText));
+        RebuildTravelOverview();
+    }
+
+    private void RebuildTravelOverview()
+    {
+        if (!IsTravelProject
+            || SelectedProject?.Project.StartDate is not DateOnly startDate
+            || SelectedProject.Project.EndDate is not DateOnly endDate
+            || endDate < startDate)
+        {
+            TravelDays = Array.Empty<ProjectTravelDayViewModel>();
+            NotifyTravelProfileProperties();
+            return;
+        }
+
+        var totalDays = endDate.DayNumber - startDate.DayNumber + 1;
+        var visibleDays = Math.Min(totalDays, 120);
+        var items = new List<ProjectTravelDayViewModel>(visibleDays);
+
+        for (var offset = 0; offset < visibleDays; offset++)
+        {
+            var date = startDate.AddDays(offset);
+            items.Add(new ProjectTravelDayViewModel(
+                date,
+                offset + 1,
+                JournalEntries
+                    .Where(entry => entry.Entry.EntryDate == date)
+                    .OrderBy(entry => entry.Entry.CreatedAtUtc)
+                    .ToArray(),
+                ProjectMedia
+                    .Where(media => media.ProjectDate == date)
+                    .OrderBy(media => media.CaptureDate ?? DateTime.MaxValue)
+                    .ThenBy(media => media.DisplayTitle, StringComparer.CurrentCultureIgnoreCase)
+                    .ToArray()));
+        }
+
+        TravelDays = items;
+        NotifyTravelProfileProperties();
+    }
+
+    private void NotifyTravelProfileProperties()
+    {
+        OnPropertyChanged(nameof(IsTravelProject));
+        OnPropertyChanged(nameof(HasTravelProfileDates));
+        OnPropertyChanged(nameof(HasTravelDays));
+        OnPropertyChanged(nameof(HasNoTravelDays));
+        OnPropertyChanged(nameof(TravelDestinationText));
+        OnPropertyChanged(nameof(TravelPeriodText));
+        OnPropertyChanged(nameof(TravelDurationText));
+        OnPropertyChanged(nameof(TravelDocumentationText));
+        OnPropertyChanged(nameof(TravelMediaSummaryText));
+        OnPropertyChanged(nameof(TravelJournalSummaryText));
+        OnPropertyChanged(nameof(TravelMissingDaysText));
+        OnPropertyChanged(nameof(IsTravelOverviewTruncated));
+        OnPropertyChanged(nameof(TravelRangeNoticeText));
+    }
+
+    private int? GetTravelDurationDays()
+    {
+        var project = SelectedProject?.Project;
+        if (!IsTravelProject
+            || project?.StartDate is not DateOnly startDate
+            || project.EndDate is not DateOnly endDate
+            || endDate < startDate)
+        {
+            return null;
+        }
+
+        return endDate.DayNumber - startDate.DayNumber + 1;
+    }
+
+    private HashSet<DateOnly> GetDocumentedTravelDates()
+    {
+        var result = new HashSet<DateOnly>();
+        var project = SelectedProject?.Project;
+        if (!IsTravelProject
+            || project?.StartDate is not DateOnly startDate
+            || project.EndDate is not DateOnly endDate
+            || endDate < startDate)
+        {
+            return result;
+        }
+
+        foreach (var entry in JournalEntries)
+        {
+            var date = entry.Entry.EntryDate;
+            if (date >= startDate && date <= endDate)
+            {
+                result.Add(date);
+            }
+        }
+
+        foreach (var media in ProjectMedia)
+        {
+            if (media.ProjectDate is DateOnly date
+                && date >= startDate
+                && date <= endDate)
+            {
+                result.Add(date);
+            }
+        }
+
+        return result;
+    }
+
+    private int CountTravelDayAssignedMedia()
+    {
+        var project = SelectedProject?.Project;
+        if (!IsTravelProject
+            || project?.StartDate is not DateOnly startDate
+            || project.EndDate is not DateOnly endDate
+            || endDate < startDate)
+        {
+            return 0;
+        }
+
+        return ProjectMedia.Count(media =>
+            media.ProjectDate is DateOnly date
+            && date >= startDate
+            && date <= endDate);
+    }
+
+    private int CountTravelJournalEntries()
+    {
+        var project = SelectedProject?.Project;
+        if (!IsTravelProject
+            || project?.StartDate is not DateOnly startDate
+            || project.EndDate is not DateOnly endDate
+            || endDate < startDate)
+        {
+            return 0;
+        }
+
+        return JournalEntries.Count(entry =>
+            entry.Entry.EntryDate >= startDate
+            && entry.Entry.EntryDate <= endDate);
+    }
+
+    private DateOnly GetDefaultJournalDate(ProjectRecord project, DateOnly today)
+    {
+        if (IsTravelKind(project.Kind)
+            && project.StartDate is DateOnly startDate
+            && project.EndDate is DateOnly endDate
+            && endDate >= startDate)
+        {
+            var journalDates = JournalEntries
+                .Select(entry => entry.Entry.EntryDate)
+                .ToHashSet();
+
+            if (today >= startDate
+                && today <= endDate
+                && !journalDates.Contains(today))
+            {
+                return today;
+            }
+
+            var totalDays = endDate.DayNumber - startDate.DayNumber + 1;
+            for (var offset = 0; offset < totalDays; offset++)
+            {
+                var candidate = startDate.AddDays(offset);
+                if (!journalDates.Contains(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return today >= startDate && today <= endDate
+                ? today
+                : startDate;
+        }
+
+        return project.StartDate.HasValue
+            && project.EndDate.HasValue
+            && today >= project.StartDate.Value
+            && today <= project.EndDate.Value
+                ? today
+                : project.StartDate ?? today;
+    }
+
+    private static bool IsTravelKind(string? kind) =>
+        string.Equals(kind, "Urlaub", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(kind, "Reise", StringComparison.OrdinalIgnoreCase);
+
+    private void RefreshJournalDaySuggestions()
+    {
+        DateOnly? entryDate = null;
+        if (TryParseOptionalDate(JournalDateText, out var parsedDate) && parsedDate.HasValue)
+        {
+            entryDate = parsedDate.Value;
+        }
+
+        foreach (var item in JournalMediaOptions)
+        {
+            item.UpdateEntryDate(entryDate);
+        }
+
+        OnPropertyChanged(nameof(HasJournalDayMediaSuggestions));
+        OnPropertyChanged(nameof(JournalDayMediaSuggestionText));
+        SelectJournalDayMediaCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanSelectJournalDayMedia() =>
+        !IsBusy
+        && JournalMediaOptions.Any(item => item.IsSuggestedForEntryDay);
+
+    private void SelectSuggestedJournalDayMedia()
+    {
+        if (!CanSelectJournalDayMedia())
+        {
+            return;
+        }
+
+        _suppressJournalAutosave = true;
+        var selectedCount = 0;
+        try
+        {
+            foreach (var item in JournalMediaOptions.Where(item => item.IsSuggestedForEntryDay))
+            {
+                if (!item.IsSelected)
+                {
+                    item.IsSelected = true;
+                }
+
+                selectedCount++;
+            }
+        }
+        finally
+        {
+            _suppressJournalAutosave = false;
+        }
+
+        JournalStatus = selectedCount == 1
+            ? "1 passendes Tagesmedium ausgewählt. Autosave übernimmt die Verknüpfung."
+            : $"{selectedCount:N0} passende Tagesmedien ausgewählt. Autosave übernimmt die Verknüpfungen.";
+        ScheduleJournalAutosave();
+    }
+
+    private bool CanAssignSelectedJournalMediaToDay() =>
+        !IsBusy
+        && SelectedProject is not null
+        && TryParseOptionalDate(JournalDateText, out var entryDate)
+        && entryDate.HasValue
+        && JournalMediaOptions.Any(item => item.IsSelected);
+
+    private async Task AssignSelectedJournalMediaToDayAsync()
+    {
+        if (SelectedProject is null
+            || !TryParseOptionalDate(JournalDateText, out var entryDate)
+            || !entryDate.HasValue)
+        {
+            return;
+        }
+
+        var project = SelectedProject.Project;
+        if ((project.StartDate.HasValue && entryDate.Value < project.StartDate.Value)
+            || (project.EndDate.HasValue && entryDate.Value > project.EndDate.Value))
+        {
+            JournalStatus = "Der Tagebuchtag liegt außerhalb des gespeicherten Projektzeitraums.";
+            return;
+        }
+
+        var selectedIds = JournalMediaOptions
+            .Where(item => item.IsSelected)
+            .Select(item => item.MediaItemId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (selectedIds.Length == 0)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            foreach (var mediaItemId in selectedIds)
+            {
+                await _projectService.SetMediaProjectDateAsync(
+                    project.Id,
+                    mediaItemId,
+                    entryDate.Value);
+            }
+
+            foreach (var media in ProjectMedia.Where(item => selectedIds.Contains(
+                         item.MediaItemId,
+                         StringComparer.OrdinalIgnoreCase)))
+            {
+                media.ProjectDate = entryDate.Value;
+            }
+
+            RebuildProjectTimeline();
+
+            var editorVersion = ++_journalEditorLoadVersion;
+            await LoadJournalMediaOptionsAsync(
+                project.Id,
+                SelectedJournalEntry?.Id,
+                editorVersion);
+
+            JournalStatus = selectedIds.Length == 1
+                ? $"1 Medium dem Projekttag {entryDate.Value:dd.MM.yyyy} zugeordnet."
+                : $"{selectedIds.Length:N0} Medien dem Projekttag {entryDate.Value:dd.MM.yyyy} zugeordnet.";
+            StatusMessage = "Tageszuordnungen gespeichert. Originaldateien wurden nicht verändert.";
+        }
+        catch (Exception exception)
+        {
+            JournalStatus = "Tageszuordnung konnte nicht gespeichert werden: "
+                + exception.GetBaseException().Message;
+        }
+        finally
+        {
+            IsBusy = false;
+            AssignSelectedJournalMediaToDayCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -1148,6 +2097,125 @@ public partial class ProjectsViewModel : ObservableObject
         }
     }
 
+    private DateOnly? GetSuggestedProjectDate(ProjectMediaItemViewModel item)
+    {
+        if (item.ProjectDate.HasValue)
+        {
+            return item.ProjectDate.Value;
+        }
+
+        if (!item.CaptureDate.HasValue)
+        {
+            return null;
+        }
+
+        var candidate = DateOnly.FromDateTime(item.CaptureDate.Value);
+        var project = SelectedProject?.Project;
+        if (project?.StartDate.HasValue == true && candidate < project.StartDate.Value)
+        {
+            return null;
+        }
+
+        if (project?.EndDate.HasValue == true && candidate > project.EndDate.Value)
+        {
+            return null;
+        }
+
+        return candidate;
+    }
+
+    private async Task AssignSelectedMediaDayAsync()
+    {
+        if (SelectedProject is null
+            || SelectedProjectMedia is null
+            || !TryParseOptionalDate(MediaDayDateText, out var projectDate)
+            || !projectDate.HasValue)
+        {
+            return;
+        }
+
+        var selectedMedia = SelectedProjectMedia;
+        var projectId = SelectedProject.Id;
+        IsBusy = true;
+
+        try
+        {
+            await _projectService.SetMediaProjectDateAsync(
+                projectId,
+                selectedMedia.MediaItemId,
+                projectDate.Value);
+
+            selectedMedia.ProjectDate = projectDate.Value;
+            RebuildProjectTimeline();
+            MediaDayDateText = projectDate.Value.ToString("dd.MM.yyyy");
+            MediaDayStatus = $"Dem Projekttag {projectDate.Value:dd.MM.yyyy} zugeordnet.";
+            StatusMessage = "Tageszuordnung gespeichert. Die Originaldatei bleibt unverändert.";
+
+            var editorVersion = ++_journalEditorLoadVersion;
+            await LoadJournalMediaOptionsAsync(
+                projectId,
+                SelectedJournalEntry?.Id,
+                editorVersion);
+        }
+        catch (Exception exception)
+        {
+            MediaDayStatus = "Tageszuordnung konnte nicht gespeichert werden: "
+                + exception.GetBaseException().Message;
+        }
+        finally
+        {
+            IsBusy = false;
+            AssignMediaDayCommand.NotifyCanExecuteChanged();
+            ClearMediaDayCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private async Task ClearSelectedMediaDayAsync()
+    {
+        if (SelectedProject is null || SelectedProjectMedia is null)
+        {
+            return;
+        }
+
+        var selectedMedia = SelectedProjectMedia;
+        var projectId = SelectedProject.Id;
+        IsBusy = true;
+
+        try
+        {
+            await _projectService.SetMediaProjectDateAsync(
+                projectId,
+                selectedMedia.MediaItemId,
+                null);
+
+            selectedMedia.ProjectDate = null;
+            RebuildProjectTimeline();
+            var suggestedDate = GetSuggestedProjectDate(selectedMedia);
+            MediaDayDateText = suggestedDate?.ToString("dd.MM.yyyy") ?? string.Empty;
+            MediaDayStatus = suggestedDate.HasValue
+                ? $"Tageszuordnung entfernt. Aufnahmedatum {suggestedDate.Value:dd.MM.yyyy} bleibt als Vorschlag sichtbar."
+                : "Tageszuordnung entfernt.";
+            StatusMessage = "Tageszuordnung entfernt. Die Projektzuordnung des Mediums bleibt bestehen.";
+
+            var editorVersion = ++_journalEditorLoadVersion;
+            await LoadJournalMediaOptionsAsync(
+                projectId,
+                SelectedJournalEntry?.Id,
+                editorVersion);
+        }
+        catch (Exception exception)
+        {
+            MediaDayStatus = "Tageszuordnung konnte nicht entfernt werden: "
+                + exception.GetBaseException().Message;
+        }
+        finally
+        {
+            IsBusy = false;
+            AssignMediaDayCommand.NotifyCanExecuteChanged();
+            ClearMediaDayCommand.NotifyCanExecuteChanged();
+        }
+    }
+
     private async Task LoadProjectMediaForSelectionAsync(
         string projectId,
         int loadVersion)
@@ -1206,13 +2274,20 @@ public partial class ProjectsViewModel : ObservableObject
                         .OrderByDescending(location => location.LastSeenUtc)
                         .FirstOrDefault();
 
+                var facts = await _mediaIndexService.GetFactsAsync(reference.MediaItemId);
+
                 resolved = new MediaIndexSearchResult(
                     item,
                     representative?.EndpointId,
                     representative?.RelativePath,
                     representative?.IsPresent ?? false,
                     locations.Count(location => location.IsPresent),
-                    locations.Count(location => !location.IsPresent));
+                    locations.Count(location => !location.IsPresent),
+                    CaptureDate: facts?.CaptureDate,
+                    CameraMake: facts?.CameraMake,
+                    CameraModel: facts?.CameraModel,
+                    Latitude: facts?.Latitude,
+                    Longitude: facts?.Longitude);
             }
 
             var isCover = string.Equals(
@@ -1630,11 +2705,15 @@ public partial class ProjectsViewModel : ObservableObject
         SetCoverCommand.NotifyCanExecuteChanged();
         ClearCoverCommand.NotifyCanExecuteChanged();
         ToggleHighlightCommand.NotifyCanExecuteChanged();
+        AssignMediaDayCommand.NotifyCanExecuteChanged();
+        ClearMediaDayCommand.NotifyCanExecuteChanged();
         FindMediaCommand.NotifyCanExecuteChanged();
         AddSuggestedMediaCommand.NotifyCanExecuteChanged();
         NewJournalEntryCommand.NotifyCanExecuteChanged();
         SaveJournalEntryCommand.NotifyCanExecuteChanged();
         DeleteJournalEntryCommand.NotifyCanExecuteChanged();
+        SelectJournalDayMediaCommand.NotifyCanExecuteChanged();
+        AssignSelectedJournalMediaToDayCommand.NotifyCanExecuteChanged();
     }
     private sealed record ProjectSuggestion(
         MediaIndexSearchResult Result,

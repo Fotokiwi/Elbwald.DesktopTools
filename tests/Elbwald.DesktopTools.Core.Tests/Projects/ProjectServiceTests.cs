@@ -105,6 +105,62 @@ public sealed class ProjectServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Media_ProjectDate_Persists_And_Can_Be_Cleared()
+    {
+        Directory.CreateDirectory(_directory);
+        var media = CreateMedia("media-day");
+        var index = new FakeMediaIndexService(media);
+        var options = new ProjectOptions { DatabasePath = Path.Combine(_directory, "projects.db") };
+        var service = new ProjectService(options, index);
+
+        var project = await service.CreateProjectAsync(
+            new ProjectCreateRequest(
+                "Sommerreise",
+                "Urlaub",
+                new DateOnly(2026, 7, 10),
+                new DateOnly(2026, 7, 20)));
+
+        await service.AddMediaAsync(project.Id, media.Id);
+        var projectDate = new DateOnly(2026, 7, 14);
+        await service.SetMediaProjectDateAsync(project.Id, media.Id, projectDate);
+
+        var persisted = Assert.Single(
+            await new ProjectService(options, index).GetMediaReferencesAsync(project.Id));
+        Assert.Equal(projectDate, persisted.ProjectDate);
+
+        await service.SetMediaProjectDateAsync(project.Id, media.Id, null);
+        var cleared = Assert.Single(await service.GetMediaReferencesAsync(project.Id));
+        Assert.Null(cleared.ProjectDate);
+    }
+
+    [Fact]
+    public async Task Media_ProjectDate_Rejects_Date_Outside_Project_Range()
+    {
+        Directory.CreateDirectory(_directory);
+        var media = CreateMedia("media-outside-day");
+        var service = new ProjectService(
+            new ProjectOptions { DatabasePath = Path.Combine(_directory, "projects.db") },
+            new FakeMediaIndexService(media));
+
+        var project = await service.CreateProjectAsync(
+            new ProjectCreateRequest(
+                "Kurztrip",
+                "Urlaub",
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 3)));
+        await service.AddMediaAsync(project.Id, media.Id);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SetMediaProjectDateAsync(
+                project.Id,
+                media.Id,
+                new DateOnly(2026, 8, 4)));
+
+        var reference = Assert.Single(await service.GetMediaReferencesAsync(project.Id));
+        Assert.Null(reference.ProjectDate);
+    }
+
+    [Fact]
     public async Task Journal_Create_Update_MediaLinks_Persist_And_Delete()
     {
         Directory.CreateDirectory(_directory);

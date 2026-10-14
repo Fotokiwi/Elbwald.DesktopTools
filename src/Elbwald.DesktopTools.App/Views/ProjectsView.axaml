@@ -280,6 +280,18 @@
                                 VerticalAlignment="Bottom"
                                 Spacing="6">
                                 <Border
+                                    IsVisible="{Binding IsTravelProject}"
+                                    Background="#E6FFFFFF"
+                                    CornerRadius="12"
+                                    Padding="12,7"
+                                    HorizontalAlignment="Right">
+                                    <TextBlock
+                                        Text="Reiseprofil"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        FontSize="10"
+                                        FontWeight="SemiBold" />
+                                </Border>
+                                <Border
                                     Background="#DFFFFFFF"
                                     CornerRadius="12"
                                     Padding="12,7">
@@ -303,6 +315,233 @@
                     <!-- Project hub -->
                     <TabItem Header="Übersicht">
                         <StackPanel Margin="0,14,0,0" Spacing="14">
+                            <!-- First specialized project profile: travel / vacation.
+                                 It uses the normal project data model and only adds a tailored view. -->
+                            <Border
+                                IsVisible="{Binding IsTravelProject}"
+                                Classes="elbwald-card"
+                                Padding="20">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock
+                                                Text="Reise auf einen Blick"
+                                                Classes="elbwald-section-title" />
+                                            <TextBlock
+                                                Text="{Binding TravelDestinationText}"
+                                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                FontSize="22"
+                                                FontWeight="SemiBold"
+                                                TextWrapping="Wrap" />
+                                            <TextBlock
+                                                Text="{Binding TravelPeriodText}"
+                                                Classes="elbwald-muted"
+                                                FontSize="11" />
+                                        </StackPanel>
+
+                                        <Border
+                                            Grid.Column="1"
+                                            Padding="12,7"
+                                            CornerRadius="12"
+                                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                                            VerticalAlignment="Top">
+                                            <TextBlock
+                                                Text="REISEPROFIL"
+                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                FontSize="9"
+                                                FontWeight="SemiBold" />
+                                        </Border>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                        <Border
+                                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                            CornerRadius="11"
+                                            Padding="13,11">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="Reisezeit" Classes="elbwald-muted" FontSize="9.5" />
+                                                <TextBlock
+                                                    Text="{Binding TravelDurationText}"
+                                                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                    FontSize="16"
+                                                    FontWeight="SemiBold" />
+                                                <TextBlock
+                                                    Text="{Binding TravelDocumentationText}"
+                                                    Classes="elbwald-muted"
+                                                    FontSize="9.5" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Column="1"
+                                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                            CornerRadius="11"
+                                            Padding="13,11">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="Tagebuch" Classes="elbwald-muted" FontSize="9.5" />
+                                                <TextBlock
+                                                    Text="{Binding TravelJournalSummaryText}"
+                                                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                    FontSize="13"
+                                                    FontWeight="SemiBold"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Column="2"
+                                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                            CornerRadius="11"
+                                            Padding="13,11">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="Tagesmedien" Classes="elbwald-muted" FontSize="9.5" />
+                                                <TextBlock
+                                                    Text="{Binding TravelMediaSummaryText}"
+                                                    Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                    FontSize="13"
+                                                    FontWeight="SemiBold"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock
+                                                Text="Reisetage"
+                                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                FontSize="13"
+                                                FontWeight="SemiBold" />
+                                            <TextBlock
+                                                Text="{Binding TravelMissingDaysText}"
+                                                Classes="elbwald-muted"
+                                                FontSize="10"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            Text="Tag für Tag · ohne neue Dateiablage"
+                                            Classes="elbwald-muted"
+                                            FontSize="9"
+                                            VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <ItemsControl
+                                        IsVisible="{Binding HasTravelDays}"
+                                        ItemsSource="{Binding TravelDays}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ProjectTravelDayViewModel">
+                                                <Border
+                                                    Width="220"
+                                                    MinHeight="132"
+                                                    Margin="0,0,10,10"
+                                                    Padding="13"
+                                                    CornerRadius="12"
+                                                    Background="{DynamicResource ElbwaldSurfaceStrongBrush}"
+                                                    BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                    BorderThickness="1">
+                                                    <StackPanel Spacing="6">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                            <TextBlock
+                                                                Text="{Binding DayLabel}"
+                                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                FontSize="11"
+                                                                FontWeight="SemiBold" />
+                                                            <TextBlock
+                                                                Grid.Column="1"
+                                                                IsVisible="{Binding HasNoContent}"
+                                                                Text="offen"
+                                                                Classes="elbwald-muted"
+                                                                FontSize="8.5" />
+                                                        </Grid>
+                                                        <TextBlock
+                                                            Text="{Binding DateText}"
+                                                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                            FontSize="11"
+                                                            FontWeight="SemiBold" />
+                                                        <TextBlock
+                                                            IsVisible="{Binding HasPrimaryTitle}"
+                                                            Text="{Binding PrimaryTitle}"
+                                                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                            FontSize="10"
+                                                            TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock
+                                                            IsVisible="{Binding HasLocation}"
+                                                            Text="{Binding LocationText}"
+                                                            Classes="elbwald-muted"
+                                                            FontSize="9"
+                                                            TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock
+                                                            Text="{Binding ActivityText}"
+                                                            Classes="elbwald-muted"
+                                                            FontSize="9.5"
+                                                            TextWrapping="Wrap" />
+
+                                                        <ItemsControl
+                                                            IsVisible="{Binding HasMedia}"
+                                                            ItemsSource="{Binding MediaPreview}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:ProjectMediaItemViewModel">
+                                                                    <Border
+                                                                        Width="48"
+                                                                        Height="34"
+                                                                        Margin="0,0,5,0"
+                                                                        CornerRadius="5"
+                                                                        Background="{DynamicResource ElbwaldThumbnailPlaceholderBrush}"
+                                                                        ClipToBounds="True">
+                                                                        <Grid>
+                                                                            <Image
+                                                                                IsVisible="{Binding HasThumbnail}"
+                                                                                Source="{Binding Thumbnail}"
+                                                                                Stretch="UniformToFill" />
+                                                                            <TextBlock
+                                                                                IsVisible="{Binding HasNoThumbnail}"
+                                                                                Text="·"
+                                                                                Classes="elbwald-muted"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center" />
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Border
+                                        IsVisible="{Binding HasNoTravelDays}"
+                                        Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                        CornerRadius="10"
+                                        Padding="14,12">
+                                        <TextBlock
+                                            Text="Für das Reiseprofil fehlen noch Start- und Enddatum. Ergänze den Zeitraum unter „Informationen“; danach erzeugt Elbwald die Reisetage automatisch."
+                                            Classes="elbwald-muted"
+                                            FontSize="10"
+                                            TextWrapping="Wrap" />
+                                    </Border>
+
+                                    <TextBlock
+                                        IsVisible="{Binding IsTravelOverviewTruncated}"
+                                        Text="{Binding TravelRangeNoticeText}"
+                                        Classes="elbwald-muted"
+                                        FontSize="9.5"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
                             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="14">
                                 <Border Classes="elbwald-card" Padding="16">
                                     <StackPanel Spacing="5">
@@ -503,6 +742,261 @@
                         </StackPanel>
                     </TabItem>
 
+                    <!-- Chronological project activity -->
+                    <TabItem Header="Verlauf">
+                        <StackPanel Margin="0,14,0,0" Spacing="14">
+                            <Border Classes="elbwald-card" Padding="18">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                                    <StackPanel Spacing="5">
+                                        <TextBlock
+                                            Text="Projektverlauf"
+                                            Classes="elbwald-section-title" />
+                                        <TextBlock
+                                            Text="Tagebuch und bewusst zugeordnete Tagesmedien werden zu einer chronologischen Projektgeschichte zusammengeführt."
+                                            Classes="elbwald-muted"
+                                            FontSize="10.5"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            Text="{Binding ProjectTimelineSummaryText}"
+                                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                            FontSize="11"
+                                            FontWeight="SemiBold" />
+                                    </StackPanel>
+
+                                    <Border
+                                        Grid.Column="1"
+                                        Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                        CornerRadius="10"
+                                        Padding="12,9"
+                                        VerticalAlignment="Center">
+                                        <TextBlock
+                                            Text="{Binding UnassignedProjectMediaText}"
+                                            Classes="elbwald-muted"
+                                            FontSize="9.5"
+                                            MaxWidth="310"
+                                            TextWrapping="Wrap" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <ItemsControl
+                                IsVisible="{Binding HasProjectTimeline}"
+                                ItemsSource="{Binding ProjectTimeline}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ProjectTimelineDayViewModel">
+                                        <Grid
+                                            Margin="0,0,0,14"
+                                            ColumnDefinitions="92,*"
+                                            ColumnSpacing="14">
+                                            <Grid>
+                                                <Border
+                                                    Width="68"
+                                                    MinHeight="68"
+                                                    Padding="8"
+                                                    CornerRadius="18"
+                                                    Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Top">
+                                                    <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                                        <TextBlock
+                                                            Text="{Binding DayNumberText}"
+                                                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                            FontSize="10"
+                                                            FontWeight="SemiBold"
+                                                            HorizontalAlignment="Center" />
+                                                        <TextBlock
+                                                            Text="{Binding ShortDateText}"
+                                                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                            FontSize="10"
+                                                            HorizontalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border
+                                                    Width="2"
+                                                    Margin="0,72,0,-18"
+                                                    Background="{DynamicResource ElbwaldBorderBrush}"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Stretch"
+                                                    IsHitTestVisible="False" />
+                                            </Grid>
+
+                                            <Border
+                                                Grid.Column="1"
+                                                Classes="elbwald-card"
+                                                Padding="18">
+                                                <StackPanel Spacing="13">
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                        <StackPanel Spacing="3">
+                                                            <TextBlock
+                                                                Text="{Binding DateText}"
+                                                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                                FontSize="17"
+                                                                FontWeight="SemiBold" />
+                                                            <TextBlock
+                                                                IsVisible="{Binding HasLocation}"
+                                                                Text="{Binding LocationText}"
+                                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                FontSize="10.5" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                            <Border
+                                                                Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                                                CornerRadius="9"
+                                                                Padding="8,5">
+                                                                <TextBlock
+                                                                    Text="{Binding JournalCountText}"
+                                                                    Classes="elbwald-muted"
+                                                                    FontSize="9.5" />
+                                                            </Border>
+                                                            <Border
+                                                                Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                                                CornerRadius="9"
+                                                                Padding="8,5">
+                                                                <TextBlock
+                                                                    Text="{Binding MediaCountText}"
+                                                                    Classes="elbwald-muted"
+                                                                    FontSize="9.5" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <ItemsControl
+                                                        IsVisible="{Binding HasJournalEntries}"
+                                                        ItemsSource="{Binding JournalEntries}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:ProjectJournalEntryItemViewModel">
+                                                                <Border
+                                                                    Margin="0,0,0,7"
+                                                                    Padding="12,10"
+                                                                    CornerRadius="10"
+                                                                    Background="{DynamicResource ElbwaldSurfaceQuietBrush}">
+                                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                                        <StackPanel Spacing="3">
+                                                                            <TextBlock
+                                                                                Text="{Binding Title}"
+                                                                                Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                                                FontSize="11.5"
+                                                                                FontWeight="SemiBold" />
+                                                                            <TextBlock
+                                                                                Text="{Binding PreviewText}"
+                                                                                Classes="elbwald-muted"
+                                                                                FontSize="9.5"
+                                                                                MaxLines="2"
+                                                                                TextWrapping="Wrap" />
+                                                                        </StackPanel>
+                                                                        <TextBlock
+                                                                            Grid.Column="1"
+                                                                            Text="{Binding MediaCountText}"
+                                                                            Classes="elbwald-muted"
+                                                                            FontSize="9"
+                                                                            VerticalAlignment="Top" />
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <ItemsControl
+                                                        IsVisible="{Binding HasMedia}"
+                                                        ItemsSource="{Binding MediaPreview}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel Orientation="Horizontal" />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:ProjectMediaItemViewModel">
+                                                                <Border
+                                                                    Width="122"
+                                                                    Margin="0,0,8,8"
+                                                                    Padding="5"
+                                                                    CornerRadius="9"
+                                                                    Background="{DynamicResource ElbwaldSurfaceStrongBrush}"
+                                                                    BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                                    BorderThickness="1">
+                                                                    <StackPanel Spacing="5">
+                                                                        <Border
+                                                                            Height="70"
+                                                                            CornerRadius="7"
+                                                                            Background="{DynamicResource ElbwaldThumbnailPlaceholderBrush}"
+                                                                            ClipToBounds="True">
+                                                                            <Grid>
+                                                                                <Image
+                                                                                    IsVisible="{Binding HasThumbnail}"
+                                                                                    Source="{Binding Thumbnail}"
+                                                                                    Stretch="UniformToFill" />
+                                                                                <TextBlock
+                                                                                    IsVisible="{Binding HasNoThumbnail}"
+                                                                                    Text="{Binding ThumbnailStatus}"
+                                                                                    Classes="elbwald-muted"
+                                                                                    FontSize="8"
+                                                                                    TextAlignment="Center"
+                                                                                    TextWrapping="Wrap"
+                                                                                    HorizontalAlignment="Center"
+                                                                                    VerticalAlignment="Center"
+                                                                                    MaxWidth="100" />
+                                                                                <TextBlock
+                                                                                    IsVisible="{Binding IsHighlight}"
+                                                                                    Text="★"
+                                                                                    Margin="5"
+                                                                                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                                    FontSize="16"
+                                                                                    HorizontalAlignment="Right"
+                                                                                    VerticalAlignment="Top" />
+                                                                            </Grid>
+                                                                        </Border>
+                                                                        <TextBlock
+                                                                            Text="{Binding DisplayTitle}"
+                                                                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                                                                            FontSize="9"
+                                                                            TextTrimming="CharacterEllipsis" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <TextBlock
+                                                        IsVisible="{Binding HasMoreMedia}"
+                                                        Text="{Binding MoreMediaText}"
+                                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                        FontSize="9.5"
+                                                        FontWeight="SemiBold" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border
+                                IsVisible="{Binding HasNoProjectTimeline}"
+                                Classes="elbwald-soft-card"
+                                Padding="18">
+                                <Grid ColumnDefinitions="34,*" ColumnSpacing="12">
+                                    <PathIcon
+                                        Data="{StaticResource ElbwaldIconProject}"
+                                        Width="22"
+                                        Height="22"
+                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                        VerticalAlignment="Top" />
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock
+                                            Text="Noch kein Projektverlauf"
+                                            Foreground="{DynamicResource ElbwaldTextBrush}"
+                                            FontSize="14"
+                                            FontWeight="SemiBold" />
+                                        <TextBlock
+                                            Text="Sobald du Tagebucheinträge anlegst oder Medien einem Projekttag zuordnest, entsteht hier automatisch die chronologische Geschichte des Projekts."
+                                            Classes="elbwald-muted"
+                                            FontSize="10.5"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </TabItem>
+
                     <!-- Project media -->
                     <TabItem Header="Medien">
                         <StackPanel Margin="0,14,0,0" Spacing="14">
@@ -642,6 +1136,41 @@
                                         </StackPanel>
                                     </Grid>
 
+                                    <Border
+                                        IsVisible="{Binding HasSelectedProjectMedia}"
+                                        Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                        CornerRadius="10"
+                                        Padding="12,10">
+                                        <Grid ColumnDefinitions="Auto,150,Auto,Auto,*" ColumnSpacing="9">
+                                            <TextBlock
+                                                Text="Projekt-Tag"
+                                                FontSize="10"
+                                                FontWeight="SemiBold"
+                                                VerticalAlignment="Center" />
+                                            <TextBox
+                                                Grid.Column="1"
+                                                Text="{Binding MediaDayDateText, Mode=TwoWay}"
+                                                PlaceholderText="TT.MM.JJJJ" />
+                                            <Button
+                                                Grid.Column="2"
+                                                Classes="elbwald-primary-button"
+                                                Command="{Binding AssignMediaDayCommand}"
+                                                Content="Tag zuweisen" />
+                                            <Button
+                                                Grid.Column="3"
+                                                Classes="elbwald-secondary-button"
+                                                Command="{Binding ClearMediaDayCommand}"
+                                                Content="Zuordnung lösen" />
+                                            <TextBlock
+                                                Grid.Column="4"
+                                                Text="{Binding MediaDayStatus}"
+                                                Classes="elbwald-muted"
+                                                FontSize="9"
+                                                VerticalAlignment="Center"
+                                                TextWrapping="Wrap" />
+                                        </Grid>
+                                    </Border>
+
                                     <Grid>
                                         <ListBox
                                             IsVisible="{Binding HasProjectMedia}"
@@ -707,6 +1236,21 @@
                                                                             Text="Cover"
                                                                             Foreground="{DynamicResource ElbwaldAccentBrush}"
                                                                             FontSize="9"
+                                                                            FontWeight="SemiBold" />
+                                                                    </Border>
+
+                                                                    <Border
+                                                                        IsVisible="{Binding HasProjectDate}"
+                                                                        Margin="7"
+                                                                        Padding="7,4"
+                                                                        CornerRadius="9"
+                                                                        Background="#D9243328"
+                                                                        HorizontalAlignment="Left"
+                                                                        VerticalAlignment="Bottom">
+                                                                        <TextBlock
+                                                                            Text="{Binding ProjectDayBadgeText}"
+                                                                            Foreground="White"
+                                                                            FontSize="8.8"
                                                                             FontWeight="SemiBold" />
                                                                     </Border>
 
@@ -894,14 +1438,22 @@
                                             BorderThickness="0">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate x:DataType="vm:ProjectJournalEntryItemViewModel">
-                                                    <Border
-                                                        Margin="0,0,0,8"
-                                                        Padding="11"
-                                                        CornerRadius="10"
-                                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
-                                                        BorderThickness="1"
-                                                        Background="{DynamicResource ElbwaldSurfaceQuietBrush}">
-                                                        <StackPanel Spacing="5">
+                                                    <StackPanel>
+                                                        <TextBlock
+                                                            IsVisible="{Binding ShowDayHeader}"
+                                                            Margin="2,8,2,6"
+                                                            Text="{Binding DayHeaderText}"
+                                                            Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                            FontSize="10"
+                                                            FontWeight="SemiBold" />
+                                                        <Border
+                                                            Margin="0,0,0,8"
+                                                            Padding="11"
+                                                            CornerRadius="10"
+                                                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                            BorderThickness="1"
+                                                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}">
+                                                            <StackPanel Spacing="5">
                                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                                                 <TextBlock
                                                                     Text="{Binding Title}"
@@ -934,8 +1486,9 @@
                                                                     Classes="elbwald-muted"
                                                                     FontSize="9" />
                                                             </Grid>
-                                                        </StackPanel>
-                                                    </Border>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>
                                         </ListBox>
@@ -968,14 +1521,14 @@
                                                     Text="{Binding JournalEditorHeading}"
                                                     Classes="elbwald-section-title" />
                                                 <TextBlock
-                                                    Text="Datum und Titel reichen für einen Eintrag. Ort, Text und Medien sind optional."
+                                                    Text="Datum und Titel reichen für einen Eintrag. Danach speichert Elbwald Änderungen automatisch."
                                                     Classes="elbwald-muted"
                                                     FontSize="9.5"
                                                     TextWrapping="Wrap" />
                                             </StackPanel>
                                             <TextBlock
                                                 Grid.Column="1"
-                                                Text="Lokal gespeichert"
+                                                Text="{Binding JournalAutosaveStatus}"
                                                 Foreground="{DynamicResource ElbwaldAccentBrush}"
                                                 FontSize="9.5"
                                                 FontWeight="SemiBold"
@@ -1004,35 +1557,91 @@
                                                 PlaceholderText="Optional, z. B. Sassnitz" />
                                         </StackPanel>
 
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="Notiz" FontSize="10" FontWeight="SemiBold" />
+                                        <StackPanel Spacing="6">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Text" FontSize="10" FontWeight="SemiBold" />
+                                                    <TextBlock
+                                                        Text="Einfache Markdown-Formatierung · bleibt als portabler Klartext gespeichert"
+                                                        Classes="elbwald-muted"
+                                                        FontSize="8.5" />
+                                                </StackPanel>
+
+                                                <StackPanel
+                                                    Grid.Column="1"
+                                                    Orientation="Horizontal"
+                                                    Spacing="5"
+                                                    VerticalAlignment="Bottom">
+                                                    <Button
+                                                        Classes="elbwald-secondary-button"
+                                                        Padding="10,5"
+                                                        Command="{Binding FormatJournalHeadingCommand}"
+                                                        Content="H2"
+                                                        ToolTip.Tip="Überschrift" />
+                                                    <Button
+                                                        Classes="elbwald-secondary-button"
+                                                        Padding="10,5"
+                                                        Command="{Binding FormatJournalBoldCommand}"
+                                                        Content="B"
+                                                        FontWeight="Bold"
+                                                        ToolTip.Tip="Fett" />
+                                                    <Button
+                                                        Classes="elbwald-secondary-button"
+                                                        Padding="10,5"
+                                                        Command="{Binding FormatJournalItalicCommand}"
+                                                        Content="I"
+                                                        FontStyle="Italic"
+                                                        ToolTip.Tip="Kursiv" />
+                                                    <Button
+                                                        Classes="elbwald-secondary-button"
+                                                        Padding="10,5"
+                                                        Command="{Binding FormatJournalListCommand}"
+                                                        Content="Liste"
+                                                        ToolTip.Tip="Aufzählung" />
+                                                    <Button
+                                                        Classes="elbwald-secondary-button"
+                                                        Padding="10,5"
+                                                        Command="{Binding FormatJournalQuoteCommand}"
+                                                        Content="Zitat"
+                                                        ToolTip.Tip="Zitat" />
+                                                </StackPanel>
+                                            </Grid>
+
                                             <TextBox
                                                 Text="{Binding JournalBody, Mode=TwoWay}"
+                                                SelectionStart="{Binding JournalSelectionStart, Mode=TwoWay}"
+                                                SelectionEnd="{Binding JournalSelectionEnd, Mode=TwoWay}"
                                                 PlaceholderText="Was ist an diesem Tag passiert?"
                                                 AcceptsReturn="True"
                                                 TextWrapping="Wrap"
-                                                MinHeight="150"
+                                                MinHeight="320"
                                                 VerticalContentAlignment="Top" />
                                         </StackPanel>
 
                                         <StackPanel Spacing="7">
-                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                                                 <StackPanel Spacing="2">
                                                     <TextBlock
                                                         Text="Projektmedien verknüpfen"
                                                         FontSize="10"
                                                         FontWeight="SemiBold" />
                                                     <TextBlock
-                                                        Text="Nur Medien, die bereits zum Projekt gehören, können ausgewählt werden."
+                                                        Text="{Binding JournalDayMediaSuggestionText}"
                                                         Classes="elbwald-muted"
                                                         FontSize="9" />
                                                 </StackPanel>
-                                                <TextBlock
+                                                <Button
                                                     Grid.Column="1"
-                                                    Text="Referenzen · keine Kopien"
-                                                    Classes="elbwald-muted"
-                                                    FontSize="9"
-                                                    VerticalAlignment="Bottom" />
+                                                    Classes="elbwald-secondary-button"
+                                                    Command="{Binding SelectJournalDayMediaCommand}"
+                                                    Content="Tagesmedien auswählen"
+                                                    VerticalAlignment="Center" />
+                                                <Button
+                                                    Grid.Column="2"
+                                                    Classes="elbwald-secondary-button"
+                                                    Command="{Binding AssignSelectedJournalMediaToDayCommand}"
+                                                    Content="Auswahl diesem Tag zuordnen"
+                                                    VerticalAlignment="Center" />
                                             </Grid>
 
                                             <ListBox
@@ -1058,6 +1667,22 @@
                                                                     Classes="elbwald-muted"
                                                                     FontSize="8.5"
                                                                     TextTrimming="CharacterEllipsis" />
+                                                                <Grid
+                                                                    IsVisible="{Binding HasDayHint}"
+                                                                    ColumnDefinitions="*,Auto"
+                                                                    ColumnSpacing="8">
+                                                                    <TextBlock
+                                                                        Text="{Binding DayHintText}"
+                                                                        Classes="elbwald-muted"
+                                                                        FontSize="8.3"
+                                                                        TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock
+                                                                        Grid.Column="1"
+                                                                        Text="{Binding DaySuggestionText}"
+                                                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                        FontSize="8.3"
+                                                                        FontWeight="SemiBold" />
+                                                                </Grid>
                                                             </StackPanel>
                                                         </Grid>
                                                     </DataTemplate>
@@ -1086,7 +1711,7 @@
                                                 Grid.Column="2"
                                                 Classes="elbwald-primary-button"
                                                 Command="{Binding SaveJournalEntryCommand}"
-                                                Content="Eintrag speichern" />
+                                                Content="Jetzt speichern" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>

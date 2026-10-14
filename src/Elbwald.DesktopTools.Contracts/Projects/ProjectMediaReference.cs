@@ -4,4 +4,5 @@ public sealed record ProjectMediaReference(
     string ProjectId,
     string MediaItemId,
     DateTimeOffset AddedAtUtc,
-    bool IsHighlight = false);
+    bool IsHighlight = false,
+    DateOnly? ProjectDate = null);

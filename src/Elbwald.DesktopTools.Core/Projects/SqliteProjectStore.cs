@@ -125,7 +125,7 @@ internal sealed class SqliteProjectStore
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ProjectId, MediaItemId, AddedAtUtc, IsHighlight
+            SELECT ProjectId, MediaItemId, AddedAtUtc, IsHighlight, ProjectDate
             FROM ProjectMedia
             WHERE ProjectId=$projectId
             ORDER BY IsHighlight DESC, AddedAtUtc DESC;
@@ -142,7 +142,13 @@ internal sealed class SqliteProjectStore
                     reader.GetString(2),
                     null,
                     System.Globalization.DateTimeStyles.RoundtripKind),
-                reader.GetInt64(3) != 0));
+                reader.GetInt64(3) != 0,
+                reader.IsDBNull(4)
+                    ? null
+                    : DateOnly.ParseExact(
+                        reader.GetString(4),
+                        "yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture)));
         }
         return result;
     }
@@ -153,8 +159,8 @@ internal sealed class SqliteProjectStore
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT OR IGNORE INTO ProjectMedia(ProjectId, MediaItemId, AddedAtUtc, IsHighlight)
-            VALUES($projectId, $mediaItemId, $added, 0);
+            INSERT OR IGNORE INTO ProjectMedia(ProjectId, MediaItemId, AddedAtUtc, IsHighlight, ProjectDate)
+            VALUES($projectId, $mediaItemId, $added, 0, NULL);
             """;
         command.Parameters.AddWithValue("$projectId", projectId);
         command.Parameters.AddWithValue("$mediaItemId", mediaItemId);
@@ -282,6 +288,53 @@ internal sealed class SqliteProjectStore
         command.Parameters.AddWithValue("$projectId", projectId);
         command.Parameters.AddWithValue("$mediaItemId", mediaItemId);
         command.Parameters.AddWithValue("$highlight", isHighlight ? 1 : 0);
+
+        if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
+        {
+            throw new InvalidOperationException(
+                "Das ausgewählte Medium gehört nicht mehr zu diesem Projekt.");
+        }
+
+        await using var touchProject = connection.CreateCommand();
+        touchProject.Transaction = (SqliteTransaction)transaction;
+        touchProject.CommandText = """
+            UPDATE Projects
+            SET UpdatedAtUtc=$updated
+            WHERE Id=$projectId;
+            """;
+        touchProject.Parameters.AddWithValue("$projectId", projectId);
+        touchProject.Parameters.AddWithValue("$updated", DateTimeOffset.UtcNow.ToString("O"));
+        await touchProject.ExecuteNonQueryAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task SetMediaProjectDateAsync(
+        string projectId,
+        string mediaItemId,
+        DateOnly? projectDate,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaItemId);
+        await EnsureInitializedAsync(cancellationToken);
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = (SqliteTransaction)transaction;
+        command.CommandText = """
+            UPDATE ProjectMedia
+            SET ProjectDate=$projectDate
+            WHERE ProjectId=$projectId AND MediaItemId=$mediaItemId;
+            """;
+        command.Parameters.AddWithValue("$projectId", projectId);
+        command.Parameters.AddWithValue("$mediaItemId", mediaItemId);
+        command.Parameters.AddWithValue(
+            "$projectDate",
+            projectDate.HasValue
+                ? projectDate.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+                : DBNull.Value);
 
         if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
         {
@@ -604,6 +657,7 @@ internal sealed class SqliteProjectStore
                     MediaItemId TEXT NOT NULL,
                     AddedAtUtc TEXT NOT NULL,
                     IsHighlight INTEGER NOT NULL DEFAULT 0,
+                    ProjectDate TEXT NULL,
                     PRIMARY KEY(ProjectId, MediaItemId),
                     FOREIGN KEY(ProjectId) REFERENCES Projects(Id) ON DELETE CASCADE
                 );
@@ -635,7 +689,7 @@ internal sealed class SqliteProjectStore
                 """;
             await command.ExecuteNonQueryAsync(cancellationToken);
 
-            // Existing alpha databases predate cover/highlight metadata.
+            // Existing alpha databases predate cover/highlight/day metadata.
             // Additive columns keep project/media references intact and need no data rewrite.
             await EnsureColumnAsync(
                 connection,
@@ -650,6 +704,22 @@ internal sealed class SqliteProjectStore
                 "IsHighlight",
                 "INTEGER NOT NULL DEFAULT 0",
                 cancellationToken);
+
+            await EnsureColumnAsync(
+                connection,
+                "ProjectMedia",
+                "ProjectDate",
+                "TEXT NULL",
+                cancellationToken);
+
+            await using (var dayIndex = connection.CreateCommand())
+            {
+                dayIndex.CommandText = """
+                    CREATE INDEX IF NOT EXISTS IX_ProjectMedia_ProjectDate
+                    ON ProjectMedia(ProjectId, ProjectDate);
+                    """;
+                await dayIndex.ExecuteNonQueryAsync(cancellationToken);
+            }
 
             _initialized = true;
         }

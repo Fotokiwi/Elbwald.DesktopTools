@@ -1,24 +1,36 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using Elbwald.DesktopTools.Contracts.Projects;
 
 namespace Elbwald.DesktopTools.App.ViewModels;
 
-public sealed class ProjectJournalEntryItemViewModel
+public partial class ProjectJournalEntryItemViewModel : ObservableObject
 {
     public ProjectJournalEntryItemViewModel(
         ProjectJournalEntry entry,
-        int mediaCount)
+        int mediaCount,
+        bool showDayHeader = false)
     {
-        Entry = entry ?? throw new ArgumentNullException(nameof(entry));
-        MediaCount = mediaCount;
+        this.entry = entry ?? throw new ArgumentNullException(nameof(entry));
+        this.mediaCount = mediaCount;
+        this.showDayHeader = showDayHeader;
     }
 
-    public ProjectJournalEntry Entry { get; }
+    [ObservableProperty]
+    private ProjectJournalEntry entry;
+
+    [ObservableProperty]
+    private int mediaCount;
+
+    [ObservableProperty]
+    private bool showDayHeader;
 
     public string Id => Entry.Id;
 
     public string Title => Entry.Title;
 
     public string DateText => Entry.EntryDate.ToString("dd.MM.yyyy");
+
+    public string DayHeaderText => Entry.EntryDate.ToString("dddd, dd. MMMM yyyy");
 
     public string LocationText => string.IsNullOrWhiteSpace(Entry.Location)
         ? "Kein Ort angegeben"
@@ -34,13 +46,18 @@ public sealed class ProjectJournalEntryItemViewModel
                 return "Noch keine Notiz.";
             }
 
-            return body.Length <= 110
-                ? body
-                : body[..107] + "…";
+            var plain = body
+                .Replace("**", string.Empty, StringComparison.Ordinal)
+                .Replace("*", string.Empty, StringComparison.Ordinal)
+                .Replace("## ", string.Empty, StringComparison.Ordinal)
+                .Replace("> ", string.Empty, StringComparison.Ordinal)
+                .Replace("- ", string.Empty, StringComparison.Ordinal);
+
+            return plain.Length <= 110
+                ? plain
+                : plain[..107] + "…";
         }
     }
-
-    public int MediaCount { get; }
 
     public string MediaCountText => MediaCount switch
     {
@@ -48,4 +65,27 @@ public sealed class ProjectJournalEntryItemViewModel
         1 => "1 Medium",
         _ => $"{MediaCount:N0} Medien"
     };
+
+    public void Update(
+        ProjectJournalEntry updatedEntry,
+        int updatedMediaCount)
+    {
+        Entry = updatedEntry ?? throw new ArgumentNullException(nameof(updatedEntry));
+        MediaCount = updatedMediaCount;
+    }
+
+    partial void OnEntryChanged(ProjectJournalEntry value)
+    {
+        OnPropertyChanged(nameof(Id));
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(DateText));
+        OnPropertyChanged(nameof(DayHeaderText));
+        OnPropertyChanged(nameof(LocationText));
+        OnPropertyChanged(nameof(PreviewText));
+    }
+
+    partial void OnMediaCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(MediaCountText));
+    }
 }

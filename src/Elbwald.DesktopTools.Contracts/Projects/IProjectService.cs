@@ -43,6 +43,12 @@ public interface IProjectService
         bool isHighlight,
         CancellationToken cancellationToken = default);
 
+    Task SetMediaProjectDateAsync(
+        string projectId,
+        string mediaItemId,
+        DateOnly? projectDate,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ProjectJournalEntry>> GetJournalEntriesAsync(
         string projectId,
         CancellationToken cancellationToken = default);

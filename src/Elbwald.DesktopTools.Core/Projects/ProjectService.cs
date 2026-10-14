@@ -93,6 +93,40 @@ public sealed class ProjectService : IProjectService
             cancellationToken);
 
 
+    public async Task SetMediaProjectDateAsync(
+        string projectId,
+        string mediaItemId,
+        DateOnly? projectDate,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaItemId);
+
+        var project = await _store.GetProjectAsync(projectId, cancellationToken)
+            ?? throw new InvalidOperationException("Das Projekt existiert nicht mehr.");
+
+        if (projectDate.HasValue)
+        {
+            if (project.StartDate.HasValue && projectDate.Value < project.StartDate.Value)
+            {
+                throw new InvalidOperationException(
+                    "Der Projekttag liegt vor dem gespeicherten Projektbeginn.");
+            }
+
+            if (project.EndDate.HasValue && projectDate.Value > project.EndDate.Value)
+            {
+                throw new InvalidOperationException(
+                    "Der Projekttag liegt nach dem gespeicherten Projektende.");
+            }
+        }
+
+        await _store.SetMediaProjectDateAsync(
+            projectId,
+            mediaItemId,
+            projectDate,
+            cancellationToken);
+    }
+
     public Task<IReadOnlyList<ProjectJournalEntry>> GetJournalEntriesAsync(
         string projectId,
         CancellationToken cancellationToken = default) =>
