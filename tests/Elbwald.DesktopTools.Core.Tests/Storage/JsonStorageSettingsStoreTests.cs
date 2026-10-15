@@ -35,6 +35,37 @@ public sealed class JsonStorageSettingsStoreTests
         Assert.Equal(expected.Endpoints[1], actual.Endpoints[1]);
     }
 
+
+    [Fact]
+    public async Task SaveAndLoadPreservesMultipleMediaLibraryEndpoints()
+    {
+        using var temp = new TemporaryDirectory();
+        var appPaths = new FakeAppPaths(temp.RootPath);
+        var store = new JsonStorageSettingsStore(appPaths);
+        var expected = new StorageSettings()
+            .WithEndpoint(new StorageEndpoint(
+                StorageEndpoint.DefaultLibraryId,
+                "Fotos",
+                StorageEndpointKind.MediaLibrary,
+                new StorageLocation("photo-volume", "Fotos")))
+            .WithEndpoint(new StorageEndpoint(
+                "library.archive",
+                "Familienarchiv",
+                StorageEndpointKind.MediaLibrary,
+                new StorageLocation("archive-volume", "Familie")));
+
+        await store.SaveAsync(expected);
+        var actual = await store.LoadAsync();
+
+        var libraries = actual.Endpoints
+            .Where(endpoint => endpoint.Kind == StorageEndpointKind.MediaLibrary)
+            .ToArray();
+
+        Assert.Equal(2, libraries.Length);
+        Assert.Contains(libraries, endpoint => endpoint.Name == "Fotos");
+        Assert.Contains(libraries, endpoint => endpoint.Name == "Familienarchiv");
+    }
+
     [Fact]
     public async Task LoadReturnsEmptyEndpointCollectionWhenFileDoesNotExist()
     {

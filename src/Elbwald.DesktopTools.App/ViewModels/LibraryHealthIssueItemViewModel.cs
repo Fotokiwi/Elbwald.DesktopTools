@@ -27,6 +27,7 @@ public sealed class LibraryHealthIssueItemViewModel
             LibraryHealthIssueKind.ScanError => "Scan-Fehler",
             LibraryHealthIssueKind.MetadataProblem => "Metadatenproblem",
             LibraryHealthIssueKind.MissingCaptureDate => "Aufnahmedatum fehlt",
+            LibraryHealthIssueKind.IndexedMediaUnavailable => "Index ohne erreichbaren Ort",
             _ => "Hinweis"
         };
         Message = issue.Message;

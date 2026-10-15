@@ -8,5 +8,6 @@ public enum LibraryHealthIssueKind
     InvalidConfiguration = 3,
     ScanError = 4,
     MetadataProblem = 5,
-    MissingCaptureDate = 6
+    MissingCaptureDate = 6,
+    IndexedMediaUnavailable = 7
 }

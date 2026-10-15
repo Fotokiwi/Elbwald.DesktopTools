@@ -2,6 +2,7 @@ using Elbwald.DesktopTools.Contracts.Diagnostics;
 using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Journaling;
 using Elbwald.DesktopTools.Contracts.LibraryHealth;
+using Elbwald.DesktopTools.Contracts.Maintenance;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Importing;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
@@ -26,6 +27,7 @@ using Elbwald.DesktopTools.Core.Diagnostics;
 using Elbwald.DesktopTools.Core.FileOperations;
 using Elbwald.DesktopTools.Core.Journaling;
 using Elbwald.DesktopTools.Core.LibraryHealth;
+using Elbwald.DesktopTools.Core.Maintenance;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.Media.Importing;
 using Elbwald.DesktopTools.Core.Media.Formats;
@@ -173,8 +175,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMediaImportHistoryStore, JsonMediaImportHistoryStore>();
         services.AddSingleton<IMediaImportCleanupPlanner, MediaImportCleanupPlanner>();
         services.AddSingleton<IMediaImportCleanupExecutor, MediaImportCleanupExecutor>();
-        services.AddSingleton<ILibraryHealthService, LibraryHealthService>();
-
         services.AddSingleton(
             serviceProvider =>
             {
@@ -190,6 +190,9 @@ public static class ServiceCollectionExtensions
             });
 
         services.AddSingleton<IMediaIndexService, MediaIndexService>();
+        services.AddSingleton<ILibraryHealthIndexInspector, LibraryHealthIndexInspector>();
+        services.AddSingleton<ILibraryHealthService, LibraryHealthService>();
+        services.AddSingleton<IApplicationDataResetService, ApplicationDataResetService>();
         services.AddSingleton<IMediaNamingTemplateEngine, MediaNamingTemplateEngine>();
 
         services.AddSingleton(

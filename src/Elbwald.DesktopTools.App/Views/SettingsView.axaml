@@ -130,28 +130,68 @@
                                         BorderThickness="1"
                                         CornerRadius="12"
                                         Padding="15">
-                                        <StackPanel Spacing="8">
-                                            <TextBlock Text="Medienbibliothek" FontWeight="SemiBold" />
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="Medienbibliothek" FontWeight="SemiBold" />
+                                                    <TextBlock
+                                                        Text="{Binding LibraryLocationCountSummary}"
+                                                        Classes="elbwald-muted"
+                                                        FontSize="10"
+                                                        TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Button
+                                                    Grid.Column="1"
+                                                    Classes="elbwald-primary-button"
+                                                    Command="{Binding SelectLibraryLocationCommand}"
+                                                    Content="+ Medienordner"
+                                                    VerticalAlignment="Top" />
+                                            </Grid>
+
+                                            <ItemsControl ItemsSource="{Binding LibraryLocations}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:LibraryStorageLocationItemViewModel">
+                                                        <Border
+                                                            Margin="0,0,0,6"
+                                                            Padding="10"
+                                                            CornerRadius="9"
+                                                            Background="{DynamicResource ElbwaldSidebarFooterBrush}"
+                                                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                            BorderThickness="1">
+                                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                                <StackPanel Spacing="3">
+                                                                    <TextBlock
+                                                                        Text="{Binding Name}"
+                                                                        FontWeight="SemiBold"
+                                                                        TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock
+                                                                        Text="{Binding Status}"
+                                                                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                        FontSize="10"
+                                                                        FontWeight="SemiBold" />
+                                                                    <TextBlock
+                                                                        Text="{Binding Details}"
+                                                                        Classes="elbwald-muted"
+                                                                        FontSize="9"
+                                                                        TextWrapping="Wrap" />
+                                                                </StackPanel>
+                                                                <Button
+                                                                    Grid.Column="1"
+                                                                    Classes="elbwald-secondary-button"
+                                                                    Command="{Binding RemoveCommand}"
+                                                                    Content="Entfernen"
+                                                                    VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
                                             <TextBlock
-                                                Text="{Binding LibraryLocationSummary}"
-                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
-                                                FontWeight="SemiBold"
-                                                TextWrapping="Wrap" />
-                                            <TextBlock
-                                                Text="{Binding LibraryLocationDetails}"
+                                                Text="Bestandsordner werden nur referenziert. Dateien bleiben an ihrem bisherigen Ort."
                                                 Classes="elbwald-muted"
                                                 FontSize="10"
                                                 TextWrapping="Wrap" />
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Button
-                                                    Classes="elbwald-primary-button"
-                                                    Command="{Binding SelectLibraryLocationCommand}"
-                                                    Content="Ordner wählen" />
-                                                <Button
-                                                    Classes="elbwald-secondary-button"
-                                                    Command="{Binding ClearLibraryLocationCommand}"
-                                                    Content="Entfernen" />
-                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
@@ -176,7 +216,7 @@
                                 <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
                                     <TextBlock Text="Import Volume-ID" Classes="elbwald-muted" FontSize="10" />
                                     <TextBlock Grid.Column="1" Text="{Binding ImportLocationVolumeId}" FontSize="10" TextWrapping="Wrap" />
-                                    <TextBlock Grid.Row="1" Text="Bibliothek Volume-ID" Classes="elbwald-muted" FontSize="10" />
+                                    <TextBlock Grid.Row="1" Text="Bibliotheks Volume-IDs" Classes="elbwald-muted" FontSize="10" />
                                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LibraryLocationVolumeId}" FontSize="10" TextWrapping="Wrap" />
                                 </Grid>
                             </StackPanel>
@@ -510,6 +550,83 @@
                                 </Grid>
 
                                 <TextBlock Text="{Binding PortableModeMarkerDisplay}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border
+                            Classes="elbwald-card"
+                            Padding="20"
+                            BorderBrush="{DynamicResource ElbwaldDangerBrush}">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="Temporärer Entwicklungsreset" Classes="elbwald-section-title" />
+                                        <TextBlock
+                                            Text="Kill-Switch für reproduzierbare Tests ab einem leeren lokalen Elbwald-Datenstand."
+                                            Classes="elbwald-muted"
+                                            FontSize="11"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Border
+                                        Grid.Column="1"
+                                        Background="{DynamicResource ElbwaldDangerSoftBrush}"
+                                        CornerRadius="8"
+                                        Padding="9,5"
+                                        VerticalAlignment="Top">
+                                        <TextBlock Text="TEMPORÄR · ENTWICKLUNG" Foreground="{DynamicResource ElbwaldDangerBrush}" FontSize="9" FontWeight="Bold" />
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock
+                                    Text="{Binding DevelopmentResetScope}"
+                                    Classes="elbwald-muted"
+                                    FontSize="10"
+                                    LineHeight="17"
+                                    TextWrapping="Wrap" />
+
+                                <Border
+                                    IsVisible="{Binding IsDevelopmentResetArmed}"
+                                    Background="{DynamicResource ElbwaldDangerSoftBrush}"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                    <StackPanel Spacing="7">
+                                        <TextBlock
+                                            Text="Achtung: Der nächste Schritt löscht die genannten lokalen Elbwald-Daten und beendet anschließend die Anwendung."
+                                            Foreground="{DynamicResource ElbwaldDangerBrush}"
+                                            FontWeight="SemiBold"
+                                            FontSize="11"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            Text="Recovery-Daten und Originalmedien werden ausdrücklich nicht angefasst."
+                                            Classes="elbwald-muted"
+                                            FontSize="10"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Button
+                                    IsVisible="{Binding IsDevelopmentResetIdle}"
+                                    Classes="elbwald-secondary-button"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding ArmDevelopmentResetCommand}"
+                                    Content="Kill-Switch vorbereiten" />
+
+                                <StackPanel
+                                    IsVisible="{Binding IsDevelopmentResetArmed}"
+                                    Orientation="Horizontal"
+                                    Spacing="10">
+                                    <Button
+                                        Classes="elbwald-secondary-button"
+                                        Command="{Binding CancelDevelopmentResetCommand}"
+                                        Content="Abbrechen" />
+                                    <Button
+                                        Background="{DynamicResource ElbwaldDangerBrush}"
+                                        Foreground="White"
+                                        BorderBrush="{DynamicResource ElbwaldDangerBrush}"
+                                        Padding="14,8"
+                                        Command="{Binding ExecuteDevelopmentResetCommand}"
+                                        Content="Lokale Daten löschen &amp; App schließen" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>

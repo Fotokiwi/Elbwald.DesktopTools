@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using Elbwald.DesktopTools.App.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Maintenance;
 using Elbwald.DesktopTools.Contracts.Modules;
 using Elbwald.DesktopTools.Contracts.Paths;
 using Elbwald.DesktopTools.Contracts.Storage;
@@ -24,6 +27,7 @@ public sealed class SettingsViewModel
     private readonly IStorageLocationResolver _storageLocationResolver;
     private readonly ISettingsContributionRegistry _settingsContributionRegistry;
     private readonly ISettingsContributionContentFactory _settingsContributionContentFactory;
+    private readonly IApplicationDataResetService _dataResetService;
 
     private readonly Stopwatch _operationStopwatch = new();
     private readonly DispatcherTimer _durationTimer;
@@ -32,6 +36,7 @@ public sealed class SettingsViewModel
     private bool _isBusy;
     private bool _isImportLocationConfigured;
     private bool _isLibraryLocationConfigured;
+    private bool _isDevelopmentResetArmed;
 
     private string _operationStatus = "Bereit.";
     private string _operationDuration = "Dauer: 00:00:00";
@@ -50,6 +55,7 @@ public sealed class SettingsViewModel
     private int _selectedDetailThumbnailWidth;
     private int _selectedViewerThumbnailWidth;
     private IReadOnlyList<SettingsContributionItemViewModel> _settingsContributions = [];
+    private IReadOnlyList<LibraryStorageLocationItemViewModel> _libraryLocations = [];
 
     public SettingsViewModel(
         IMediaAnalysisCache analysisCache,
@@ -61,6 +67,7 @@ public sealed class SettingsViewModel
         IStorageLocationResolver storageLocationResolver,
         ISettingsContributionRegistry settingsContributionRegistry,
         ISettingsContributionContentFactory settingsContributionContentFactory,
+        IApplicationDataResetService dataResetService,
         IExtensionRegistry extensionRegistry,
         IExtensionActivationService extensionActivationService)
     {
@@ -73,6 +80,7 @@ public sealed class SettingsViewModel
         ArgumentNullException.ThrowIfNull(storageLocationResolver);
         ArgumentNullException.ThrowIfNull(settingsContributionRegistry);
         ArgumentNullException.ThrowIfNull(settingsContributionContentFactory);
+        ArgumentNullException.ThrowIfNull(dataResetService);
         ArgumentNullException.ThrowIfNull(extensionRegistry);
         ArgumentNullException.ThrowIfNull(extensionActivationService);
 
@@ -85,6 +93,7 @@ public sealed class SettingsViewModel
         _storageLocationResolver = storageLocationResolver;
         _settingsContributionRegistry = settingsContributionRegistry;
         _settingsContributionContentFactory = settingsContributionContentFactory;
+        _dataResetService = dataResetService;
 
         Extensions = extensionRegistry.Extensions
             .Select(
@@ -130,6 +139,21 @@ public sealed class SettingsViewModel
                 ClearAllCachesAsync,
                 CanManageSettings);
 
+        ArmDevelopmentResetCommand =
+            new RelayCommand(
+                ArmDevelopmentReset,
+                CanManageSettings);
+
+        CancelDevelopmentResetCommand =
+            new RelayCommand(
+                CancelDevelopmentReset,
+                () => CanManageSettings() && IsDevelopmentResetArmed);
+
+        ExecuteDevelopmentResetCommand =
+            new AsyncRelayCommand(
+                ExecuteDevelopmentResetAsync,
+                () => CanManageSettings() && IsDevelopmentResetArmed);
+
         SaveThumbnailSettingsCommand =
             new RelayCommand(
                 SaveThumbnailSettings,
@@ -167,6 +191,9 @@ public sealed class SettingsViewModel
     public IAsyncRelayCommand ClearAnalysisCacheCommand { get; }
     public IAsyncRelayCommand ClearThumbnailCacheCommand { get; }
     public IAsyncRelayCommand ClearAllCachesCommand { get; }
+    public IRelayCommand ArmDevelopmentResetCommand { get; }
+    public IRelayCommand CancelDevelopmentResetCommand { get; }
+    public IAsyncRelayCommand ExecuteDevelopmentResetCommand { get; }
     public IRelayCommand SaveThumbnailSettingsCommand { get; }
     public IAsyncRelayCommand RefreshStorageCommand { get; }
     public IAsyncRelayCommand SelectImportLocationCommand { get; }
@@ -191,6 +218,29 @@ public sealed class SettingsViewModel
     }
 
     public bool HasSettingsContributions => SettingsContributions.Count > 0;
+
+    public IReadOnlyList<LibraryStorageLocationItemViewModel> LibraryLocations
+    {
+        get => _libraryLocations;
+        private set
+        {
+            if (SetProperty(ref _libraryLocations, value))
+            {
+                OnPropertyChanged(nameof(HasLibraryLocations));
+                OnPropertyChanged(nameof(LibraryLocationCountSummary));
+            }
+        }
+    }
+
+    public bool HasLibraryLocations => LibraryLocations.Count > 0;
+
+    public string LibraryLocationCountSummary =>
+        LibraryLocations.Count switch
+        {
+            0 => "Noch keine Medienordner eingebunden.",
+            1 => "1 Medienordner ist Teil der Bibliothek.",
+            _ => $"{LibraryLocations.Count:N0} Medienordner sind Teil der Bibliothek."
+        };
 
     public bool IsBusy
     {
@@ -229,6 +279,29 @@ public sealed class SettingsViewModel
             }
         }
     }
+
+    public bool IsDevelopmentResetArmed
+    {
+        get => _isDevelopmentResetArmed;
+        private set
+        {
+            if (!SetProperty(ref _isDevelopmentResetArmed, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(IsDevelopmentResetIdle));
+            CancelDevelopmentResetCommand.NotifyCanExecuteChanged();
+            ExecuteDevelopmentResetCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    public bool IsDevelopmentResetIdle => !IsDevelopmentResetArmed;
+
+    public string DevelopmentResetScope =>
+        "Löscht Cache, Medienindex, Projekte, Operation-History, Diagnose-Datenbank "
+        + "sowie den letzten Analyse-/Import-Komfortverlauf. Originalmedien, Speicherort-Konfiguration, "
+        + "Extension-Einstellungen und Recovery-Daten bleiben erhalten.";
 
     public string OperationStatus
     {
@@ -461,7 +534,71 @@ public sealed class SettingsViewModel
 
     private async Task SelectLibraryLocationAsync()
     {
-        await SelectStorageLocationAsync(isImportLocation: false);
+        if (!CanManageSettings())
+        {
+            return;
+        }
+
+        string? selectedPath;
+
+        try
+        {
+            selectedPath = await _sourcePicker.PickFolderAsync();
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+        {
+            OperationStatus = "Ordnerauswahl fehlgeschlagen: " + exception.Message;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedPath))
+        {
+            return;
+        }
+
+        BeginOperation("Medienordner wird als stabiler Bibliotheksort erfasst …");
+
+        try
+        {
+            var location = _storageLocationResolver.Capture(selectedPath);
+            var existingLibraries = _storageSettings.Endpoints
+                .Where(endpoint => endpoint.Kind == StorageEndpointKind.MediaLibrary)
+                .ToArray();
+
+            if (existingLibraries.Any(endpoint => IsSameStorageLocation(endpoint.Location, location)))
+            {
+                EndOperation("Dieser Medienordner ist bereits Teil der Bibliothek.");
+                return;
+            }
+
+            var endpointId = existingLibraries.Length == 0
+                ? StorageEndpoint.DefaultLibraryId
+                : "library." + Guid.NewGuid().ToString("N");
+
+            var endpoint = new StorageEndpoint(
+                endpointId,
+                BuildLibraryLocationName(selectedPath, existingLibraries.Length + 1),
+                StorageEndpointKind.MediaLibrary,
+                location);
+
+            _storageSettings = _storageSettings.WithEndpoint(endpoint);
+            await _storageSettingsStore.SaveAsync(_storageSettings);
+            ApplyStoragePresentation();
+
+            EndOperation(
+                "Medienordner zur Bibliothek hinzugefügt. Originaldateien wurden nicht verändert. "
+                + "Medienindex aktualisieren, damit der Bestand in der Bibliothek erscheint.");
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+        {
+            EndOperation("Medienordner wurde nicht übernommen: " + exception.Message);
+        }
     }
 
     private async Task SelectStorageLocationAsync(bool isImportLocation)
@@ -528,6 +665,61 @@ public sealed class SettingsViewModel
         }
     }
 
+    private async Task RemoveLibraryLocationAsync(string endpointId)
+    {
+        if (!CanManageSettings() || string.IsNullOrWhiteSpace(endpointId))
+        {
+            return;
+        }
+
+        var endpoint = _storageSettings.Find(endpointId);
+        if (endpoint is null || endpoint.Kind != StorageEndpointKind.MediaLibrary)
+        {
+            return;
+        }
+
+        BeginOperation($"Medienordner '{endpoint.Name}' wird aus der Bibliothekskonfiguration entfernt …");
+
+        try
+        {
+            _storageSettings = _storageSettings.WithoutEndpoint(endpointId);
+            await _storageSettingsStore.SaveAsync(_storageSettings);
+            ApplyStoragePresentation();
+
+            EndOperation(
+                "Medienordner aus der Bibliothekskonfiguration entfernt. "
+                + "Keine Mediendatei wurde gelöscht oder verschoben. "
+                + "Medienindex aktualisieren, um den Bibliotheksstatus neu zu bewerten.");
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+        {
+            EndOperation("Medienordner konnte nicht entfernt werden: " + exception.Message);
+        }
+    }
+
+    private static bool IsSameStorageLocation(
+        StorageLocation first,
+        StorageLocation second)
+    {
+        return string.Equals(first.VolumeId, second.VolumeId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(first.RelativePath, second.RelativePath, StringComparison.Ordinal);
+    }
+
+    private static string BuildLibraryLocationName(string selectedPath, int ordinal)
+    {
+        var trimmedPath = selectedPath.TrimEnd(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar);
+        var directoryName = Path.GetFileName(trimmedPath);
+
+        return string.IsNullOrWhiteSpace(directoryName)
+            ? $"Medienordner {ordinal:N0}"
+            : directoryName;
+    }
+
     private async Task ClearImportLocationAsync()
     {
         await ClearStorageLocationAsync(isImportLocation: true);
@@ -565,6 +757,68 @@ public sealed class SettingsViewModel
                 or InvalidOperationException)
         {
             EndOperation("Speicherort konnte nicht entfernt werden: " + exception.Message);
+        }
+    }
+
+    private void ArmDevelopmentReset()
+    {
+        if (!CanManageSettings())
+        {
+            return;
+        }
+
+        IsDevelopmentResetArmed = true;
+        OperationStatus =
+            "Entwicklungsreset ist scharf. Erst der rote Bestätigungsbutton löscht lokale Elbwald-Daten.";
+    }
+
+    private void CancelDevelopmentReset()
+    {
+        IsDevelopmentResetArmed = false;
+        OperationStatus = "Entwicklungsreset abgebrochen.";
+    }
+
+    private async Task ExecuteDevelopmentResetAsync()
+    {
+        if (!CanManageSettings() || !IsDevelopmentResetArmed)
+        {
+            return;
+        }
+
+        BeginOperation("Lokale Cache- und Datenbankdaten werden zurückgesetzt …");
+
+        try
+        {
+            // Reset the cache services through their public APIs first so their
+            // in-memory initialization state does not point at removed files.
+            await _analysisCache.ClearAsync();
+            await _thumbnailService.ClearCacheAsync();
+
+            var result = await _dataResetService.ResetVolatileDataAsync();
+            IsDevelopmentResetArmed = false;
+
+            EndOperation(
+                $"Entwicklungsreset abgeschlossen: {result.DeletedFileCount:N0} Datei(en), "
+                + $"{FormatBytes(result.DeletedBytes)} entfernt. Elbwald wird beendet; "
+                + "beim nächsten Start werden Cache und Datenbanken leer neu angelegt.");
+
+            await Task.Delay(250);
+
+            if (Application.Current?.ApplicationLifetime
+                is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.Shutdown();
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+        {
+            IsDevelopmentResetArmed = false;
+            EndOperation(
+                "Entwicklungsreset nicht vollständig ausgeführt: "
+                + exception.GetBaseException().Message);
         }
     }
 
@@ -690,9 +944,46 @@ public sealed class SettingsViewModel
             _storageSettings.Find(StorageEndpoint.DefaultImportId)?.Location,
             isImportLocation: true);
 
-        ApplyStorageLocationPresentation(
-            _storageSettings.Find(StorageEndpoint.DefaultLibraryId)?.Location,
-            isImportLocation: false);
+        ApplyLibraryLocationsPresentation();
+    }
+
+    private void ApplyLibraryLocationsPresentation()
+    {
+        var endpoints = _storageSettings.Endpoints
+            .Where(endpoint => endpoint.Kind == StorageEndpointKind.MediaLibrary)
+            .OrderBy(endpoint => endpoint.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+
+        LibraryLocations = endpoints
+            .Select(endpoint =>
+                new LibraryStorageLocationItemViewModel(
+                    endpoint,
+                    _storageLocationResolver.Resolve(endpoint.Location),
+                    RemoveLibraryLocationAsync))
+            .ToArray();
+
+        IsLibraryLocationConfigured = endpoints.Length > 0;
+
+        if (endpoints.Length == 0)
+        {
+            LibraryLocationSummary = "Nicht konfiguriert";
+            LibraryLocationDetails = "Noch keine Medienordner zur Bibliothek hinzugefügt.";
+            LibraryLocationVolumeId = string.Empty;
+            return;
+        }
+
+        var available = LibraryLocations.Count(item => item.IsAvailable);
+        LibraryLocationSummary = endpoints.Length == 1
+            ? "1 Medienordner"
+            : $"{endpoints.Length:N0} Medienordner";
+        LibraryLocationDetails =
+            $"{available:N0} von {endpoints.Length:N0} aktuell erreichbar. "
+            + "Jeder Ordner bleibt an seinem vorhandenen Speicherort.";
+        LibraryLocationVolumeId = string.Join(
+            Environment.NewLine,
+            endpoints
+                .Select(endpoint => endpoint.Location.VolumeId)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
     }
 
     private void ApplyStorageLocationPresentation(
@@ -807,6 +1098,9 @@ public sealed class SettingsViewModel
         ClearAnalysisCacheCommand.NotifyCanExecuteChanged();
         ClearThumbnailCacheCommand.NotifyCanExecuteChanged();
         ClearAllCachesCommand.NotifyCanExecuteChanged();
+        ArmDevelopmentResetCommand.NotifyCanExecuteChanged();
+        CancelDevelopmentResetCommand.NotifyCanExecuteChanged();
+        ExecuteDevelopmentResetCommand.NotifyCanExecuteChanged();
         SaveThumbnailSettingsCommand.NotifyCanExecuteChanged();
         RefreshStorageCommand.NotifyCanExecuteChanged();
         SelectImportLocationCommand.NotifyCanExecuteChanged();

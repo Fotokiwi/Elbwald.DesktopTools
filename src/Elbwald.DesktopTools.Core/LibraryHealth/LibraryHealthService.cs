@@ -6,17 +6,23 @@ namespace Elbwald.DesktopTools.Core.LibraryHealth;
 
 public sealed class LibraryHealthService : ILibraryHealthService
 {
+    private const string MediaIndexEndpointId = "media-index";
+
     private readonly IStorageLocationResolver _storageResolver;
     private readonly IMediaAnalyzer _mediaAnalyzer;
+    private readonly ILibraryHealthIndexInspector _indexInspector;
 
     public LibraryHealthService(
         IStorageLocationResolver storageResolver,
-        IMediaAnalyzer mediaAnalyzer)
+        IMediaAnalyzer mediaAnalyzer,
+        ILibraryHealthIndexInspector indexInspector)
     {
         ArgumentNullException.ThrowIfNull(storageResolver);
         ArgumentNullException.ThrowIfNull(mediaAnalyzer);
+        ArgumentNullException.ThrowIfNull(indexInspector);
         _storageResolver = storageResolver;
         _mediaAnalyzer = mediaAnalyzer;
+        _indexInspector = indexInspector;
     }
 
     public async Task<LibraryHealthReport> ScanAsync(
@@ -115,11 +121,50 @@ public sealed class LibraryHealthService : ILibraryHealthService
             }
         }
 
+        var indexSummary = await InspectMediaIndexAsync(issues, cancellationToken);
+
         return new LibraryHealthReport(
             startedAt,
             DateTimeOffset.UtcNow,
             endpointResults,
-            issues);
+            issues,
+            indexSummary);
+    }
+
+    private async Task<LibraryHealthIndexSummary> InspectMediaIndexAsync(
+        ICollection<LibraryHealthIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var summary = await _indexInspector.InspectAsync(cancellationToken);
+
+            if (summary.OrphanedMediaCount > 0)
+            {
+                issues.Add(new LibraryHealthIssue(
+                    MediaIndexEndpointId,
+                    LibraryHealthIssueKind.IndexedMediaUnavailable,
+                    LibraryHealthSeverity.Warning,
+                    $"{summary.OrphanedMediaCount:N0} indexierte Medien besitzen aktuell keinen als vorhanden markierten Speicherort. Prüfe den Medienindex und verbundene Laufwerke."));
+            }
+
+            return summary;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            issues.Add(new LibraryHealthIssue(
+                MediaIndexEndpointId,
+                LibraryHealthIssueKind.ScanError,
+                LibraryHealthSeverity.Problem,
+                "Der Medienindex konnte für den Gesundheitscheck nicht gelesen werden: "
+                + exception.GetBaseException().Message));
+
+            return LibraryHealthIndexSummary.Empty;
+        }
     }
 
     private static LibraryHealthIssue CreateStorageIssue(

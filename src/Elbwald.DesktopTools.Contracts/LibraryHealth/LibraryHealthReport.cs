@@ -4,7 +4,8 @@ public sealed record LibraryHealthReport(
     DateTimeOffset StartedAtUtc,
     DateTimeOffset CompletedAtUtc,
     IReadOnlyList<LibraryHealthEndpointResult> Endpoints,
-    IReadOnlyList<LibraryHealthIssue> Issues)
+    IReadOnlyList<LibraryHealthIssue> Issues,
+    LibraryHealthIndexSummary IndexSummary)
 {
     public int ProblemCount => Issues.Count(issue => issue.Severity == LibraryHealthSeverity.Problem);
     public int WarningCount => Issues.Count(issue => issue.Severity == LibraryHealthSeverity.Warning);

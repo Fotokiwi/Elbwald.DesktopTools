@@ -24,7 +24,7 @@ public sealed class LibraryHealthServiceTests
             ["volume-three"] = Available("/three", "volume-three")
         });
         var analyzer = new FakeAnalyzer();
-        var service = new LibraryHealthService(resolver, analyzer);
+        var service = new LibraryHealthService(resolver, analyzer, new FakeIndexInspector());
 
         var report = await service.ScanAsync(settings);
 
@@ -46,13 +46,38 @@ public sealed class LibraryHealthServiceTests
                 "Laufwerk fehlt")
         });
         var analyzer = new FakeAnalyzer();
-        var service = new LibraryHealthService(resolver, analyzer);
+        var service = new LibraryHealthService(resolver, analyzer, new FakeIndexInspector());
 
         var report = await service.ScanAsync(settings);
 
         Assert.Empty(analyzer.Paths);
         var issue = Assert.Single(report.Issues);
         Assert.Equal(LibraryHealthIssueKind.VolumeUnavailable, issue.Kind);
+    }
+
+
+    [Fact]
+    public async Task ScanAddsAggregateMediaIndexHealthIssues()
+    {
+        var settings = new StorageSettings(Array.Empty<StorageEndpoint>());
+        var resolver = new FakeResolver(new Dictionary<string, StorageLocationResolution>());
+        var analyzer = new FakeAnalyzer();
+        var indexInspector = new FakeIndexInspector(
+            new LibraryHealthIndexSummary(
+                IndexedMediaCount: 120,
+                PresentMediaCount: 115,
+                OrphanedMediaCount: 5,
+                MissingCaptureDateCount: 7,
+                LastIndexedUtc: DateTimeOffset.UtcNow));
+        var service = new LibraryHealthService(resolver, analyzer, indexInspector);
+
+        var report = await service.ScanAsync(settings);
+
+        Assert.Equal(120, report.IndexSummary.IndexedMediaCount);
+        Assert.Equal(5, report.IndexSummary.OrphanedMediaCount);
+        Assert.Contains(
+            report.Issues,
+            issue => issue.Kind == LibraryHealthIssueKind.IndexedMediaUnavailable);
     }
 
     private static StorageEndpoint Endpoint(string id, string volumeId, bool enabled = true) =>
@@ -64,6 +89,23 @@ public sealed class LibraryHealthServiceTests
             path,
             new StorageVolumeInfo(volumeId, path),
             "ok");
+
+    private sealed class FakeIndexInspector : ILibraryHealthIndexInspector
+    {
+        private readonly LibraryHealthIndexSummary _summary;
+
+        public FakeIndexInspector(LibraryHealthIndexSummary? summary = null)
+        {
+            _summary = summary ?? LibraryHealthIndexSummary.Empty;
+        }
+
+        public Task<LibraryHealthIndexSummary> InspectAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_summary);
+        }
+    }
 
     private sealed class FakeResolver : IStorageLocationResolver
     {

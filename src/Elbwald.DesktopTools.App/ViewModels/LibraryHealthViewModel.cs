@@ -41,6 +41,21 @@ public partial class LibraryHealthViewModel : ObservableObject
     [ObservableProperty]
     private int problemCount;
 
+    [ObservableProperty]
+    private int indexedMediaCount;
+
+    [ObservableProperty]
+    private int presentIndexedMediaCount;
+
+    [ObservableProperty]
+    private int orphanedIndexedMediaCount;
+
+    [ObservableProperty]
+    private int missingCaptureDateIndexCount;
+
+    [ObservableProperty]
+    private string indexLastUpdatedMessage = "Medienindex wird geprüft …";
+
     public LibraryHealthViewModel(
         ILibraryHealthService libraryHealthService,
         IStorageSettingsStore storageSettingsStore,
@@ -57,6 +72,7 @@ public partial class LibraryHealthViewModel : ObservableObject
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => !IsBusy);
         OpenSettingsCommand = new RelayCommand(() => _navigationService.NavigateTo("settings"));
         OpenDiagnosticsCommand = new RelayCommand(() => _navigationService.NavigateTo("diagnostics"));
+        OpenMediaIndexCommand = new RelayCommand(() => _navigationService.NavigateTo("media-index"));
 
         _ = RefreshAsync();
     }
@@ -67,11 +83,20 @@ public partial class LibraryHealthViewModel : ObservableObject
 
     public IRelayCommand OpenDiagnosticsCommand { get; }
 
+    public IRelayCommand OpenMediaIndexCommand { get; }
+
+    public bool HasIndexData => IndexedMediaCount > 0;
+
+    public string IndexAvailabilitySummary =>
+        IndexedMediaCount == 0
+            ? "Noch keine Medien indexiert"
+            : $"{PresentIndexedMediaCount:N0} von {IndexedMediaCount:N0} aktuell erreichbar";
+
     public bool HasEndpoints => Endpoints.Count > 0;
 
     public bool HasIssues => Issues.Count > 0;
 
-    public bool HasNoIssues => !IsBusy && HasEndpoints && Issues.Count == 0;
+    public bool HasNoIssues => !IsBusy && Issues.Count == 0;
 
     public bool HasNoEndpoints => !IsBusy && Endpoints.Count == 0;
 
@@ -114,6 +139,17 @@ public partial class LibraryHealthViewModel : ObservableObject
         OnPropertyChanged(nameof(AvailabilitySummary));
     }
 
+    partial void OnIndexedMediaCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(HasIndexData));
+        OnPropertyChanged(nameof(IndexAvailabilitySummary));
+    }
+
+    partial void OnPresentIndexedMediaCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(IndexAvailabilitySummary));
+    }
+
     private async Task RefreshAsync()
     {
         if (IsBusy)
@@ -128,19 +164,6 @@ public partial class LibraryHealthViewModel : ObservableObject
         {
             var settings = await _storageSettingsStore.LoadAsync();
             var enabledEndpoints = settings.Endpoints.Where(endpoint => endpoint.Enabled).ToArray();
-
-            if (enabledEndpoints.Length == 0)
-            {
-                Endpoints = Array.Empty<LibraryHealthEndpointItemViewModel>();
-                Issues = Array.Empty<LibraryHealthIssueItemViewModel>();
-                TotalEndpointCount = 0;
-                AvailableEndpointCount = 0;
-                WarningCount = 0;
-                ProblemCount = 0;
-                LastScanMessage = "Noch keine aktivierten Speicherorte konfiguriert.";
-                StatusMessage = "Lege in den Einstellungen mindestens einen aktiven Speicherort fest.";
-                return;
-            }
 
             var report = await _libraryHealthService.ScanAsync(
                 settings with { Endpoints = enabledEndpoints });
@@ -181,9 +204,19 @@ public partial class LibraryHealthViewModel : ObservableObject
                 .Select(issue => new LibraryHealthIssueItemViewModel(
                     endpointNames.TryGetValue(issue.EndpointId, out var endpointName)
                         ? endpointName
-                        : issue.EndpointId,
+                        : string.Equals(issue.EndpointId, "media-index", StringComparison.OrdinalIgnoreCase)
+                            ? "Medienindex"
+                            : issue.EndpointId,
                     issue))
                 .ToArray();
+
+            IndexedMediaCount = report.IndexSummary.IndexedMediaCount;
+            PresentIndexedMediaCount = report.IndexSummary.PresentMediaCount;
+            OrphanedIndexedMediaCount = report.IndexSummary.OrphanedMediaCount;
+            MissingCaptureDateIndexCount = report.IndexSummary.MissingCaptureDateCount;
+            IndexLastUpdatedMessage = report.IndexSummary.LastIndexedUtc is { } lastIndexed
+                ? $"Index zuletzt aktualisiert: {lastIndexed.ToLocalTime():dd.MM.yyyy HH:mm}"
+                : "Medienindex wurde noch nicht aufgebaut.";
 
             TotalEndpointCount = report.Endpoints.Count;
             AvailableEndpointCount = report.Endpoints.Count(endpoint => endpoint.StorageStatus == StorageLocationStatus.Available);
@@ -193,9 +226,13 @@ public partial class LibraryHealthViewModel : ObservableObject
             var duration = report.CompletedAtUtc - report.StartedAtUtc;
             LastScanMessage = $"Letzter Scan: {report.CompletedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm} · Dauer {duration:mm\\:ss}";
 
-            StatusMessage = report.Issues.Count == 0
-                ? "Keine Auffälligkeiten gefunden. Alle aktivierten Speicherorte konnten read-only geprüft werden."
-                : $"{report.Endpoints.Count:N0} Endpunkt(e) geprüft · {report.ProblemCount:N0} Problem(e) · {report.WarningCount:N0} Warnung(en).";
+            StatusMessage = enabledEndpoints.Length == 0
+                ? report.Issues.Count == 0
+                    ? "Medienindex geprüft. Für einen Dateisystem-Scan ist noch kein aktiver Speicherort konfiguriert."
+                    : $"Medienindex geprüft · {report.ProblemCount:N0} Problem(e) · {report.WarningCount:N0} Warnung(en). Für den Dateisystem-Scan fehlt ein aktiver Speicherort."
+                : report.Issues.Count == 0
+                    ? "Keine Auffälligkeiten gefunden. Speicherorte und Medienindex wurden read-only geprüft."
+                    : $"{report.Endpoints.Count:N0} Endpunkt(e) + Medienindex geprüft · {report.ProblemCount:N0} Problem(e) · {report.WarningCount:N0} Warnung(en).";
         }
         catch (Exception exception)
         {
@@ -205,6 +242,11 @@ public partial class LibraryHealthViewModel : ObservableObject
             AvailableEndpointCount = 0;
             WarningCount = 0;
             ProblemCount = 0;
+            IndexedMediaCount = 0;
+            PresentIndexedMediaCount = 0;
+            OrphanedIndexedMediaCount = 0;
+            MissingCaptureDateIndexCount = 0;
+            IndexLastUpdatedMessage = "Medienindex konnte nicht geprüft werden.";
             LastScanMessage = "Der letzte Scan wurde nicht erfolgreich abgeschlossen.";
             StatusMessage = "Der Bibliotheksstatus konnte nicht geladen werden: " + exception.GetBaseException().Message;
         }
