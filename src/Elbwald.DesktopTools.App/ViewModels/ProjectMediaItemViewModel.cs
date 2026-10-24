@@ -18,18 +18,12 @@ public partial class ProjectMediaItemViewModel : ObservableObject, IDisposable
     private string thumbnailStatus = "Vorschau wird geladen …";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HighlightActionText))]
-    [NotifyPropertyChangedFor(nameof(HighlightBadgeText))]
     private bool isHighlight;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CoverBadgeText))]
     private bool isCover;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasProjectDate))]
-    [NotifyPropertyChangedFor(nameof(ProjectDateText))]
-    [NotifyPropertyChangedFor(nameof(ProjectDayBadgeText))]
     private DateOnly? projectDate;
 
     public ProjectMediaItemViewModel(
@@ -101,6 +95,24 @@ public partial class ProjectMediaItemViewModel : ObservableObject, IDisposable
     public string ProjectDayBadgeText => ProjectDate.HasValue
         ? $"Tag · {ProjectDate.Value:dd.MM.yyyy}"
         : string.Empty;
+
+    partial void OnIsHighlightChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HighlightActionText));
+        OnPropertyChanged(nameof(HighlightBadgeText));
+    }
+
+    partial void OnIsCoverChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CoverBadgeText));
+    }
+
+    partial void OnProjectDateChanged(DateOnly? value)
+    {
+        OnPropertyChanged(nameof(HasProjectDate));
+        OnPropertyChanged(nameof(ProjectDateText));
+        OnPropertyChanged(nameof(ProjectDayBadgeText));
+    }
 
     partial void OnThumbnailChanged(Bitmap? value)
     {

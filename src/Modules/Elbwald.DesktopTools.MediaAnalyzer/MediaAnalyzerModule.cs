@@ -20,15 +20,15 @@ public sealed class MediaAnalyzerModule
         services.AddNavigationContribution(
             new NavigationContribution(
                 ExtensionId: Id,
-                Id: "analyze",
+                Id: "analyze.media-analyzer",
                 RouteId: Id,
-                Placement: NavigationContributionPlacement.Primary,
-                SectionId: null,
-                Title: "Analysieren",
-                Description: "Bibliothek read-only prüfen",
+                Placement: NavigationContributionPlacement.Section,
+                SectionId: "analyze",
+                Title: "Media Analyzer",
+                Description: "Ordner und Medien read-only prüfen und auswerten.",
                 Icon: "Search",
-                Order: 300,
-                ShowSeparatorBefore: true,
+                Order: 100,
+                ShowSeparatorBefore: false,
                 ToolModuleId: Id));
     }
 

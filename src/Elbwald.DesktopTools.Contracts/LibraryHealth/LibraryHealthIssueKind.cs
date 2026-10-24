@@ -9,5 +9,12 @@ public enum LibraryHealthIssueKind
     ScanError = 4,
     MetadataProblem = 5,
     MissingCaptureDate = 6,
-    IndexedMediaUnavailable = 7
+    IndexedMediaUnavailable = 7,
+    IndexedMediaOffline = 8,
+    IndexedMediaMissing = 9,
+    IndexedMediaUnconfigured = 10,
+    StaleIndexLocation = 11,
+    ConflictingCaptureDate = 12,
+    SuspiciousCaptureDate = 13,
+    MissingDimensions = 14
 }

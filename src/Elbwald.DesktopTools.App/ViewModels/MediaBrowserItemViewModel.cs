@@ -17,8 +17,6 @@ public partial class MediaBrowserItemViewModel : ObservableObject, IDisposable
     private string thumbnailStatus = "Vorschau wird geladen …";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RatingText))]
-    [NotifyPropertyChangedFor(nameof(HasRating))]
     private int rating;
 
     public MediaBrowserItemViewModel(
@@ -70,6 +68,12 @@ public partial class MediaBrowserItemViewModel : ObservableObject, IDisposable
     public bool IsImage => MediaTypeValue == MediaFileType.Image;
     public bool HasThumbnail => Thumbnail is not null;
     public bool HasNoThumbnail => Thumbnail is null;
+
+    partial void OnRatingChanged(int value)
+    {
+        OnPropertyChanged(nameof(RatingText));
+        OnPropertyChanged(nameof(HasRating));
+    }
 
     partial void OnThumbnailChanged(Bitmap? value)
     {

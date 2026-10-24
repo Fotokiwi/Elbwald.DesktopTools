@@ -1,4 +1,5 @@
 using Elbwald.DesktopTools.Contracts.Diagnostics;
+using Elbwald.DesktopTools.Contracts.DuplicateFinding;
 using Elbwald.DesktopTools.Contracts.FileOperations;
 using Elbwald.DesktopTools.Contracts.Journaling;
 using Elbwald.DesktopTools.Contracts.LibraryHealth;
@@ -24,6 +25,7 @@ using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Contracts.Settings;
 using Elbwald.DesktopTools.Core.Diagnostics;
+using Elbwald.DesktopTools.Core.DuplicateFinding;
 using Elbwald.DesktopTools.Core.FileOperations;
 using Elbwald.DesktopTools.Core.Journaling;
 using Elbwald.DesktopTools.Core.LibraryHealth;
@@ -101,6 +103,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IStorageLocationResolver, StorageLocationResolver>();
         services.AddSingleton<IStorageSettingsStore, JsonStorageSettingsStore>();
+        services.AddSingleton<IFileManagerService, FileManagerService>();
 
         services.AddSingleton<CoreImageFormatProvider>();
         services.AddSingleton<IMediaFormatRegistry>(
@@ -190,8 +193,27 @@ public static class ServiceCollectionExtensions
             });
 
         services.AddSingleton<IMediaIndexService, MediaIndexService>();
+        services.AddSingleton<IDuplicateFinderService, DuplicateFinderService>();
+        services.AddSingleton<IDuplicateCleanupPlanner, DuplicateCleanupPlanner>();
+        services.AddSingleton<IFileTrashService>(
+            _ =>
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    return new WindowsFileTrashService();
+                }
+
+                if (OperatingSystem.IsLinux())
+                {
+                    return new LinuxFileTrashService();
+                }
+
+                return new UnsupportedFileTrashService();
+            });
+        services.AddSingleton<IDuplicateCleanupExecutor, DuplicateCleanupExecutor>();
         services.AddSingleton<ILibraryHealthIndexInspector, LibraryHealthIndexInspector>();
         services.AddSingleton<ILibraryHealthService, LibraryHealthService>();
+        services.AddSingleton<ILibraryHealthSnapshotStore, JsonLibraryHealthSnapshotStore>();
         services.AddSingleton<IApplicationDataResetService, ApplicationDataResetService>();
         services.AddSingleton<IMediaNamingTemplateEngine, MediaNamingTemplateEngine>();
 

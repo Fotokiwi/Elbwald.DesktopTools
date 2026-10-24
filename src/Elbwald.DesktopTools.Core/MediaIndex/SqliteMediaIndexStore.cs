@@ -854,6 +854,37 @@ internal sealed class SqliteMediaIndexStore
         }
     }
 
+    public async Task<IReadOnlyList<MediaIndexLocation>> GetAllLocationsAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT Id, MediaItemId, EndpointId, EndpointKind, VolumeId, RelativePath,
+                       Length, LastWriteTimeUtc, IsPresent, FirstSeenUtc, LastSeenUtc
+                FROM MediaLocations
+                ORDER BY MediaItemId, IsPresent DESC, LastSeenUtc DESC, Id DESC;
+                """;
+
+            var result = new List<MediaIndexLocation>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                result.Add(ReadLocation(reader));
+            }
+
+            return result;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<IReadOnlyList<MediaIndexFolderFacet>> GetFolderFacetsAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -1403,6 +1434,60 @@ internal sealed class SqliteMediaIndexStore
             command.Parameters.AddWithValue("$now", nowUtc.UtcDateTime.ToString("O"));
             command.Parameters.AddWithValue("$id", locationId);
             await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<int> MarkLocationsMissingAfterControlledRemovalAsync(
+        string mediaItemId,
+        IReadOnlyList<long> locationIds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaItemId);
+        ArgumentNullException.ThrowIfNull(locationIds);
+
+        var ids = locationIds
+            .Where(id => id > 0)
+            .Distinct()
+            .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return 0;
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            using var transaction = connection.BeginTransaction();
+
+            var updated = 0;
+            foreach (var locationId in ids)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                await using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = """
+                    UPDATE MediaLocations
+                    SET IsPresent = 0
+                    WHERE Id = $id
+                      AND MediaItemId = $mediaItemId
+                      AND IsPresent = 1;
+                    """;
+                command.Parameters.AddWithValue("$id", locationId);
+                command.Parameters.AddWithValue("$mediaItemId", mediaItemId);
+                updated += await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            transaction.Commit();
+            return updated;
         }
         finally
         {

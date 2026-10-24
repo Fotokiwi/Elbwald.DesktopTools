@@ -93,6 +93,10 @@ public partial class MainWindowViewModel : ObservableObject
             new RelayCommand(
                 () => navigationService.NavigateTo("library-health"));
 
+        NavigateDuplicateFinderCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("duplicate-finder"));
+
         NavigateMediaIndexCommand =
             new RelayCommand(
                 () => navigationService.NavigateTo("media-index"));
@@ -164,6 +168,8 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand NavigateDiagnosticsCommand { get; }
 
     public IRelayCommand NavigateLibraryHealthCommand { get; }
+
+    public IRelayCommand NavigateDuplicateFinderCommand { get; }
 
     public IRelayCommand NavigateMediaIndexCommand { get; }
 
@@ -549,6 +555,42 @@ public partial class MainWindowViewModel : ObservableObject
 
             CurrentContent =
                 mediaIndexPage;
+
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "duplicate-finder",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var analyze = NavigationItems.FirstOrDefault(
+                item => string.Equals(
+                    item.Id,
+                    "analyze",
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (analyze is not null)
+            {
+                SelectedItem = analyze;
+            }
+
+            const string cacheKey =
+                "special:duplicate-finder";
+
+            if (!_pageCache.TryGetValue(
+                    cacheKey,
+                    out var duplicateFinderPage))
+            {
+                duplicateFinderPage =
+                    _contentFactory.CreateDuplicateFinderPage();
+
+                _pageCache[cacheKey] =
+                    duplicateFinderPage;
+            }
+
+            CurrentContent =
+                duplicateFinderPage;
 
             return;
         }

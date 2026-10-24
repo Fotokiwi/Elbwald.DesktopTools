@@ -304,6 +304,8 @@ public sealed class ProjectServiceTests : IDisposable
             Task.FromResult(_items.Values.FirstOrDefault(item => item.Sha256 == sha256 && item.Length == length));
         public Task<IReadOnlyList<MediaIndexLocation>> GetLocationsAsync(string mediaItemId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MediaIndexLocation>>(Array.Empty<MediaIndexLocation>());
+        public Task<IReadOnlyList<MediaIndexLocation>> GetAllLocationsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<MediaIndexLocation>>(Array.Empty<MediaIndexLocation>());
         public Task<MediaIndexItem> EnsureItemAsync(
             string sha256,
             long length,

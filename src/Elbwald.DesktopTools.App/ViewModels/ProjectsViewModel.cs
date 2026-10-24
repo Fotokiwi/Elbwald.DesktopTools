@@ -372,12 +372,15 @@ public partial class ProjectsViewModel : ObservableObject
     partial void OnJournalLocationChanged(string value) => ScheduleJournalAutosave();
 
     partial void OnJournalMediaOptionsChanged(
-        IReadOnlyList<ProjectJournalMediaOptionViewModel> oldValue,
+        IReadOnlyList<ProjectJournalMediaOptionViewModel>? oldValue,
         IReadOnlyList<ProjectJournalMediaOptionViewModel> newValue)
     {
-        foreach (var item in oldValue)
+        if (oldValue is not null)
         {
-            item.PropertyChanged -= OnJournalMediaOptionPropertyChanged;
+            foreach (var item in oldValue)
+            {
+                item.PropertyChanged -= OnJournalMediaOptionPropertyChanged;
+            }
         }
 
         foreach (var item in newValue)

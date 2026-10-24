@@ -1,0 +1,488 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.App.ViewModels"
+    x:Class="Elbwald.DesktopTools.App.Views.DuplicateFinderView"
+    x:DataType="vm:DuplicateFinderViewModel">
+
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+
+        <StackPanel
+            Margin="38,28,38,40"
+            MaxWidth="1180"
+            Spacing="16">
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Duplicate Finder" Classes="elbwald-title" />
+                    <TextBlock
+                        Text="Findet bitidentische Medien anhand der SHA-256-Identitäten im lokalen Medienindex. Gruppen lassen sich filtern, sortieren und über sichere Referenzregeln vorbereiten; ausgeführt wird weiterhin erst nach Preflight und ausdrücklicher Bestätigung."
+                        Classes="elbwald-muted"
+                        FontSize="12"
+                        LineHeight="18"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Right">
+                    <TextBlock Text="Exakte Dubletten"
+                               Foreground="{DynamicResource ElbwaldAccentBrush}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Right" />
+                    <TextBlock Text="SHA-256 + Dateigröße · nur aktuelle Fundorte"
+                               Classes="elbwald-muted"
+                               FontSize="9"
+                               HorizontalAlignment="Right" />
+                    <TextBlock Text="{Binding IndexLastUpdatedMessage}"
+                               Classes="elbwald-muted"
+                               FontSize="9"
+                               HorizontalAlignment="Right" />
+                </StackPanel>
+            </Grid>
+
+            <Border Classes="elbwald-card" Padding="16">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding LastScanMessage}" Classes="elbwald-muted" FontSize="10" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding OpenMediaIndexCommand}"
+                            Content="Medienindex" />
+                    <Button Grid.Column="2"
+                            Classes="elbwald-primary-button"
+                            Command="{Binding RefreshCommand}"
+                            Content="Neu prüfen" />
+                </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+                <Border Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Aktuelle Fundorte" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding PresentLocationCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Nur vorhandene Index-Locations werden berücksichtigt." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Dublettengruppen" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding DuplicateGroupCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap">
+                            <Run Text="{Binding DuplicateLocationCount}" />
+                            <Run Text=" Fundorte liegen in Dublettengruppen." />
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Zusätzliche Kopien" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding RedundantCopyCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Theoretische Zusatzkopien; geschützte Backup-/Archiv-Fundorte bleiben unangetastet." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="3" Classes="elbwald-card" Padding="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Potenziell freigebbar" Classes="elbwald-muted" FontSize="10" />
+                        <TextBlock Text="{Binding ReclaimableText}"
+                                   Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                   FontSize="22"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Theoretischer Maximalwert; der aktuelle Plan wird separat ausgewiesen." Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Classes="elbwald-soft-card" Padding="12">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="{Binding DuplicateSummary}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding PlannedSummary}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding ConfidenceSummary}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="9" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Classes="elbwald-secondary-button"
+                            Command="{Binding OpenLibraryHealthCommand}"
+                            Content="Bibliotheksstatus" />
+                </Grid>
+            </Border>
+
+            <Border Classes="elbwald-card" Padding="16" IsVisible="{Binding HasGroups}">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,150,180,210" ColumnSpacing="10">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Gefundene Dubletten" Classes="elbwald-section-title" />
+                            <TextBlock Text="{Binding FilterSummary}" Classes="elbwald-muted" FontSize="9" />
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding MediaTypeFilters}"
+                                  SelectedItem="{Binding SelectedMediaType}" />
+                        <ComboBox Grid.Column="2"
+                                  ItemsSource="{Binding ConfidenceFilters}"
+                                  SelectedItem="{Binding SelectedConfidence}" />
+                        <ComboBox Grid.Column="3"
+                                  ItemsSource="{Binding SortOptions}"
+                                  SelectedItem="{Binding SelectedSort}" />
+                    </Grid>
+
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="Dateiname, Pfad, Speicherort oder SHA-256 durchsuchen …" />
+
+                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="10" IsEnabled="{Binding IsPlanInteractionEnabled}">
+                        <Grid ColumnDefinitions="Auto,220,Auto,*" ColumnSpacing="8">
+                            <TextBlock Text="Bevorzugter Speicherort" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding PreferredEndpointOptions}"
+                                      SelectedItem="{Binding SelectedPreferredEndpoint}" />
+                            <Button Grid.Column="2"
+                                    Classes="elbwald-secondary-button"
+                                    Command="{Binding ApplyPreferredEndpointToFilteredCommand}"
+                                    Content="Auf gefilterte Gruppen anwenden" />
+                            <TextBlock Grid.Column="3"
+                                       Text="Nur Planregel: Wenn der Speicherort in einer Gruppe vorkommt, wird dort diese Kopie als Referenz gesetzt. Es wird nichts gelöscht oder verschoben."
+                                       Classes="elbwald-muted"
+                                       FontSize="8"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Sichere Stapelbereinigung" Classes="elbwald-section-title" FontSize="11" />
+                                    <TextBlock Text="{Binding BatchSummary}" FontSize="9" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding BatchOperationMessage}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="elbwald-secondary-button"
+                                        Command="{Binding CancelBatchOperationCommand}"
+                                        Content="Abbrechen" />
+                            </Grid>
+
+                            <TextBlock Text="Automatik nur für Gruppen mit eindeutiger Original/Kopie-Struktur. ‚Wahrscheinlich‘ und ‚Unklar‘ werden niemals in diesen Stapel aufgenommen. Backup-/Archiv-Fundorte bleiben geschützt."
+                                       Classes="elbwald-muted"
+                                       FontSize="8"
+                                       TextWrapping="Wrap" />
+
+                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="7">
+                                <Button Classes="elbwald-secondary-button"
+                                        Command="{Binding ApplyVerySafeSuggestionsCommand}"
+                                        Content="Sichere Fälle planen" />
+                                <Button Grid.Column="1"
+                                        Classes="elbwald-primary-button"
+                                        Command="{Binding RunSafeBatchPreflightCommand}"
+                                        Content="Stapel-Preflight" />
+                            </Grid>
+
+                            <CheckBox IsChecked="{Binding BatchCleanupConfirmationAccepted}"
+                                      IsEnabled="{Binding HasBatchReadyGroups}">
+                                <TextBlock Text="Ich bestätige die gesammelt geprüften, als sehr sicher eingestuften Gruppen. Die ausgewählten Zusatzkopien dürfen in den Systempapierkorb verschoben werden."
+                                           FontSize="9"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="900" />
+                            </CheckBox>
+
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <TextBlock Text="Vor jeder einzelnen Datei wiederholt der bestehende Executor den Preflight. Schlägt eine Gruppe fehl, bleiben andere Gruppen davon unabhängig. Es gibt keinen Fallback auf endgültiges Löschen."
+                                           Classes="elbwald-muted"
+                                           FontSize="8"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Classes="elbwald-primary-button"
+                                        Command="{Binding ExecuteSafeBatchCleanupCommand}"
+                                        Content="Sicheren Stapel in Papierkorb" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid ColumnDefinitions="0.95*,1.35*" ColumnSpacing="12" IsEnabled="{Binding IsPlanInteractionEnabled}">
+                        <Border Classes="elbwald-soft-card" Padding="8" MinHeight="300">
+                            <Grid>
+                                <ListBox IsVisible="{Binding HasFilteredGroups}"
+                                         ItemsSource="{Binding FilteredGroups}"
+                                         SelectedItem="{Binding SelectedGroup}"
+                                         MaxHeight="480">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DuplicateFinderGroupItemViewModel">
+                                            <Grid ColumnDefinitions="*,Auto" Margin="6" ColumnSpacing="12">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding LocationSummary}" Classes="elbwald-muted" FontSize="9" />
+                                                    <TextBlock Text="{Binding ConfidenceLabel}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="8" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding CleanupPlanSummary}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding HashShort}" Classes="elbwald-muted" FontSize="8" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding ReclaimableText}"
+                                                               Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                               FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding MediaType}" Classes="elbwald-muted" FontSize="9" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding SizeText}" Classes="elbwald-muted" FontSize="9" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock IsVisible="{Binding HasNoMatchingGroups}"
+                                           Text="Für die gewählten Filter wurden keine Dublettengruppen gefunden."
+                                           Classes="elbwald-muted"
+                                           TextWrapping="Wrap"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="elbwald-soft-card" Padding="14" MinHeight="300">
+                            <Grid>
+                                <StackPanel IsVisible="{Binding HasSelectedGroup}" Spacing="10">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding SelectedGroup.Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding SelectedGroup.MediaItemId}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding SelectedGroup.ReclaimableText}"
+                                                       Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                       FontSize="16"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Right" />
+                                            <TextBlock Text="potenziell freigebbar" Classes="elbwald-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+                                        <TextBlock Text="Typ / Größe" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Column="1" FontSize="9">
+                                            <Run Text="{Binding SelectedGroup.MediaType}" />
+                                            <Run Text=" · " />
+                                            <Run Text="{Binding SelectedGroup.SizeText}" />
+                                        </TextBlock>
+                                        <TextBlock Grid.Row="1" Text="Kopien" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Row="1" Grid.Column="1" FontSize="9">
+                                            <Run Text="{Binding SelectedGroup.CopyCount}" />
+                                            <Run Text=" Fundorte · " />
+                                            <Run Text="{Binding SelectedGroup.RedundantCopyCount}" />
+                                            <Run Text=" zusätzliche Kopie(n)" />
+                                        </TextBlock>
+                                        <TextBlock Grid.Row="2" Text="SHA-256" Classes="elbwald-muted" FontSize="9" />
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedGroup.Sha256}" FontSize="8" TextWrapping="Wrap" />
+                                    </Grid>
+
+                                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="10">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding SelectedGroup.ConfidenceLabel}"
+                                                       Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                       FontSize="9"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding SelectedGroup.ConfidenceReason}"
+                                                       Classes="elbwald-muted"
+                                                       FontSize="8"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding SelectedGroup.SuggestedKeeperText}"
+                                                       Classes="elbwald-muted"
+                                                       FontSize="8"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="10">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="Referenzregeln" Classes="elbwald-section-title" FontSize="11" />
+                                            <TextBlock Text="Die Regeln verwenden die im Medienindex gespeicherte Datei-Änderungszeit. Backup- und Archiv-Endpunkte bleiben geschützt."
+                                                       Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                            <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="6">
+                                                <Button Classes="elbwald-secondary-button"
+                                                        Command="{Binding KeepOldestModifiedCommand}"
+                                                        Content="Älteste behalten" />
+                                                <Button Grid.Column="1"
+                                                        Classes="elbwald-secondary-button"
+                                                        Command="{Binding KeepNewestModifiedCommand}"
+                                                        Content="Neueste behalten" />
+                                                <Button Grid.Column="2"
+                                                        Classes="elbwald-secondary-button"
+                                                        Command="{Binding ResetSelectedPlanCommand}"
+                                                        Content="Plan zurücksetzen" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="10">
+                                        <StackPanel Spacing="7">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Bereinigungsplan" Classes="elbwald-section-title" FontSize="11" />
+                                                    <TextBlock Text="{Binding SelectedGroup.CleanupPlanSummary}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1"
+                                                        Classes="elbwald-primary-button"
+                                                        Command="{Binding RunPreflightCommand}"
+                                                        Content="Preflight prüfen" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding PreflightOperationMessage}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding SelectedGroup.PreflightSummary}" FontSize="9" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding SelectedGroup.PreflightDetail}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="10">
+                                        <StackPanel Spacing="7">
+                                            <TextBlock Text="Sichere Ausführung" Classes="elbwald-section-title" FontSize="11" />
+                                            <TextBlock Text="{Binding ExecutionOperationMessage}" Classes="elbwald-muted" FontSize="9" TextWrapping="Wrap" />
+                                            <CheckBox IsChecked="{Binding CleanupConfirmationAccepted}"
+                                                      IsEnabled="{Binding SelectedGroup.PreflightIsReady}">
+                                                <TextBlock Text="Ich habe Referenz und Entfernungskandidaten geprüft und bestätige das Verschieben der ausgewählten Kopien in den Systempapierkorb."
+                                                           FontSize="9"
+                                                           TextWrapping="Wrap"
+                                                           MaxWidth="520" />
+                                            </CheckBox>
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                                <TextBlock Text="Kein Fallback auf endgültiges Löschen: Ist der Papierkorb nicht sicher verfügbar, bleibt die jeweilige Datei unangetastet."
+                                                           Classes="elbwald-muted"
+                                                           FontSize="8"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="1"
+                                                        Classes="elbwald-primary-button"
+                                                        Command="{Binding ExecuteCleanupCommand}"
+                                                        Content="In Papierkorb verschieben" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="Fundorte und geplante Aktion" Classes="elbwald-section-title" FontSize="11" />
+
+                                    <ItemsControl ItemsSource="{Binding SelectedGroup.Locations}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DuplicateFinderLocationItemViewModel">
+                                                <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="9">
+                                                    <StackPanel Spacing="5">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                            <TextBlock Text="{Binding EndpointName}" FontSize="9" FontWeight="SemiBold" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding PlanRole}"
+                                                                       Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                                       FontSize="8"
+                                                                       FontWeight="SemiBold" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding RelativePath}"
+                                                                   FontSize="9"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip.Tip="{Binding RelativePath}" />
+                                                        <TextBlock Classes="elbwald-muted" FontSize="8">
+                                                            <Run Text="{Binding SizeText}" />
+                                                            <Run Text=" · geändert " />
+                                                            <Run Text="{Binding LastWriteText}" />
+                                                            <Run Text=" · indexiert " />
+                                                            <Run Text="{Binding LastSeen}" />
+                                                        </TextBlock>
+                                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+                                                            <StackPanel Spacing="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding PreflightStatus}" FontSize="8" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding PreflightMessage}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1"
+                                                                    Classes="elbwald-secondary-button"
+                                                                    Command="{Binding OpenContainingFolderCommand}"
+                                                                    Content="Ordner öffnen" />
+                                                            <Button Grid.Column="2"
+                                                                    Classes="elbwald-secondary-button"
+                                                                    Command="{Binding MarkAsKeeperCommand}"
+                                                                    Content="Als Referenz" />
+                                                            <Button Grid.Column="3"
+                                                                    Classes="elbwald-secondary-button"
+                                                                    Command="{Binding ToggleRemovalCommand}"
+                                                                    Content="{Binding RemovalButtonText}" />
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <TextBlock IsVisible="{Binding HasNoSelectedGroup}"
+                                           Text="Wähle links eine Dublettengruppe aus, um Hash und alle aktuellen Fundorte zu sehen."
+                                           Classes="elbwald-muted"
+                                           TextWrapping="Wrap"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-card" Padding="16" IsVisible="{Binding HasExecutionResult}">
+                <StackPanel Spacing="10">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Letzte Bereinigung" Classes="elbwald-section-title" />
+                        <TextBlock Text="{Binding LastExecutionSummary}" FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ListBox ItemsSource="{Binding LastExecutionItems}" MaxHeight="320">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DuplicateCleanupExecutionItemViewModel">
+                                <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="8" Padding="9" Margin="2">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding Path}" FontSize="9" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Message}" Classes="elbwald-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding Status}"
+                                                       Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                       FontSize="8"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Right" />
+                                            <TextBlock Text="{Binding SizeText}" Classes="elbwald-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-card" Padding="18" IsVisible="{Binding HasNoDuplicates}">
+                <StackPanel Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="Keine bitidentischen Dubletten gefunden" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock
+                        Text="Der aktuelle Medienindex enthält keine Medien-ID mit mehr als einem vorhandenen Fundort. Nach externen Dateiänderungen zuerst den Medienindex aktualisieren."
+                        Classes="elbwald-muted"
+                        FontSize="10"
+                        TextWrapping="Wrap"
+                        TextAlignment="Center"
+                        MaxWidth="620" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="elbwald-soft-card" Padding="14">
+                <TextBlock
+                    Text="0132: Exakte Dubletten erhalten zusätzlich eine konservative Sicherheitsbewertung aus Dateiname und relativer Pfadstruktur. Nur eindeutig erkannte Original/Kopie-Fälle werden als ‚sehr sicher‘ für die Stapelplanung zugelassen. Wahrscheinliche und unklare Gruppen bleiben in der Einzelprüfung. Der Stapel führt zuerst einen vollständigen Preflight aus und wiederholt vor jeder Papierkorb-Aktion die bestehende Sicherheitsprüfung. Backup-/Archiv-Fundorte bleiben geschützt; Hardlinks werden weiterhin noch nicht separat erkannt."
+                    Foreground="{DynamicResource ElbwaldAccentBrush}"
+                    FontSize="10"
+                    TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

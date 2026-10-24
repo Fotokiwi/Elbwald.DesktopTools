@@ -34,7 +34,9 @@ public sealed class OperationHistoryBatchViewModel
             ? "Umbenennung"
             : string.Equals(OperationType, "ExportCopy", StringComparison.OrdinalIgnoreCase)
                 ? "Export"
-                : OperationType;
+                : string.Equals(OperationType, "DuplicateTrash", StringComparison.OrdinalIgnoreCase)
+                    ? "Dublettenbereinigung"
+                    : OperationType;
     public string StateLabel => IsReverted ? "Zurückgesetzt" : IsUndoOperation ? "Undo ausgeführt" : "Abgeschlossen";
     public string Summary => $"{FileCount:N0} Dateioperation(en) · {StateLabel}";
     public string ShortBatchId => BatchId.Length > 12 ? BatchId[..12] + "…" : BatchId;

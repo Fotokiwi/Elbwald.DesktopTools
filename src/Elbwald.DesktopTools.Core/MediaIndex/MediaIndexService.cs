@@ -353,6 +353,34 @@ public sealed class MediaIndexService : IMediaIndexService
         CancellationToken cancellationToken = default) =>
         _store.GetLocationsAsync(mediaItemId, cancellationToken);
 
+    public Task<IReadOnlyList<MediaIndexLocation>> GetAllLocationsAsync(
+        CancellationToken cancellationToken = default) =>
+        _store.GetAllLocationsAsync(cancellationToken);
+
+    public Task<int> MarkLocationsMissingAfterControlledRemovalAsync(
+        string mediaItemId,
+        IReadOnlyList<long> locationIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaItemId);
+        ArgumentNullException.ThrowIfNull(locationIds);
+
+        var normalizedIds = locationIds
+            .Where(id => id > 0)
+            .Distinct()
+            .ToArray();
+
+        if (normalizedIds.Length == 0)
+        {
+            return Task.FromResult(0);
+        }
+
+        return _store.MarkLocationsMissingAfterControlledRemovalAsync(
+            mediaItemId,
+            normalizedIds,
+            cancellationToken);
+    }
+
     public Task<IReadOnlyList<MediaIndexSearchResult>> SearchAsync(
         MediaIndexSearchQuery query,
         CancellationToken cancellationToken = default) =>

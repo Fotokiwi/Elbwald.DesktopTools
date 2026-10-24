@@ -19,7 +19,8 @@ public sealed class SectionHubViewModel
 
         var section = sectionId switch
         {
-            "analyze" => CreateAnalyzeFallback(
+            "analyze" => CreateAnalyze(
+                contributions,
                 navigationService),
 
             "organize" => CreateOrganize(
@@ -47,6 +48,7 @@ public sealed class SectionHubViewModel
         Title = section.Item1;
         Subtitle = section.Item2;
         Actions = string.Equals(sectionId, "organize", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sectionId, "analyze", StringComparison.OrdinalIgnoreCase)
             ? section.Item3
             : AppendContributions(section.Item3, contributions, navigationService);
 
@@ -120,22 +122,40 @@ public sealed class SectionHubViewModel
     private static (
         string Title,
         string Subtitle,
-        IReadOnlyList<SectionActionViewModel> Actions) CreateAnalyzeFallback(
+        IReadOnlyList<SectionActionViewModel> Actions) CreateAnalyze(
+            IReadOnlyList<NavigationContribution> contributions,
             INavigationService navigationService)
     {
-        return (
-            "Analysieren",
-            "Der Analyzer ist der zentrale read-only Bereich der App.",
-            new[]
-            {
+        var actions = contributions
+            .OrderBy(item => item.Order)
+            .Select(item => CreateContributionAction(item, navigationService))
+            .ToList();
+
+        if (actions.Count == 0)
+        {
+            actions.Add(
                 new SectionActionViewModel(
                     "Media Analyzer",
                     "Das Analyzer-Modul konnte nicht geladen werden. Prüfe den Modulstatus auf der Startseite.",
                     "Modul nicht geladen",
                     isAvailable: false,
                     navigationId: null,
-                    navigationService)
-            });
+                    navigationService));
+        }
+
+        actions.Add(
+            new SectionActionViewModel(
+                "Duplicate Finder",
+                "Bitidentische Medien anhand der SHA-256-Identitäten im lokalen Medienindex finden – vollständig read-only.",
+                string.Empty,
+                isAvailable: true,
+                navigationId: "duplicate-finder",
+                navigationService));
+
+        return (
+            "Analysieren",
+            "Bibliothek und Medien read-only prüfen, bevor Dateien organisiert, bearbeitet oder bereinigt werden.",
+            actions);
     }
 
     private static (

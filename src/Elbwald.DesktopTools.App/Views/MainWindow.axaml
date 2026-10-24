@@ -73,7 +73,8 @@
                         VerticalAlignment="Center">
 
                         <MenuItem Header="Datei">
-                            <MenuItem Header="Medien analysieren" Command="{Binding NavigateAnalyzeCommand}" />
+                            <MenuItem Header="Analysieren" Command="{Binding NavigateAnalyzeCommand}" />
+                            <MenuItem Header="Duplicate Finder" Command="{Binding NavigateDuplicateFinderCommand}" />
                             <MenuItem Header="Importieren" Command="{Binding NavigateImportCommand}" />
                             <MenuItem Header="Organisieren" Command="{Binding NavigateOrganizeCommand}" />
                             <MenuItem Header="Projekte" Command="{Binding NavigateProjectsCommand}" />
@@ -100,6 +101,7 @@
                             <MenuItem Header="Recovery-Status" Command="{Binding NavigateHomeCommand}" />
                             <MenuItem Header="Bibliotheksstatus" Command="{Binding NavigateLibraryHealthCommand}" />
                             <MenuItem Header="Medienindex" Command="{Binding NavigateMediaIndexCommand}" />
+                            <MenuItem Header="Duplicate Finder" Command="{Binding NavigateDuplicateFinderCommand}" />
                             <MenuItem Header="Protokoll" Command="{Binding NavigateDiagnosticsCommand}" />
                             <MenuItem Header="Cache-Verwaltung" Command="{Binding NavigateSettingsCommand}" />
                             <Separator />

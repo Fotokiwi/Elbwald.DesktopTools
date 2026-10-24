@@ -49,8 +49,12 @@
         AfterTargets="Build"
         Condition="'$(DesignTimeBuild)' != 'true'">
 
-        <!-- A normal build output is owned by the build, so remove stale module folders. -->
-        <RemoveDir Directories="$(TargetDir)Modules" />
+        <!--
+          Development builds update module output in place. Do not delete the whole
+          Modules tree here: native/runtime files of a loaded module can make a
+          recursive RemoveDir unreliable on some development filesystems.
+          Publish still performs a clean rebuild of the module destination below.
+        -->
         <MakeDir Directories="$(TargetDir)Modules" />
 
         <MSBuild

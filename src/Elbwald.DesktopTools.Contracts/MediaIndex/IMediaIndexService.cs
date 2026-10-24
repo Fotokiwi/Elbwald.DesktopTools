@@ -28,6 +28,16 @@ public interface IMediaIndexService
         string mediaItemId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<MediaIndexLocation>> GetAllLocationsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<int> MarkLocationsMissingAfterControlledRemovalAsync(
+        string mediaItemId,
+        IReadOnlyList<long> locationIds,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<int>(new NotSupportedException(
+            "Controlled location removal is not supported by this media-index implementation."));
+
     Task<MediaIndexItem> EnsureItemAsync(
         string sha256,
         long length,

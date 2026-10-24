@@ -32,6 +32,7 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
     private readonly List<LibraryTimelineTreeNodeViewModel> _timelineRoots = [];
     private IReadOnlyDictionary<string, string> _endpointNames = new Dictionary<string, string>();
     private IReadOnlyDictionary<string, string> _endpointRoots = new Dictionary<string, string>();
+    private bool _endpointStateLoaded;
     private CancellationTokenSource? _loadCancellation;
     private int _offset;
     private bool _lastPageWasFull;
@@ -422,8 +423,17 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
 
     private async Task RefreshAllAsync()
     {
+        StatusMessage = "Bibliotheksnavigation wird geladen …";
         await RefreshNavigationAsync();
         await RefreshAsync();
+    }
+
+    private static Task<T> RunOffUiThreadAsync<T>(
+        Func<CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        return Task.Run(() => operation(cancellationToken), cancellationToken);
     }
 
     private bool CanApplyQuickKnowledge() =>
@@ -441,7 +451,11 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var items = await _mediaIndexService.GetKnowledgeItemsAsync(GetQuickKnowledgeKind(), limit: 12);
+            var items = await RunOffUiThreadAsync(
+                cancellationToken => _mediaIndexService.GetKnowledgeItemsAsync(
+                    GetQuickKnowledgeKind(),
+                    limit: 12,
+                    cancellationToken: cancellationToken));
             QuickKnowledgeItems = items
                 .Select(item => new QuickKnowledgeItemViewModel(item, ApplyQuickKnowledgeItemAsync))
                 .ToArray();
@@ -570,7 +584,8 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var snapshot = await _mediaIndexService.GetKnowledgeAsync(mediaItemId);
+            var snapshot = await RunOffUiThreadAsync(
+                cancellationToken => _mediaIndexService.GetKnowledgeAsync(mediaItemId, cancellationToken));
             if (generation != _selectionGeneration || SelectedMedia?.Id != mediaItemId) return;
             SelectedRatingText = snapshot.Rating == 0 ? "Unbewertet" : new string('★', snapshot.Rating);
             SelectedKnowledgeItems = snapshot.Items
@@ -604,8 +619,15 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
         try
         {
             await LoadEndpointStateAsync(CancellationToken.None);
-            var projects = await _projectService.GetProjectsAsync();
-            var timelineYears = await _mediaIndexService.GetTimelineYearsAsync();
+
+            var projectsTask = RunOffUiThreadAsync(
+                cancellationToken => _projectService.GetProjectsAsync(cancellationToken));
+            var timelineYearsTask = RunOffUiThreadAsync(
+                cancellationToken => _mediaIndexService.GetTimelineYearsAsync(cancellationToken));
+
+            await Task.WhenAll(projectsTask, timelineYearsTask);
+            var projects = await projectsTask;
+            var timelineYears = await timelineYearsTask;
 
             _folderRoots.Clear();
             foreach (var endpoint in _endpointNames.OrderBy(pair => pair.Value, StringComparer.CurrentCultureIgnoreCase))
@@ -653,7 +675,9 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
             }
 
             await RefreshSmartCollectionsAsync();
-            await LoadSmartCollectionKnowledgeOptionsAsync();
+            // Knowledge options for the Smart-Collection editor are intentionally lazy.
+            // Loading them here adds multiple SQLite reads to every library open even when
+            // the user never opens the collections panel.
             await RestoreFolderTreePositionAsync();
             await RestoreTimelinePositionAsync();
             RebuildVisibleFolderTree();
@@ -730,7 +754,8 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
         {
             if (!node.Month.HasValue)
             {
-                var months = await _mediaIndexService.GetTimelineMonthsAsync(node.Year);
+                var months = await RunOffUiThreadAsync(
+                    cancellationToken => _mediaIndexService.GetTimelineMonthsAsync(node.Year, cancellationToken));
                 var culture = CultureInfo.GetCultureInfo("de-DE");
                 node.Children = months.Select(month =>
                 {
@@ -750,7 +775,8 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
             }
             else if (!node.Day.HasValue)
             {
-                var days = await _mediaIndexService.GetTimelineDaysAsync(node.Year, node.Month.Value);
+                var days = await RunOffUiThreadAsync(
+                    cancellationToken => _mediaIndexService.GetTimelineDaysAsync(node.Year, node.Month.Value, cancellationToken));
                 node.Children = days.Select(day =>
                 {
                     var start = new DateTime(day.Year, day.Month!.Value, day.Day!.Value);
@@ -861,7 +887,8 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
 
     private async Task RefreshSmartCollectionsAsync()
     {
-        var collections = await _mediaIndexService.GetSmartCollectionsAsync();
+        var collections = await RunOffUiThreadAsync(
+            cancellationToken => _mediaIndexService.GetSmartCollectionsAsync(cancellationToken));
         SmartCollections = collections
             .Select(collection => new LibrarySmartCollectionItemViewModel(
                 collection,
@@ -885,7 +912,11 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
         var result = new List<SmartCollectionKnowledgeOptionViewModel>();
         foreach (var kind in kinds)
         {
-            var items = await _mediaIndexService.GetKnowledgeItemsAsync(kind, limit: 60);
+            var items = await RunOffUiThreadAsync(
+                cancellationToken => _mediaIndexService.GetKnowledgeItemsAsync(
+                    kind,
+                    limit: 60,
+                    cancellationToken: cancellationToken));
             result.AddRange(items.Select(item => new SmartCollectionKnowledgeOptionViewModel(item)));
         }
         SmartCollectionKnowledgeOptions = result.ToArray();
@@ -1216,9 +1247,11 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
         node.IsLoading = true;
         try
         {
-            var children = await _mediaIndexService.GetFolderChildrenAsync(
-                node.EndpointId,
-                string.IsNullOrWhiteSpace(node.RelativeFolder) ? null : node.RelativeFolder);
+            var children = await RunOffUiThreadAsync(
+                cancellationToken => _mediaIndexService.GetFolderChildrenAsync(
+                    node.EndpointId,
+                    string.IsNullOrWhiteSpace(node.RelativeFolder) ? null : node.RelativeFolder,
+                    cancellationToken));
 
             node.Children = children
                 .Select(child => CreateFolderNode(
@@ -1538,12 +1571,17 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
 
         try
         {
-            await LoadEndpointStateAsync(token);
+            if (!_endpointStateLoaded)
+            {
+                await LoadEndpointStateAsync(token);
+            }
 
             IReadOnlyList<MediaIndexSearchResult> results;
             if (!string.IsNullOrWhiteSpace(_navigationProjectId))
             {
-                results = await LoadProjectResultsAsync(_navigationProjectId, token);
+                results = await RunOffUiThreadAsync(
+                    cancellationToken => LoadProjectResultsAsync(_navigationProjectId, cancellationToken),
+                    token);
             }
             else
             {
@@ -1562,7 +1600,9 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
                     MinimumRating: GetMinimumRating(),
                     KnowledgeItemIds: _navigationKnowledgeItemIds);
 
-                results = await _mediaIndexService.SearchAsync(query, token);
+                results = await RunOffUiThreadAsync(
+                    cancellationToken => _mediaIndexService.SearchAsync(query, cancellationToken),
+                    token);
             }
             var page = results
                 .Select(result => new MediaBrowserItemViewModel(result, _endpointNames))
@@ -1682,25 +1722,41 @@ public partial class MediaBrowserViewModel : ObservableObject, IDisposable
 
     private async Task LoadEndpointStateAsync(CancellationToken cancellationToken)
     {
-        var settings = await _storageSettingsStore.LoadAsync(cancellationToken);
-        _endpointNames = settings.Endpoints
-            .GroupBy(endpoint => endpoint.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Name, StringComparer.OrdinalIgnoreCase);
-
-        var roots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var endpoint in settings.Endpoints.Where(endpoint => endpoint.Enabled))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var resolution = _storageLocationResolver.Resolve(endpoint.Location);
-            if (!resolution.IsAvailable || string.IsNullOrWhiteSpace(resolution.ResolvedPath))
+        var state = await Task.Run(
+            async () =>
             {
-                continue;
-            }
+                var settings = await _storageSettingsStore
+                    .LoadAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
-            roots[endpoint.Id] = Path.GetFullPath(resolution.ResolvedPath);
-        }
+                var names = settings.Endpoints
+                    .GroupBy(endpoint => endpoint.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.First().Name,
+                        StringComparer.OrdinalIgnoreCase);
 
-        _endpointRoots = roots;
+                var roots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var endpoint in settings.Endpoints.Where(endpoint => endpoint.Enabled))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var resolution = _storageLocationResolver.Resolve(endpoint.Location);
+                    if (!resolution.IsAvailable || string.IsNullOrWhiteSpace(resolution.ResolvedPath))
+                    {
+                        continue;
+                    }
+
+                    roots[endpoint.Id] = Path.GetFullPath(resolution.ResolvedPath);
+                }
+
+                return (Names: (IReadOnlyDictionary<string, string>)names,
+                    Roots: (IReadOnlyDictionary<string, string>)roots);
+            },
+            cancellationToken);
+
+        _endpointNames = state.Names;
+        _endpointRoots = state.Roots;
+        _endpointStateLoaded = true;
     }
 
     private async Task LoadGridThumbnailsAsync(

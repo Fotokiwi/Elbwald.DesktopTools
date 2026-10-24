@@ -6,5 +6,6 @@ public interface ILibraryHealthService
 {
     Task<LibraryHealthReport> ScanAsync(
         StorageSettings settings,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IProgress<LibraryHealthProgress>? progress = null);
 }

@@ -139,6 +139,21 @@ public sealed class NavigationContentFactory : INavigationContentFactory
         return view;
     }
 
+    public object CreateDuplicateFinderPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<DuplicateFinderViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<DuplicateFinderView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+
+        return view;
+    }
+
     public object CreateMediaImportPage()
     {
         var viewModel =

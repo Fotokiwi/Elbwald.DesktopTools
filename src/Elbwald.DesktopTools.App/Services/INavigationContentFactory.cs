@@ -16,6 +16,8 @@ public interface INavigationContentFactory
 
     object CreateLibraryHealthPage();
 
+    object CreateDuplicateFinderPage();
+
     object CreateMediaIndexPage();
 
     object CreateProjectsPage();
