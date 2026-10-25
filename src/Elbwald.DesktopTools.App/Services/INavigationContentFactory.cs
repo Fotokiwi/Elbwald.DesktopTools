@@ -24,6 +24,8 @@ public interface INavigationContentFactory
 
     object CreateMediaImportPage();
 
+    object CreateMediaConsolidationPage();
+
     object CreateMetadataEditorPage();
 
     object CreateMediaExportPage();

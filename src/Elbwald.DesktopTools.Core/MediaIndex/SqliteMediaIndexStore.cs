@@ -885,6 +885,78 @@ internal sealed class SqliteMediaIndexStore
         }
     }
 
+    public async Task<IReadOnlyList<MediaIndexPlanningEntry>> GetPresentPlanningEntriesAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            await using var connection = CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT i.Id, i.Sha256, i.Length, i.MediaType, i.FirstSeenUtc, i.LastSeenUtc,
+                       l.Id, l.MediaItemId, l.EndpointId, l.EndpointKind, l.VolumeId, l.RelativePath,
+                       l.Length, l.LastWriteTimeUtc, l.IsPresent, l.FirstSeenUtc, l.LastSeenUtc,
+                       COALESCE(
+                           CASE WHEN COALESCE(m.CaptureDateOverridden, 0) = 1 THEN m.CaptureDate ELSE NULL END,
+                           f.CaptureDate
+                       ) AS EffectiveCaptureDate
+                FROM MediaLocations l
+                INNER JOIN MediaItems i ON i.Id = l.MediaItemId
+                LEFT JOIN MediaMetadata m ON m.MediaItemId = i.Id
+                LEFT JOIN MediaFacts f ON f.MediaItemId = i.Id
+                WHERE l.IsPresent = 1
+                ORDER BY l.EndpointId, l.RelativePath;
+                """;
+
+            var result = new List<MediaIndexPlanningEntry>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var item = new MediaIndexItem(
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetInt64(2),
+                    (MediaFileType)reader.GetInt32(3),
+                    DateTimeOffset.Parse(reader.GetString(4)),
+                    DateTimeOffset.Parse(reader.GetString(5)));
+
+                var location = new MediaIndexLocation(
+                    reader.GetInt64(6),
+                    reader.GetString(7),
+                    reader.GetString(8),
+                    (StorageEndpointKind)reader.GetInt32(9),
+                    reader.GetString(10),
+                    reader.GetString(11),
+                    reader.GetInt64(12),
+                    DateTimeOffset.Parse(reader.GetString(13)),
+                    reader.GetInt64(14) != 0,
+                    DateTimeOffset.Parse(reader.GetString(15)),
+                    DateTimeOffset.Parse(reader.GetString(16)));
+
+                DateTime? captureDate = null;
+                if (!reader.IsDBNull(17)
+                    && DateTime.TryParse(
+                        reader.GetString(17),
+                        null,
+                        System.Globalization.DateTimeStyles.RoundtripKind,
+                        out var parsedCaptureDate))
+                {
+                    captureDate = parsedCaptureDate;
+                }
+
+                result.Add(new MediaIndexPlanningEntry(item, location, captureDate));
+            }
+
+            return result;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<IReadOnlyList<MediaIndexFolderFacet>> GetFolderFacetsAsync(CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken);

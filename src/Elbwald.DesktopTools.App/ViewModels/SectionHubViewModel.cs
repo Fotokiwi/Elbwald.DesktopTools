@@ -28,6 +28,7 @@ public sealed class SectionHubViewModel
                 navigationService),
 
             "edit" => CreateEdit(
+                contributions,
                 navigationService),
 
             "backup" => CreateBackup(
@@ -49,6 +50,7 @@ public sealed class SectionHubViewModel
         Subtitle = section.Item2;
         Actions = string.Equals(sectionId, "organize", StringComparison.OrdinalIgnoreCase)
             || string.Equals(sectionId, "analyze", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sectionId, "edit", StringComparison.OrdinalIgnoreCase)
             ? section.Item3
             : AppendContributions(section.Item3, contributions, navigationService);
 
@@ -176,6 +178,15 @@ public sealed class SectionHubViewModel
                 navigationService)
         };
 
+        actions.Add(
+            new SectionActionViewModel(
+                "Medien konsolidieren",
+                "Mehrere indexierte Quellen in einen neuen, deduplizierten Medienbestand überführen – zunächst als sicherer Dry-Run.",
+                string.Empty,
+                isAvailable: true,
+                navigationId: "consolidation",
+                navigationService));
+
         actions.AddRange(
             contributions
                 .OrderBy(item => item.Order)
@@ -200,28 +211,31 @@ public sealed class SectionHubViewModel
         string Title,
         string Subtitle,
         IReadOnlyList<SectionActionViewModel> Actions) CreateEdit(
+            IReadOnlyList<NavigationContribution> contributions,
             INavigationService navigationService)
     {
+        var actions = contributions
+            .OrderBy(item => item.Order)
+            .Select(item => CreateContributionAction(item, navigationService))
+            .Concat(
+                new[]
+                {
+                    Planned(
+                        "Audio",
+                        "Tags, Cover und Albumdaten komfortabel bearbeiten.",
+                        navigationService),
+
+                    Planned(
+                        "Video",
+                        "Spätere einfache Bearbeitungs- und Konvertierungsfunktionen.",
+                        navigationService)
+                })
+            .ToArray();
+
         return (
             "Bearbeiten",
             "Alltagstaugliche Bearbeitung nach Medientyp – bewusst ohne überladene Profi-Oberfläche.",
-            new[]
-            {
-                Planned(
-                    "Bilder",
-                    "Beschneiden, optimieren, Collagen und Stapelbearbeitung.",
-                    navigationService),
-
-                Planned(
-                    "Audio",
-                    "Tags, Cover und Albumdaten komfortabel bearbeiten.",
-                    navigationService),
-
-                Planned(
-                    "Video",
-                    "Spätere einfache Bearbeitungs- und Konvertierungsfunktionen.",
-                    navigationService)
-            });
+            actions);
     }
 
     private static (

@@ -109,6 +109,10 @@ public partial class MainWindowViewModel : ObservableObject
             new RelayCommand(
                 () => navigationService.NavigateTo("import"));
 
+        NavigateConsolidationCommand =
+            new RelayCommand(
+                () => navigationService.NavigateTo("consolidation"));
+
         NavigateMetadataCommand =
             new RelayCommand(
                 () => navigationService.NavigateTo("metadata"));
@@ -176,6 +180,8 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand NavigateProjectsCommand { get; }
 
     public IRelayCommand NavigateImportCommand { get; }
+
+    public IRelayCommand NavigateConsolidationCommand { get; }
 
     public IRelayCommand NavigateMetadataCommand { get; }
 
@@ -436,6 +442,30 @@ public partial class MainWindowViewModel : ObservableObject
             }
 
             CurrentContent = importPage;
+            return;
+        }
+
+        if (string.Equals(
+                navigationId,
+                "consolidation",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var organize = NavigationItems.FirstOrDefault(
+                item => string.Equals(item.Id, "organize", StringComparison.OrdinalIgnoreCase));
+
+            if (organize is not null)
+            {
+                SelectedItem = organize;
+            }
+
+            const string cacheKey = "special:consolidation";
+            if (!_pageCache.TryGetValue(cacheKey, out var consolidationPage))
+            {
+                consolidationPage = _contentFactory.CreateMediaConsolidationPage();
+                _pageCache[cacheKey] = consolidationPage;
+            }
+
+            CurrentContent = consolidationPage;
             return;
         }
 

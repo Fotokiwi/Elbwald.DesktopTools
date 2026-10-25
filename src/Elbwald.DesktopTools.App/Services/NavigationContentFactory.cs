@@ -168,6 +168,20 @@ public sealed class NavigationContentFactory : INavigationContentFactory
         return view;
     }
 
+    public object CreateMediaConsolidationPage()
+    {
+        var viewModel =
+            ActivatorUtilities.CreateInstance<MediaConsolidationViewModel>(
+                _serviceProvider);
+
+        var view =
+            ActivatorUtilities.CreateInstance<MediaConsolidationView>(
+                _serviceProvider);
+
+        view.DataContext = viewModel;
+        return view;
+    }
+
     public object CreateMetadataEditorPage()
     {
         var viewModel =

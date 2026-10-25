@@ -1,3 +1,4 @@
+using Elbwald.DesktopTools.Contracts.Consolidation;
 using Elbwald.DesktopTools.Contracts.Diagnostics;
 using Elbwald.DesktopTools.Contracts.DuplicateFinding;
 using Elbwald.DesktopTools.Contracts.FileOperations;
@@ -6,6 +7,7 @@ using Elbwald.DesktopTools.Contracts.LibraryHealth;
 using Elbwald.DesktopTools.Contracts.Maintenance;
 using Elbwald.DesktopTools.Contracts.Media;
 using Elbwald.DesktopTools.Contracts.Media.Importing;
+using Elbwald.DesktopTools.Contracts.Media.Decoding;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
 using Elbwald.DesktopTools.Contracts.Media.Exporting;
 using Elbwald.DesktopTools.Contracts.Media.Metadata;
@@ -24,6 +26,7 @@ using Elbwald.DesktopTools.Contracts.Projects;
 using Elbwald.DesktopTools.Contracts.Recovery;
 using Elbwald.DesktopTools.Contracts.Storage;
 using Elbwald.DesktopTools.Contracts.Settings;
+using Elbwald.DesktopTools.Core.Consolidation;
 using Elbwald.DesktopTools.Core.Diagnostics;
 using Elbwald.DesktopTools.Core.DuplicateFinding;
 using Elbwald.DesktopTools.Core.FileOperations;
@@ -32,6 +35,7 @@ using Elbwald.DesktopTools.Core.LibraryHealth;
 using Elbwald.DesktopTools.Core.Maintenance;
 using Elbwald.DesktopTools.Core.Media;
 using Elbwald.DesktopTools.Core.Media.Importing;
+using Elbwald.DesktopTools.Core.Media.Decoding;
 using Elbwald.DesktopTools.Core.Media.Formats;
 using Elbwald.DesktopTools.Core.Media.Exporting;
 using Elbwald.DesktopTools.Core.Media.Metadata;
@@ -114,6 +118,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMediaTypeDetector, ExtensionMediaTypeDetector>();
         services.AddSingleton<IMediaScanner, FileSystemMediaScanner>();
 
+        // Full-image decoding is provider-based. JPEG/PNG are host-owned base
+        // formats; optional image-format modules contribute additional decoders
+        // without coupling the editor to a concrete imaging backend.
+        services.AddSingleton<AvaloniaBaseImageDecodeProvider>();
+        services.AddSingleton<IImageDecodeRegistry>(
+            serviceProvider =>
+                new ImageDecodeRegistry(
+                    serviceProvider.GetRequiredService<IExtensionRegistry>(),
+                    [serviceProvider.GetRequiredService<AvaloniaBaseImageDecodeProvider>()]));
+
         services.AddSingleton<AvaloniaJpegImageExportProvider>();
         services.AddSingleton<AvaloniaPngImageExportProvider>();
         services.AddSingleton<IImageExportRegistry>(
@@ -193,6 +207,7 @@ public static class ServiceCollectionExtensions
             });
 
         services.AddSingleton<IMediaIndexService, MediaIndexService>();
+        services.AddSingleton<IMediaConsolidationPlanner, MediaConsolidationPlanner>();
         services.AddSingleton<IDuplicateFinderService, DuplicateFinderService>();
         services.AddSingleton<IDuplicateCleanupPlanner, DuplicateCleanupPlanner>();
         services.AddSingleton<IFileTrashService>(

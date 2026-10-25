@@ -357,6 +357,10 @@ public sealed class MediaIndexService : IMediaIndexService
         CancellationToken cancellationToken = default) =>
         _store.GetAllLocationsAsync(cancellationToken);
 
+    public Task<IReadOnlyList<MediaIndexPlanningEntry>> GetPresentPlanningEntriesAsync(
+        CancellationToken cancellationToken = default) =>
+        _store.GetPresentPlanningEntriesAsync(cancellationToken);
+
     public Task<int> MarkLocationsMissingAfterControlledRemovalAsync(
         string mediaItemId,
         IReadOnlyList<long> locationIds,

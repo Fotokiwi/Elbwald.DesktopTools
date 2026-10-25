@@ -1,0 +1,30 @@
+{
+  "id": "elbwald.image.editor.basic",
+  "name": "Bildbearbeitung",
+  "description": "Optionale, nicht-destruktive Bildbearbeitung mit persistentem Edit-Stack, modularer Render-Pipeline und eigenem Editor-Workspace.",
+  "version": "0.9.0",
+  "apiVersion": 2,
+  "minimumHostVersion": "0.0.1",
+  "assembly": "Elbwald.DesktopTools.Image.Editor.Basic.dll",
+  "enabled": true,
+  "capabilities": [
+    "feature.image.editing",
+    "media.image.edit-stack.persistence",
+    "media.image.edit.operation-processor",
+    "media.image.edit.renderer",
+    "media.image.edit.preview-service",
+    "media.image.edit.workspace",
+    "media.image.edit.rotate",
+    "media.image.edit.flip",
+    "media.image.edit.crop",
+    "media.image.edit.crop.interactive",
+    "media.image.edit.history",
+    "media.image.edit.save",
+    "media.image.edit.tone",
+    "media.image.edit.exposure",
+    "media.image.edit.contrast",
+    "media.image.edit.saturation"
+  ],
+  "permissions": [],
+  "dependencies": []
+}

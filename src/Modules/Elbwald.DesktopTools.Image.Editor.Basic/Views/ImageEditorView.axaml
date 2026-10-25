@@ -1,0 +1,367 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.Image.Editor.Basic.ViewModels"
+    xmlns:controls="using:Elbwald.DesktopTools.Image.Editor.Basic.Controls"
+    x:Class="Elbwald.DesktopTools.Image.Editor.Basic.Views.ImageEditorView"
+    x:DataType="vm:ImageEditorViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.editor-panel">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <Style Selector="Button.editor-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="Button.editor-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+        </Style>
+        <Style Selector="Button.editor-icon">
+            <Setter Property="Width" Value="31" />
+            <Setter Property="MinWidth" Value="31" />
+            <Setter Property="Padding" Value="4,3" />
+        </Style>
+        <Style Selector="Button.editor-primary">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="9,4" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="TextBlock.editor-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.tool-heading">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Margin="18,12,18,18" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="1" VerticalAlignment="Center">
+                <TextBlock
+                    Text="Bildbearbeitung"
+                    FontSize="24"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource ElbwaldTextBrush}" />
+                <TextBlock
+                    Text="Nicht-destruktiv · gespeichert werden nur Bearbeitungsschritte."
+                    Classes="editor-muted"
+                    FontSize="10" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <ComboBox
+                    Width="235"
+                    MinHeight="29"
+                    FontSize="11"
+                    ItemsSource="{Binding RecentImages}"
+                    SelectedItem="{Binding SelectedMediaItem, Mode=TwoWay}" />
+                <Button
+                    Classes="editor-button"
+                    Content="Öffnen"
+                    Command="{Binding OpenSelectedCommand}"
+                    ToolTip.Tip="Bei ungespeicherten Änderungen zuerst den aktuellen Bearbeitungsstand speichern" />
+                <Button
+                    Classes="editor-button editor-icon"
+                    Content="↻"
+                    ToolTip.Tip="Medienliste aktualisieren"
+                    Command="{Binding RefreshMediaCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" Classes="editor-panel" Padding="9,6">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock
+                        Text="{Binding CurrentFileName}"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        Text="{Binding CurrentFileDetails}"
+                        Classes="editor-muted"
+                        FontSize="10"
+                        VerticalAlignment="Center" />
+                    <Border
+                        IsVisible="{Binding HasUnsavedChanges}"
+                        Background="#FFF1D8"
+                        BorderBrush="#D89B35"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="6,2">
+                        <TextBlock
+                            Text="Nicht gespeichert"
+                            Foreground="#8A5A09"
+                            FontSize="9"
+                            FontWeight="SemiBold" />
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <Button Classes="editor-button editor-icon" Content="↶" Command="{Binding UndoCommand}" ToolTip.Tip="Rückgängig" />
+                    <Button Classes="editor-button editor-icon" Content="↷" Command="{Binding RedoCommand}" ToolTip.Tip="Wiederholen" />
+                    <Button
+                        Classes="editor-primary"
+                        Content="Speichern"
+                        Command="{Binding SaveEditsCommand}"
+                        ToolTip.Tip="Bearbeitungsschritte in der Datenbank speichern" />
+                    <Button Classes="editor-button editor-icon" Content="–" Command="{Binding ZoomOutCommand}" ToolTip.Tip="Verkleinern" />
+                    <Button Classes="editor-button" Content="{Binding ZoomLabel}" Command="{Binding FitCommand}" MinWidth="70" />
+                    <Button Classes="editor-button editor-icon" Content="+" Command="{Binding ZoomInCommand}" ToolTip.Tip="Vergrößern" />
+                    <Button Classes="editor-button" Content="1:1" Command="{Binding ActualSizeCommand}" />
+                    <Button
+                        Classes="editor-button"
+                        Content="{Binding BeforeAfterLabel}"
+                        Command="{Binding ToggleBeforeAfterCommand}"
+                        MinWidth="72"
+                        ToolTip.Tip="Original/Bearbeitet" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,240" ColumnSpacing="8" MinHeight="440">
+            <Border Grid.Column="0" Classes="editor-panel" ClipToBounds="True">
+                <Grid Background="#181B19">
+                    <Grid IsVisible="{Binding IsEditorVisible}">
+                        <Grid IsVisible="{Binding IsFitMode}">
+                            <Image
+                                Source="{Binding DisplayBitmap}"
+                                Stretch="Uniform"
+                                Margin="16" />
+
+                            <controls:CropOverlayControl
+                                x:Name="CropOverlay"
+                                IsVisible="{Binding IsCropMode}"
+                                Margin="16"
+                                ImagePixelWidth="{Binding RenderedPixelWidth}"
+                                ImagePixelHeight="{Binding RenderedPixelHeight}"
+                                CropLeft="{Binding CropLeft}"
+                                CropTop="{Binding CropTop}"
+                                CropWidth="{Binding CropWidth}"
+                                CropHeight="{Binding CropHeight}" />
+                        </Grid>
+
+                        <ScrollViewer
+                            IsVisible="{Binding IsZoomMode}"
+                            HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollBarVisibility="Auto">
+                            <Grid Margin="16">
+                                <Image
+                                    Source="{Binding DisplayBitmap}"
+                                    Width="{Binding ZoomedWidth}"
+                                    Height="{Binding ZoomedHeight}"
+                                    Stretch="Fill"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <StackPanel
+                        IsVisible="{Binding IsEmptyStateVisible}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MaxWidth="420"
+                        Spacing="6">
+                        <TextBlock
+                            Text="Noch kein Bild geöffnet"
+                            Foreground="White"
+                            FontSize="19"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Center" />
+                        <TextBlock
+                            Text="Wähle oben ein Bild aus der Medienbibliothek. Die Quelldatei wird nicht verändert."
+                            Foreground="#AEB6B1"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap"
+                            FontSize="11" />
+                        <TextBlock
+                            IsVisible="{Binding HasError}"
+                            Text="{Binding ErrorMessage}"
+                            Foreground="#F2A6A6"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap"
+                            FontSize="10"
+                            Margin="0,6,0,0" />
+                    </StackPanel>
+
+                    <Border IsVisible="{Binding IsBusy}" Background="#A0181B19">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="280" Spacing="7">
+                            <ProgressBar IsIndeterminate="True" />
+                            <TextBlock Text="{Binding StatusMessage}" Foreground="White" TextAlignment="Center" TextWrapping="Wrap" FontSize="11" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="8">
+                <Border Classes="editor-panel" Padding="10">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Werkzeuge" FontSize="15" FontWeight="SemiBold" />
+
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,*" RowSpacing="5" ColumnSpacing="5">
+                            <Button
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Classes="editor-button"
+                                Content="↺ 90°"
+                                Command="{Binding RotateCounterClockwiseCommand}"
+                                ToolTip.Tip="90° gegen den Uhrzeigersinn" />
+                            <Button
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Classes="editor-button"
+                                Content="90° ↻"
+                                Command="{Binding RotateClockwiseCommand}"
+                                ToolTip.Tip="90° im Uhrzeigersinn" />
+                            <Button
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Classes="editor-button"
+                                Content="↔ Spiegeln"
+                                Command="{Binding FlipHorizontalCommand}"
+                                ToolTip.Tip="Horizontal spiegeln" />
+                            <Button
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Classes="editor-button"
+                                Content="↕ Spiegeln"
+                                Command="{Binding FlipVerticalCommand}"
+                                ToolTip.Tip="Vertikal spiegeln" />
+                        </Grid>
+
+                        <Button
+                            IsVisible="{Binding IsCropInactive}"
+                            Classes="editor-button"
+                            Content="⌗ Zuschneiden"
+                            Command="{Binding StartCropCommand}" />
+
+                        <Border
+                            IsVisible="{Binding IsCropMode}"
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                            BorderBrush="{DynamicResource ElbwaldAccentSoftStrongBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="8">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="Zuschneiden" Classes="tool-heading" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CropSelectionLabel}" Classes="editor-muted" FontSize="9" />
+                                </Grid>
+                                <TextBlock
+                                    Text="Rahmen/Griffe ziehen · Fläche verschieben"
+                                    Classes="editor-muted"
+                                    FontSize="9"
+                                    TextWrapping="Wrap" />
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="5">
+                                    <Button Grid.Column="0" Classes="editor-primary" Content="Anwenden" Command="{Binding ApplyCropCommand}" />
+                                    <Button Grid.Column="1" Classes="editor-button" Content="Abbrechen" Command="{Binding CancelCropCommand}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+
+                <Border Classes="editor-panel" Padding="10" IsEnabled="{Binding AreToneControlsEnabled}">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="5">
+                            <TextBlock Text="Licht &amp; Farbe" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Text="LIVE"
+                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                FontSize="8"
+                                FontWeight="SemiBold"
+                                VerticalAlignment="Center" />
+                            <Button
+                                Grid.Column="2"
+                                Classes="editor-button"
+                                Content="Reset"
+                                Padding="6,2"
+                                MinHeight="22"
+                                FontSize="9"
+                                Command="{Binding ResetToneCommand}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="58,*,44" RowDefinitions="Auto,Auto,Auto" RowSpacing="3" ColumnSpacing="5">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Belichtung" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                Height="22"
+                                Minimum="-3"
+                                Maximum="3"
+                                Value="{Binding ExposureEv, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding ExposureLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Kontrast" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Height="22"
+                                Minimum="-100"
+                                Maximum="100"
+                                Value="{Binding Contrast, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ContrastLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Sättigung" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                Height="22"
+                                Minimum="-100"
+                                Maximum="100"
+                                Value="{Binding Saturation, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SaturationLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Button
+                            Classes="editor-primary"
+                            Content="Anwenden"
+                            Command="{Binding ApplyToneCommand}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="editor-panel" Padding="10">
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Bearbeitungsstand" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding EditStateLabel}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="9" />
+                        </Grid>
+                        <TextBlock
+                            Text="{Binding StatusMessage}"
+                            Classes="editor-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap"
+                            MaxHeight="48" />
+                        <TextBlock
+                            IsVisible="{Binding HasError}"
+                            Text="{Binding ErrorMessage}"
+                            Foreground="#B13C3C"
+                            FontSize="9"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

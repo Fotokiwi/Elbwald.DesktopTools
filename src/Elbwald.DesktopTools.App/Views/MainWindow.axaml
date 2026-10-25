@@ -76,6 +76,7 @@
                             <MenuItem Header="Analysieren" Command="{Binding NavigateAnalyzeCommand}" />
                             <MenuItem Header="Duplicate Finder" Command="{Binding NavigateDuplicateFinderCommand}" />
                             <MenuItem Header="Importieren" Command="{Binding NavigateImportCommand}" />
+                            <MenuItem Header="Medien konsolidieren" Command="{Binding NavigateConsolidationCommand}" />
                             <MenuItem Header="Organisieren" Command="{Binding NavigateOrganizeCommand}" />
                             <MenuItem Header="Projekte" Command="{Binding NavigateProjectsCommand}" />
                             <Separator />
@@ -88,6 +89,7 @@
                             <MenuItem Header="Projekte" Command="{Binding NavigateProjectsCommand}" />
                             <MenuItem Header="Analysieren" Command="{Binding NavigateAnalyzeCommand}" />
                             <MenuItem Header="Importieren" Command="{Binding NavigateImportCommand}" />
+                            <MenuItem Header="Medien konsolidieren" Command="{Binding NavigateConsolidationCommand}" />
                             <MenuItem Header="Organisieren" Command="{Binding NavigateOrganizeCommand}" />
                             <MenuItem Header="Bearbeiten" Command="{Binding NavigateEditCommand}" />
                             <MenuItem Header="Sichern" Command="{Binding NavigateBackupCommand}" />

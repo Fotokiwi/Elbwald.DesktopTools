@@ -1,3 +1,4 @@
+using Elbwald.DesktopTools.Contracts.Media.Decoding;
 using Elbwald.DesktopTools.Contracts.Media.Exporting;
 using Elbwald.DesktopTools.Contracts.Media.Formats;
 using Elbwald.DesktopTools.Contracts.Media.Metadata;
@@ -32,6 +33,7 @@ public sealed class ExtendedImageFormatsExtensionModule : IExtensionModule
         // Vertical support is introduced format by format. WebP and TIFF now
         // provide proven metadata + export capabilities; the remaining formats
         // stay detection-only until their own integration tests exist.
+        services.AddImageDecodeProvider<MagickExtendedImageDecodeProvider>(Id);
         services.AddImageMetadataProvider<WebpImageMetadataProvider>(Id);
         services.AddImageMetadataProvider<TiffImageMetadataProvider>(Id);
         services.AddImageExportProvider<WebpImageExportProvider>(Id);
@@ -43,7 +45,7 @@ public sealed class ExtendedImageFormatsExtensionModule : IExtensionModule
                 ExtensionId: Id,
                 Id: "extended-image-formats",
                 Title: "Erweiterte Bildformate",
-                Description: "WebP und TIFF werden über das optionale Magick.NET-Backend bereitgestellt. Weitere Formate werden erst nach vollständiger vertikaler Prüfung freigeschaltet.",
+                Description: "WebP und TIFF werden über das optionale Magick.NET-Backend inklusive Vollbild-Decoding bereitgestellt. Weitere Formate werden erst nach vollständiger vertikaler Prüfung freigeschaltet.",
                 Icon: "Image",
                 Order: 100));
     }

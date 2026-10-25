@@ -31,6 +31,44 @@ public interface IMediaIndexService
     Task<IReadOnlyList<MediaIndexLocation>> GetAllLocationsAsync(
         CancellationToken cancellationToken = default);
 
+    async Task<IReadOnlyList<MediaIndexPlanningEntry>> GetPresentPlanningEntriesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var locations = (await GetAllLocationsAsync(cancellationToken).ConfigureAwait(false))
+            .Where(location => location.IsPresent)
+            .ToArray();
+
+        var itemIds = locations
+            .Select(location => location.MediaItemId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var items = new Dictionary<string, (MediaIndexItem Item, DateTime? CaptureDate)>(StringComparer.Ordinal);
+        foreach (var itemId in itemIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = await GetItemAsync(itemId, cancellationToken).ConfigureAwait(false);
+            if (item is null)
+            {
+                continue;
+            }
+
+            var facts = await GetFactsAsync(itemId, cancellationToken).ConfigureAwait(false);
+            var metadata = await GetMetadataAsync(itemId, cancellationToken).ConfigureAwait(false);
+            var captureDate = metadata.CaptureDate ?? facts?.CaptureDate;
+            items[itemId] = (item, captureDate);
+        }
+
+        return locations
+            .Where(location => items.ContainsKey(location.MediaItemId))
+            .Select(location =>
+            {
+                var data = items[location.MediaItemId];
+                return new MediaIndexPlanningEntry(data.Item, location, data.CaptureDate);
+            })
+            .ToArray();
+    }
+
     Task<int> MarkLocationsMissingAfterControlledRemovalAsync(
         string mediaItemId,
         IReadOnlyList<long> locationIds,
