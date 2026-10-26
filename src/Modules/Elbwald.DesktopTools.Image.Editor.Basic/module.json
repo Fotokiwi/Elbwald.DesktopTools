@@ -2,7 +2,7 @@
   "id": "elbwald.image.editor.basic",
   "name": "Bildbearbeitung",
   "description": "Optionale, nicht-destruktive Bildbearbeitung mit persistentem Edit-Stack, modularer Render-Pipeline und eigenem Editor-Workspace.",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "apiVersion": 2,
   "minimumHostVersion": "0.0.1",
   "assembly": "Elbwald.DesktopTools.Image.Editor.Basic.dll",
@@ -23,7 +23,13 @@
     "media.image.edit.tone",
     "media.image.edit.exposure",
     "media.image.edit.contrast",
-    "media.image.edit.saturation"
+    "media.image.edit.saturation",
+    "media.image.edit.preview-adaptive",
+    "media.image.edit.white-balance",
+    "media.image.edit.temperature",
+    "media.image.edit.tint",
+    "media.image.edit.shadows",
+    "media.image.edit.highlights"
   ],
   "permissions": [],
   "dependencies": []

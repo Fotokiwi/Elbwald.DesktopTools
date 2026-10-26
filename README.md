@@ -55,11 +55,46 @@ The library is intended to remain useful even when optional format or feature ex
 
 ## 🔎 Analyze
 
+### Media Analyzer
+
 The analyzer is designed as a **read-only first step** for unknown or newly added media collections.
 
 It can inspect a folder before any file operation is performed and provides information about the discovered media, dates and possible issues.
 
 Analysis results can be persisted and reopened later.
+
+### Library Health
+
+The central Library Health view checks the state of configured storage endpoints, indexed locations and metadata quality without changing source files.
+
+Current foundations include:
+
+- endpoint reachability and library-state checks,
+- index and metadata diagnostics,
+- searchable and filterable findings,
+- persistent health snapshots,
+- stale-state detection after relevant library changes,
+- responsive background processing with progress and cancellation.
+
+Existing health reports are reopened from the cached snapshot instead of forcing a full rescan every time the view is opened.
+
+### Duplicate Finder
+
+The Duplicate Finder uses the media index and SHA-256 identities to locate **bit-identical** files.
+
+Current capabilities include:
+
+- duplicate groups and theoretical storage impact,
+- filtering and sorting,
+- explicit keep/remove planning,
+- protected backup and archive endpoints,
+- filesystem preflight validation,
+- controlled cleanup through the operating-system trash / recycle bin,
+- no fallback to permanent deletion,
+- operation-history integration,
+- confidence hints for obvious copy-style duplicates.
+
+Duplicate detection is intentionally separated from semantic judgement: identical bytes do not automatically mean that one filesystem location is unnecessary.
 
 ---
 
@@ -92,6 +127,29 @@ The rename workflow includes:
 - real source previews,
 - collision detection,
 - controlled execution through the file-operation layer.
+
+### Media Consolidation
+
+Media Consolidation is being built as a safer alternative to aggressively deleting duplicates from existing collections.
+
+The current **read-only Dry-Run planner** can:
+
+- combine multiple indexed source folders,
+- plan a new target library structure,
+- use indexed capture / media dates for destination paths,
+- deduplicate identical source content by SHA-256,
+- skip identical content that is already present in the target,
+- keep filename conflicts with different content visible instead of overwriting,
+- calculate planned copy counts and required copy volume,
+- preserve source-origin information in the plan.
+
+Current structure presets include:
+
+- `Year / Month / Original filename`,
+- `Year / Original filename`,
+- preserving the source structure.
+
+The planning stage does **not** create target folders, copy, move or delete files. Verified copy execution is the next development step.
 
 ---
 
@@ -143,6 +201,327 @@ Additional formats may be added later, but Elbwald only advertises capabilities 
 RAW formats are planned as a separate package because camera RAW workflows require different handling from normal raster formats.
 
 JPEG XL is also being considered as a separate specialized package, particularly for possible future archival / backup workflows.
+
+---
+
+## 🎛️ Image Editing
+
+Image editing is being developed as a **separate optional first-party module**:
+
+```text
+Elbwald.DesktopTools.Image.Editor.Basic
+```
+
+The main application does not depend on the editor module. If the module is not installed or is disabled, the media library, projects, metadata, thumbnails, format support and other workflows continue to work normally.
+
+The editor follows a **non-destructive workflow**:
+
+```text
+Original media file
+        ↓
+Decode through active image-format providers
+        ↓
+Stored edit document / operation stack
+        ↓
+Preview rendering
+        ↓
+Export rendering
+        ↓
+New output file
+```
+
+The original image is never modified by editor operations. Elbwald stores only the edit definition in its editor database and applies those operations when a preview or later export is rendered.
+
+### Current editor foundation
+
+The current optional image editor already includes:
+
+- an editor workspace contributed dynamically under **Edit / Image Editing**,
+- full-image decoding through the shared image decode registry,
+- JPEG / PNG decoding in the application baseline,
+- WebP / TIFF decoding when the optional Extended Image Formats module is active,
+- normalized in-memory `BGRA32` image frames,
+- EXIF orientation handling during decoding,
+- a versioned non-destructive edit document and operation stack,
+- persistence by stable `MediaItemId` instead of filesystem path,
+- optimistic revision protection for concurrent edit sessions,
+- capability-oriented operation providers rather than a hard-coded operation switch,
+- preview rendering from the original source plus the current edit stack,
+- in-memory working documents for unsaved changes,
+- undo / redo,
+- explicit saving of edit definitions without writing image pixels back to the source file,
+- original / edited comparison,
+- fit-to-window and zoom controls,
+- interactive crop with draggable handles and normalized coordinates,
+- 90° / 180° / 270° rotation,
+- horizontal and vertical mirroring.
+
+### Current light and color adjustments
+
+The editor currently provides a live tone / color operation with:
+
+- exposure,
+- highlights,
+- shadows,
+- contrast,
+- temperature,
+- tint,
+- saturation.
+
+These controls are represented as one versioned tone operation instead of generating a separate edit-stack entry for every slider.
+
+Slider changes are previewed live without writing to the database. The current preview path uses a two-stage strategy:
+
+```text
+Slider movement
+        ↓
+Fast ~1024 px in-memory preview
+        ↓
+Values stabilize
+        ↓
+Higher quality ~2048 px preview
+```
+
+The higher-resolution preview is rendered automatically after the interaction settles.
+
+Applied values remain visible in the controls and continue to represent the current stored / working edit state. Re-adjusting an existing tone operation updates that operation instead of stacking repeated tone operations.
+
+Exposure is expressed in photographic EV terms. Other slider scales are intentionally Elbwald-defined UI scales; equal numeric values are not expected to produce pixel-identical results to Lightroom, Photoshop, Capture One or other editors.
+
+### Editor modularity
+
+The editor itself does not directly depend on optional image-format packages.
+
+Instead, it asks the shared decode and export registries which active provider can handle a media item.
+
+That means an installed format module can automatically extend the editor:
+
+```text
+Base application
+    ├── JPEG
+    └── PNG
+
+Extended Image Formats module
+    ├── WebP
+    └── TIFF
+
+            ↓
+
+Shared image decode registry
+
+            ↓
+
+Optional Image Editor
+```
+
+Disabling the Extended Image Formats module removes those format capabilities without requiring changes inside the editor.
+
+The image-operation pipeline follows the same principle. Future editor packages can register additional operations without requiring the basic editor renderer to know every possible operation in advance.
+
+### Planned image-editing development
+
+Planned work includes:
+
+- direct **Edit image** entry points from Library and Project views,
+- export of the current non-destructive edit stack into a new rendered file,
+- export format / quality / metadata options,
+- stronger integration with the existing image-export providers,
+- additional tone and color controls,
+- white-balance refinement,
+- curves and more advanced tonal control,
+- HSL / selective color tools,
+- sharpening,
+- noise reduction,
+- optional lens / optical corrections where technically appropriate,
+- histogram and clipping assistance,
+- configurable before / after comparison modes,
+- keyboard shortcuts and workflow polish,
+- editor presets,
+- batch application of edit presets to multiple images,
+- export presets such as web, archive and privacy-focused output,
+- optional advanced editing packages on top of the basic editor,
+- later RAW-aware editing through a dedicated RAW package.
+
+Complex raster-painting features such as layers, freehand painting, cloning or Photoshop-style compositing are **not** the primary target of the basic editor. The focus is non-destructive photographic correction, media-workflow integration and safe export.
+
+---
+
+
+## 🎚️ Audio Studio
+
+Audio editing is being developed as a **separate optional first-party module** that can be used independently of the media library:
+
+```text
+Elbwald.DesktopTools.Audio.Editor.Basic
+```
+
+The Audio Studio can open audio files directly from the filesystem and stores its own project files using the versioned `.ewaudio` format. Source files remain unchanged; edits, mixer settings, analysis data and restoration parameters are stored non-destructively in the project. The current implementation is module version **0.32.0** with `.ewaudio` project format **V6**.
+
+### Current Audio Studio foundation
+
+The current optional Audio Studio already includes:
+
+- standalone projects with up to **16 mono / stereo tracks**,
+- direct WAV import without requiring Library integration,
+- clip-based tracks rather than a fixed `track = file` model,
+- relative source references inside project folders and missing-source detection,
+- versioned `.ewaudio` project save / load,
+- WAV decoding to normalized 32-bit floating-point samples,
+- waveform caching and timeline navigation,
+- real-time playback, seeking and a cross-platform output path through miniaudio,
+- live track volume, panorama, mute and solo,
+- per-track and master peak metering,
+- a virtual **Master Bus** that combines all audible tracks,
+- compact track waveforms with absolute dB comparison mode,
+- sample-peak warning zones and grouped master True-Peak warnings,
+- direct seeking by clicking track, master or timeline waveforms.
+
+### Current EQ, analysis and restoration tools
+
+The detachable **EQ & Analysis** window currently provides:
+
+- per-track and Master-Bus analysis,
+- live FFT spectrum analysis before / after EQ,
+- high-pass and low-pass filters,
+- three-band EQ with adjustable mid frequency,
+- large waveform view with time and level zoom,
+- dBFS level-over-time diagrams,
+- separate **pre-limiter**, **final-master** and overlaid comparison views,
+- optional pre-limiter problem markers over the final-master history,
+- spectrogram analysis,
+- selectable waveform regions,
+- learned noise profiles,
+- non-destructive spectral noise reduction,
+- removed-noise audition for checking whether useful audio is being damaged,
+- live visualization of Notch and 50 / 60 Hz hum-removal filter curves,
+- a marked De-Esser working range without pretending that its dynamic reduction is a fixed EQ curve,
+- reusable analysis window state including position, size and pinning to a selected target.
+
+### Current track repair and Basic FX tools
+
+Per-track cleanup is now part of the real playback and offline-analysis DSP path. The current Basic FX set includes:
+
+- soft **Expander / Noise Gate** with threshold and maximum attenuation,
+- narrow **Notch filtering** for isolated whistles, chirps and other tonal interference,
+- **50 / 60 Hz hum removal** with configurable harmonic count and reduction strength,
+- dynamic **De-Esser** with adjustable working frequency and strength,
+- existing spectral noise reduction, EQ / filters, compressor and track limiter.
+
+The current track processing order is intentionally understandable and conservative:
+
+```text
+Clip / source audio
+        ↓
+Spectral noise reduction
+        ↓
+Expander / Noise Gate
+        ↓
+50 / 60 Hz hum removal
+        ↓
+Notch
+        ↓
+High-Pass / EQ / Low-Pass
+        ↓
+De-Esser
+        ↓
+Compressor
+        ↓
+Track limiter
+        ↓
+Track volume / panorama
+        ↓
+Master Bus
+```
+
+### Stem Repair Analyzer
+
+Each track now exposes a compact **Repair** action that opens a dedicated detachable **Stem Repair & Analysis** window. The analyzer is deliberately rule-based and explainable instead of silently applying opaque corrections.
+
+The first analyzer generation can currently detect and rank:
+
+- elevated background / noise floor in quiet passages,
+- likely **50 or 60 Hz mains hum** and matching harmonics,
+- unusually narrow spectral spikes that may indicate whistles, chirps or other interference,
+- suspicious high-frequency energy that may indicate **sibilance**.
+
+Each finding contains a severity, confidence, explanation and concrete filter recommendation. Recommendations map directly to the existing live DSP parameters and are only applied when the user explicitly chooses **Apply recommendation**. The same window also exposes the live Expander, Notch, Hum Removal and De-Esser controls for immediate listening and fine adjustment, with a direct link into the larger EQ & Analysis window.
+
+For normal song-length stems the analyzer scans the complete source in bounded blocks. Longer material is sampled across distributed windows so analysis remains predictable in memory and processing cost. Narrowband findings are intentionally treated as suggestions because a spectral peak can also be intentional musical content.
+
+### Current dynamics and mastering foundation
+
+The Audio Studio also includes:
+
+- live track compressor and sample-peak limiter,
+- master EQ / filtering,
+- ITU-style loudness analysis with Integrated, Short-Term and Momentary LUFS,
+- True-Peak analysis with 4× inter-sample evaluation,
+- a real Master True-Peak limiter,
+- complete offline project analysis through the same DSP path used for playback,
+- mastering targets such as **Streaming / Dynamic**, **Universal**, **Loud / Auto** and **Event / Powerful**,
+- separate project-wide and live loudness values,
+- target feasibility analysis based on required gain and peak reduction,
+- conservative A/B mastering preview and automatic application for suitable targets,
+- limiter gain-reduction statistics including maximum, average and time above thresholds,
+- per-track peak contribution analysis,
+- grouped critical peak events with timeline jump and short audition,
+- detection of cases where several individually safe tracks create an excessive summed Master peak.
+
+The current default **Universal** mastering target is `-12 LUFS / -1 dBTP`. Presets are guidance rather than hard rules; Elbwald keeps loudness normalization, peak control and stronger dynamics processing conceptually separate.
+
+### Audio Studio architecture
+
+The Audio Studio follows the same modular and non-destructive principles as the image editor:
+
+```text
+Source audio files
+        ↓
+Decode to floating-point samples
+        ↓
+Clips / timeline
+        ↓
+Spectral restoration
+        ↓
+Expander / Hum / Notch
+        ↓
+Track EQ / De-Esser / Compressor / Limiter
+        ↓
+Track mixer
+        ↓
+Master Bus + Master EQ
+        ↓
+Loudness / True-Peak analysis
+        ↓
+Master limiter
+        ↓
+Playback / future rendered export
+```
+
+The media library may later offer convenience entry points into the Audio Studio, but the editor is intentionally able to remain a standalone workflow with its own projects.
+
+### Planned Audio Studio development
+
+Planned work includes:
+
+- rendered project export to WAV and additional audio formats,
+- export readiness checks and presets for streaming, archive, car / general playback and event use,
+- broader codec support through optional audio-format providers,
+- editable clip trimming, splitting, moving and fades directly on the timeline,
+- crossfades and richer multi-clip editing,
+- project packaging / collecting referenced source files for transfer and backup,
+- adaptive high-frequency / AI-artifact reduction for metallic hiss and chirping,
+- improved spectrogram interaction and automatic localization of repair candidates,
+- further Stem Repair diagnostics such as low-frequency rumble, phase / channel anomalies and clipping patterns,
+- smarter recommendation scoring and optional before / after audition workflows,
+- channel tools such as L/R swap, mono conversion and phase inversion,
+- stereo-width control with mono-compatibility guidance,
+- basic musical effects such as Reverb and Delay after the repair pipeline is stable,
+- automated peak / transient correction with local automation where appropriate,
+- smarter mastering assistance that can suggest or apply the least invasive correction,
+- optional advanced dynamics / mastering packages,
+- later integration with Audio Analyzer, metadata / tag editing and Cover Manager workflows.
+
+The target is **not** to recreate a full DAW. MIDI sequencing, virtual instruments, unrestricted bus routing and large studio-session features are intentionally outside the initial scope. The focus is understandable multi-track editing, restoration, mixing, loudness control and reliable export.
 
 ---
 
@@ -293,7 +672,9 @@ The repository currently contains first-party modules such as:
 src/Modules/
 ├── Elbwald.DesktopTools.MediaAnalyzer/
 ├── Elbwald.DesktopTools.PhotoSort/
-└── Elbwald.DesktopTools.Image.Formats.Extended/
+├── Elbwald.DesktopTools.Image.Formats.Extended/
+├── Elbwald.DesktopTools.Image.Editor.Basic/
+└── Elbwald.DesktopTools.Audio.Editor.Basic/
 ```
 
 ### Media Analyzer
@@ -308,7 +689,46 @@ Provides sorting functionality and contributes itself to the appropriate navigat
 
 A capability-oriented extension rather than a standalone tool page.
 
-It currently contributes WebP and TIFF capabilities through Magick.NET, including format recognition, metadata, thumbnails and export support.
+It currently contributes WebP and TIFF capabilities through Magick.NET, including format recognition, metadata, thumbnails, full-image decoding and export support.
+
+### Basic Image Editor
+
+An optional first-party editing module that contributes its own editor workspace and non-destructive image-editing capabilities.
+
+It currently provides:
+
+- persistent edit documents,
+- preview rendering,
+- crop / rotate / mirror operations,
+- undo / redo,
+- live exposure / light / color adjustments,
+- adaptive in-memory preview rendering,
+- and capability-oriented editor operations that can later be extended by additional modules.
+
+The module does not own the media library and does not modify original source images.
+
+### Basic Audio Studio
+
+An optional standalone multi-track audio-editing and mastering module with its own `.ewaudio` projects.
+
+It currently provides:
+
+- up to 16 mono / stereo tracks,
+- WAV import, floating-point decoding and real-time playback,
+- non-destructive clip / project persistence,
+- track mixer controls and a virtual Master Bus,
+- live EQ / filters, compressor and limiting,
+- Expander / Noise Gate, Notch, 50 / 60 Hz hum removal and De-Esser,
+- detachable FFT / waveform / dBFS / spectrogram analysis,
+- learned-noise spectral restoration,
+- per-track Stem Repair analysis with explainable filter recommendations,
+- dedicated detachable repair window with direct live filter control,
+- LUFS / True-Peak project analysis,
+- mastering targets and A/B assistance,
+- limiter gain-reduction statistics,
+- peak-cause and critical-event analysis.
+
+The module can work without the media library; future Library integration is intended as an optional convenience layer.
 
 ---
 
@@ -326,10 +746,12 @@ Elbwald.DesktopTools/
 │   └── Modules/
 │       ├── Elbwald.DesktopTools.MediaAnalyzer/
 │       ├── Elbwald.DesktopTools.PhotoSort/
-│       └── Elbwald.DesktopTools.Image.Formats.Extended/
+│       ├── Elbwald.DesktopTools.Image.Formats.Extended/
+│       ├── Elbwald.DesktopTools.Image.Editor.Basic/
+│       └── Elbwald.DesktopTools.Audio.Editor.Basic/
 ├── tests/
 ├── docs/
-└── Elbwald.DesktopTools.sln
+└── Elbwald.DesktopTools.slnx
 ```
 
 ### Main projects
@@ -389,7 +811,9 @@ Typical output:
 Modules/
 ├── Elbwald.DesktopTools.MediaAnalyzer/
 ├── Elbwald.DesktopTools.PhotoSort/
-└── Elbwald.DesktopTools.Image.Formats.Extended/
+├── Elbwald.DesktopTools.Image.Formats.Extended/
+├── Elbwald.DesktopTools.Image.Editor.Basic/
+└── Elbwald.DesktopTools.Audio.Editor.Basic/
 ```
 
 ---
@@ -406,6 +830,7 @@ Modules/
 | Dependency injection | Microsoft.Extensions.DependencyInjection |
 | Serialization | System.Text.Json |
 | Image extension backend | Magick.NET / ImageMagick |
+| Audio output backend | MiniAudioEx / miniaudio |
 | Testing | xUnit |
 | IDE | JetBrains Rider |
 
@@ -420,14 +845,31 @@ The project already has a substantial functional foundation, including:
 - cross-platform Avalonia application shell,
 - local media index and library,
 - stable media IDs,
+- responsive large-library loading paths,
 - analyzer workflow,
+- Library Health with persistent snapshots and stale-state detection,
+- bit-identical Duplicate Finder with safe cleanup planning and preflight,
+- trash / recycle-bin based controlled duplicate cleanup,
 - import workflow,
 - sorting workflow,
 - rename workflow,
+- Media Consolidation Dry-Run planning with SHA-256 deduplication,
 - project foundations,
 - thumbnail / preview caching,
 - metadata reading,
 - image export infrastructure,
+- optional non-destructive image-editor module,
+- image decode registry for base and extension-provided formats,
+- versioned edit-stack persistence,
+- interactive crop / rotate / mirror editing,
+- undo / redo and live adaptive tone / color previews,
+- optional standalone 16-track Audio Studio module,
+- `.ewaudio` project persistence and WAV-based non-destructive audio workflow,
+- real-time audio playback, mixing, EQ, dynamics and Master Bus,
+- FFT / waveform / spectrogram / dBFS audio analysis,
+- spectral noise-profile restoration plus Expander, Notch, Hum Removal and De-Esser,
+- explainable per-stem repair analysis with direct filter recommendations,
+- LUFS / True-Peak project analysis and assisted mastering foundations,
 - file-operation safety engine,
 - SHA-256 verification,
 - persistent operation journals,
@@ -459,19 +901,19 @@ cd Elbwald.DesktopTools
 Restore dependencies:
 
 ```bash
-dotnet restore Elbwald.DesktopTools.sln
+dotnet restore Elbwald.DesktopTools.slnx
 ```
 
 Build:
 
 ```bash
-dotnet build Elbwald.DesktopTools.sln
+dotnet build Elbwald.DesktopTools.slnx
 ```
 
 Run tests:
 
 ```bash
-dotnet test Elbwald.DesktopTools.sln
+dotnet test Elbwald.DesktopTools.slnx
 ```
 
 The application build automatically collects projects below `src/Modules/` into the module output.
@@ -509,42 +951,79 @@ All tools should feel like parts of one application rather than unrelated utilit
 
 # 🗺️ Roadmap
 
-The current direction is intentionally focused on consolidating the existing product before adding too many new areas.
+The current direction is intentionally focused on turning the existing foundations into dependable end-to-end workflows before adding too many unrelated areas.
 
 ```text
 Module API v2 foundation
         ✓
         ↓
-Workflow consolidation / E2E hardening
-        ↓
-Projects MVP refinement
+Library / index foundation
+        ✓
         ↓
 Library Health
+        ✓
         ↓
-Duplicate Finder
+Bit-identical Duplicate Finder
+        ✓
         ↓
-Undo / History
+Media Consolidation Dry-Run
+        ✓
+        ↓
+Verified consolidation copy engine
+        ↓
+Pause / resume / interrupted-run recovery
+        ↓
+Conflict handling + richer structure rules
+        ↓
+Operation history / undo refinement
         ↓
 Backup Analyzer + Verify
         ↓
 Backup providers
         ↓
-Metadata / Audio tools
+Audio Studio foundation
+        ✓
         ↓
-Image / Video / Content Studio
+Basic Track FX + Stem Repair Analyzer
+        ✓
+        ↓
+Audio export / advanced restoration / mastering refinement
+        ↓
+Metadata / Audio Tag / Cover tools
+        ↓
+Image Editor foundation
+        ✓
+        ↓
+Image export / advanced editing integration
+        ↓
+Video / Content Studio
 ```
 
 Near-term priorities include:
 
-- Linux end-to-end testing of the main workflow,
-- Windows smoke / end-to-end testing,
-- large-library and failure-path testing,
-- further project UX and gallery work,
-- a central Library Health view,
-- bit-identical duplicate detection,
-- operation history and undo foundations.
+- validate Media Consolidation Dry-Runs against large real-world libraries,
+- implement verified `copy + SHA-256 verify` execution for consolidation,
+- add pause, resume, cancellation and restart-safe continuation,
+- define explicit handling for same-target-name / different-content conflicts,
+- expand consolidation history and execution reports,
+- add richer destination structure rules,
+- integrate successfully consolidated targets efficiently into the media index,
+- continue Linux end-to-end and failure-path testing,
+- continue Windows smoke / end-to-end testing,
+- refine project UX and gallery workflows,
+- complete rendered Audio Studio export, export-readiness checks and export presets,
+- validate Stem Repair recommendations against real vocal, instrument and AI-generated stems,
+- expand repair analysis with rumble, clipping, phase / channel and adaptive high-frequency artifact detection,
+- refine master / peak-assistant UX and least-invasive automatic corrections,
+- continue performance and correctness testing of multi-track audio playback / analysis,
+- connect the optional image editor directly to Library and Project media actions,
+- complete rendered export of non-destructive image edits,
+- refine live image-editing performance and tonal behavior,
+- expand editor controls only after the current non-destructive pipeline is stable.
 
-Backup is intentionally planned **after** health and verification foundations are strong enough to prove that a backup is actually valid.
+The Duplicate Finder remains useful as a diagnostic and controlled cleanup tool, but the stronger long-term workflow is **deduplication while building or consolidating a clean target library**.
+
+Backup is intentionally planned **after** health, verification and consolidation foundations are strong enough to prove that copied data is actually valid.
 
 ---
 
@@ -554,10 +1033,11 @@ Future work may include:
 
 - RAW image format package,
 - JPEG XL support and possible archival workflows,
-- Duplicate Finder,
+- richer duplicate / similarity analysis where it adds real value,
 - metadata editor and cleaner,
 - Audio Analyzer / Audio Tag / Cover Manager,
-- image editing tools,
+- optional advanced audio restoration, codec and mastering packages,
+- advanced image-editing packages building on the optional Basic Image Editor,
 - video inspection and organization,
 - local and remote backup providers,
 - SFTP / S3 / WebDAV-style integrations,

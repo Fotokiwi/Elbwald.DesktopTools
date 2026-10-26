@@ -3,6 +3,7 @@
   <Project Path="src/Elbwald.DesktopTools.Contracts/Elbwald.DesktopTools.Contracts.csproj" />
   <Project Path="src/Elbwald.DesktopTools.Core/Elbwald.DesktopTools.Core.csproj" />
   <Project Path="src/Elbwald.DesktopTools.UI/Elbwald.DesktopTools.UI.csproj" />
+  <Project Path="src/Modules/Elbwald.DesktopTools.Audio.Editor.Basic/Elbwald.DesktopTools.Audio.Editor.Basic.csproj" />
   <Project Path="src/Modules/Elbwald.DesktopTools.Image.Editor.Basic/Elbwald.DesktopTools.Image.Editor.Basic.csproj" />
   <Project Path="src/Modules/Elbwald.DesktopTools.PhotoSort/Elbwald.DesktopTools.PhotoSort.csproj" />
 </Solution>

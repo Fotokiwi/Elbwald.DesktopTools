@@ -301,36 +301,34 @@
                                 Command="{Binding ResetToneCommand}" />
                         </Grid>
 
-                        <Grid ColumnDefinitions="58,*,44" RowDefinitions="Auto,Auto,Auto" RowSpacing="3" ColumnSpacing="5">
+                        <Grid ColumnDefinitions="58,*,44" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="2" ColumnSpacing="5">
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Belichtung" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
-                            <Slider
-                                Grid.Row="0"
-                                Grid.Column="1"
-                                Height="22"
-                                Minimum="-3"
-                                Maximum="3"
-                                Value="{Binding ExposureEv, Mode=TwoWay}" />
+                            <Slider Grid.Row="0" Grid.Column="1" Height="20" Minimum="-3" Maximum="3" Value="{Binding ExposureEv, Mode=TwoWay}" />
                             <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding ExposureLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Kontrast" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
-                            <Slider
-                                Grid.Row="1"
-                                Grid.Column="1"
-                                Height="22"
-                                Minimum="-100"
-                                Maximum="100"
-                                Value="{Binding Contrast, Mode=TwoWay}" />
-                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ContrastLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Lichter" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Row="1" Grid.Column="1" Height="20" Minimum="-100" Maximum="100" Value="{Binding Highlights, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding HighlightsLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Sättigung" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
-                            <Slider
-                                Grid.Row="2"
-                                Grid.Column="1"
-                                Height="22"
-                                Minimum="-100"
-                                Maximum="100"
-                                Value="{Binding Saturation, Mode=TwoWay}" />
-                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SaturationLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Schatten" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Row="2" Grid.Column="1" Height="20" Minimum="-100" Maximum="100" Value="{Binding Shadows, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ShadowsLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Kontrast" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Row="3" Grid.Column="1" Height="20" Minimum="-100" Maximum="100" Value="{Binding Contrast, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding ContrastLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Temperatur" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Row="4" Grid.Column="1" Height="20" Minimum="-100" Maximum="100" Value="{Binding Temperature, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding TemperatureLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Tönung" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Row="5" Grid.Column="1" Height="20" Minimum="-100" Maximum="100" Value="{Binding Tint, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="5" Grid.Column="2" Text="{Binding TintLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Sättigung" Classes="editor-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Row="6" Grid.Column="1" Height="20" Minimum="-100" Maximum="100" Value="{Binding Saturation, Mode=TwoWay}" />
+                            <TextBlock Grid.Row="6" Grid.Column="2" Text="{Binding SaturationLabel}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
                         </Grid>
 
                         <Button

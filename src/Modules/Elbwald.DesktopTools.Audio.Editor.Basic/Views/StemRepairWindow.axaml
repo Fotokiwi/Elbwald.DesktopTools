@@ -1,0 +1,229 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.Audio.Editor.Basic.ViewModels"
+    x:Class="Elbwald.DesktopTools.Audio.Editor.Basic.Views.StemRepairWindow"
+    x:DataType="vm:StemRepairWindowViewModel"
+    Title="Elbwald Audio · Stem-Reparatur &amp; Analyse"
+    Width="1080"
+    Height="760"
+    MinWidth="860"
+    MinHeight="620"
+    ShowInTaskbar="False"
+    Topmost="{Binding IsTopmost, Mode=TwoWay}"
+    WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="Border.repair-panel">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="Border.repair-soft">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldSurfaceQuietBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+        </Style>
+        <Style Selector="TextBlock.repair-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.repair-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.repair-primary">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="14" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <Border Classes="repair-panel" Padding="12,9">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Stem-Reparatur &amp; Analyse" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding TrackTitle}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldAccentBrush}" />
+                    <TextBlock Text="{Binding TrackSubtitle}" Classes="repair-muted" FontSize="9" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Width="220" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="repair-primary" Content="{Binding AnalyzeButtonLabel}" Command="{Binding AnalyzeCommand}" />
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding AnalysisProgress}" Height="4" />
+                </StackPanel>
+
+                <CheckBox
+                    Grid.Column="2"
+                    Content="Immer im Vordergrund"
+                    IsChecked="{Binding IsTopmost, Mode=TwoWay}"
+                    FontSize="10"
+                    VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="1.05*,0.95*" ColumnSpacing="10">
+            <Border Classes="repair-panel" Padding="10">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Analyse &amp; Empfehlungen" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding StatusLabel}" Classes="repair-title" FontSize="10" />
+                        <TextBlock Text="{Binding SummaryLabel}" Classes="repair-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding MeasurementLabel}" Classes="repair-muted" FontSize="8" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Classes="repair-soft" Padding="8" IsVisible="{Binding HasFindings}">
+                        <TextBlock
+                            Text="Die Analyse ist konservativ: Sie empfiehlt nur technische Reparaturen. Tonale Spitzen können musikalischer Inhalt sein – deshalb Notch immer per Gehör prüfen."
+                            Classes="repair-muted"
+                            FontSize="8"
+                            TextWrapping="Wrap" />
+                    </Border>
+
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Findings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:StemRepairFindingViewModel">
+                                    <Border Classes="repair-soft" Padding="9" Margin="0,0,0,7">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                                <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <Border Grid.Column="1" Background="{DynamicResource ElbwaldAccentSoftBrush}" CornerRadius="5" Padding="5,2">
+                                                    <TextBlock Text="{Binding SeverityLabel}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="8" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Grid.Column="2" Text="{Binding ConfidenceLabel}" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Detail}" Classes="repair-muted" FontSize="9" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Recommendation}" FontSize="9" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <Button
+                                                Classes="repair-primary"
+                                                Content="{Binding ApplyLabel}"
+                                                Command="{Binding ApplyCommand}"
+                                                HorizontalAlignment="Left"
+                                                MinWidth="150" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Classes="repair-panel" Padding="10">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="Reparaturfilter · live" FontSize="14" FontWeight="SemiBold" />
+                            <TextBlock Text="Hier direkt nach Gehör feinjustieren. Änderungen wirken sofort auf die Spur." Classes="repair-muted" FontSize="8" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="EQ &amp; Analyse ↗" Command="{Binding OpenEqCommand}" Padding="8,4" />
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="8">
+                            <Border Classes="repair-soft" Padding="9">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Expander / Noise Gate" Classes="repair-title" FontSize="11" />
+                                        <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding Track.ExpanderEnabled, Mode=TwoWay}" FontSize="9" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Schwelle" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="-80" Maximum="-10" IsEnabled="{Binding Track.ExpanderEnabled}" Value="{Binding Track.ExpanderThresholdDb, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.ExpanderThresholdLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Absenkung" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="0" Maximum="60" IsEnabled="{Binding Track.ExpanderEnabled}" Value="{Binding Track.ExpanderReductionDb, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.ExpanderReductionLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="repair-soft" Padding="9">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Notch · Störfrequenz" Classes="repair-title" FontSize="11" />
+                                        <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding Track.NotchEnabled, Mode=TwoWay}" FontSize="9" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Frequenz" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="20" Maximum="20000" IsEnabled="{Binding Track.NotchEnabled}" Value="{Binding Track.NotchFrequencyHz, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.NotchFrequencyLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Breite" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="0" Maximum="100" IsEnabled="{Binding Track.NotchEnabled}" Value="{Binding Track.NotchWidthPercent, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.NotchWidthLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="repair-soft" Padding="9">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Brummen entfernen" Classes="repair-title" FontSize="11" />
+                                        <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding Track.HumRemovalEnabled, Mode=TwoWay}" FontSize="9" />
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="Netz" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <RadioButton Content="50 Hz" GroupName="RepairHumFrequency" IsChecked="{Binding Track.IsHum50Hz, Mode=TwoWay}" FontSize="8" />
+                                        <RadioButton Content="60 Hz" GroupName="RepairHumFrequency" IsChecked="{Binding Track.IsHum60Hz, Mode=TwoWay}" FontSize="8" />
+                                    </StackPanel>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Oberwellen" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="1" Maximum="8" TickFrequency="1" IsSnapToTickEnabled="True" IsEnabled="{Binding Track.HumRemovalEnabled}" Value="{Binding Track.HumHarmonics, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.HumHarmonicsLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Stärke" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="0" Maximum="30" IsEnabled="{Binding Track.HumRemovalEnabled}" Value="{Binding Track.HumReductionDb, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.HumReductionLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="repair-soft" Padding="9">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="De-Esser" Classes="repair-title" FontSize="11" />
+                                        <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding Track.DeEsserEnabled, Mode=TwoWay}" FontSize="9" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Bereich" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="3000" Maximum="12000" IsEnabled="{Binding Track.DeEsserEnabled}" Value="{Binding Track.DeEsserFrequencyHz, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.DeEsserFrequencyLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="72,*,60" ColumnSpacing="6">
+                                        <TextBlock Text="Stärke" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="0" Maximum="100" IsEnabled="{Binding Track.DeEsserEnabled}" Value="{Binding Track.DeEsserStrength, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Track.DeEsserStrengthLabel}" Classes="repair-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock
+                                Text="Hinweis: Die Analyse empfiehlt bewusst keine kreativen EQ-Korrekturen. Klanggestaltung bleibt getrennt von technischer Reparatur."
+                                Classes="repair-muted"
+                                FontSize="8"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Classes="repair-panel" Padding="10,7">
+            <TextBlock
+                Text="Analysewerte sind Hinweise, keine absolute Wahrheit. Besonders schmalbandige Peaks können zu einem Instrument gehören. Filter daher immer mit dem Gehör gegenprüfen."
+                Classes="repair-muted"
+                FontSize="9"
+                TextWrapping="Wrap" />
+        </Border>
+    </Grid>
+</Window>

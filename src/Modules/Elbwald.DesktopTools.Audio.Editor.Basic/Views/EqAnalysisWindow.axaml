@@ -1,0 +1,657 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.Audio.Editor.Basic.ViewModels"
+    xmlns:controls="using:Elbwald.DesktopTools.Audio.Editor.Basic.Controls"
+    x:Class="Elbwald.DesktopTools.Audio.Editor.Basic.Views.EqAnalysisWindow"
+    x:DataType="vm:EqAnalysisWindowViewModel"
+    x:Name="EqWindow"
+    Title="Elbwald Audio · EQ &amp; Analyse"
+    Width="1040"
+    Height="760"
+    MinWidth="780"
+    MinHeight="600"
+    ShowInTaskbar="False"
+    Topmost="{Binding IsTopmost, Mode=TwoWay}"
+    WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="Border.eq-panel">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="Border.eq-soft">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldSurfaceQuietBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.eq-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="TextBlock.eq-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.eq-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="14" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <Border Classes="eq-panel" Padding="12,9">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="EQ &amp; Analyse" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding TargetTitle}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldAccentBrush}" />
+                    <TextBlock Text="{Binding TargetSubtitle}" Classes="eq-muted" FontSize="9" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <RadioButton Content="EQ" GroupName="AnalysisView" IsChecked="{Binding IsEqView, Mode=TwoWay}" FontSize="10" />
+                    <RadioButton Content="Wellenform" GroupName="AnalysisView" IsChecked="{Binding IsWaveformView, Mode=TwoWay}" FontSize="10" />
+                    <RadioButton Content="Pegel / dBFS" GroupName="AnalysisView" IsChecked="{Binding IsLevelView, Mode=TwoWay}" FontSize="10" />
+                    <RadioButton Content="Restaurierung" GroupName="AnalysisView" IsChecked="{Binding IsRestorationView, Mode=TwoWay}" IsEnabled="{Binding IsTrackTarget}" FontSize="10" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                    <ToggleButton
+                        Content="📌 Ziel fixieren"
+                        IsChecked="{Binding IsPinned, Mode=TwoWay}"
+                        MinHeight="30"
+                        Padding="8,4" />
+                    <TextBlock Text="{Binding FollowModeLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                </StackPanel>
+
+                <CheckBox
+                    Grid.Column="3"
+                    Content="Immer im Vordergrund"
+                    IsChecked="{Binding IsTopmost, Mode=TwoWay}"
+                    FontSize="10"
+                    VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" IsEnabled="{Binding HasTarget}">
+            <Grid IsVisible="{Binding IsEqView}" RowDefinitions="*,Auto,Auto" RowSpacing="10">
+            <Border Grid.Row="0" Classes="eq-panel" Padding="10">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="Frequenzgang &amp; Live-Spektrum" FontSize="13" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding SpectrumStatusLabel}" Classes="eq-muted" FontSize="9" />
+                                <TextBlock Text="· links: dBFS Pegel" Classes="eq-muted" FontSize="9" />
+                                <TextBlock Text="· rechts: dB EQ" Classes="eq-muted" FontSize="9" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Analyse" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                            <ComboBox SelectedIndex="{Binding SpectrumStageIndex, Mode=TwoWay}" Width="96" MinHeight="30">
+                                <ComboBoxItem Content="Vor EQ" />
+                                <ComboBoxItem Content="Nach EQ" />
+                            </ComboBox>
+                            <TextBlock Text="{Binding ProjectSampleRateLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Button Classes="eq-button" Content="EQ zurücksetzen" Command="{Binding ResetEqualizerCommand}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Border
+                        Grid.Row="1"
+                        Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="8">
+                        <Grid ColumnDefinitions="46,*,42" ColumnSpacing="6" MinHeight="290">
+                            <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto,*,Auto" Margin="0,1,0,1">
+                                <TextBlock Grid.Row="0" Text="0" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="2" Text="−18" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="4" Text="−36" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="6" Text="−54" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="8" Text="−72" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Row="10" Text="−90" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                            </Grid>
+
+                            <controls:FrequencyResponseView
+                                Grid.Column="1"
+                                SampleRate="{Binding ProjectSampleRate}"
+                                EqualizerEnabled="{Binding EqualizerEnabled}"
+                                BassDb="{Binding BassDb}"
+                                MidDb="{Binding MidDb}"
+                                MidFrequencyHz="{Binding MidFrequencyHz}"
+                                TrebleDb="{Binding TrebleDb}"
+                                HighPassEnabled="{Binding HighPassEnabled}"
+                                HighPassFrequencyHz="{Binding HighPassFrequencyHz}"
+                                LowPassEnabled="{Binding LowPassEnabled}"
+                                LowPassFrequencyHz="{Binding LowPassFrequencyHz}"
+                                NotchEnabled="{Binding NotchEnabled}"
+                                NotchFrequencyHz="{Binding NotchFrequencyHz}"
+                                NotchWidthPercent="{Binding NotchWidthPercent}"
+                                HumRemovalEnabled="{Binding HumRemovalEnabled}"
+                                HumFrequencyHz="{Binding HumFrequencyHz}"
+                                HumHarmonics="{Binding HumHarmonics}"
+                                HumReductionDb="{Binding HumReductionDb}"
+                                DeEsserEnabled="{Binding DeEsserEnabled}"
+                                DeEsserFrequencyHz="{Binding DeEsserFrequencyHz}"
+                                DeEsserStrength="{Binding DeEsserStrength}"
+                                SpectrumDb="{Binding SpectrumDb}"
+                                SpectrumFftSize="{Binding SpectrumFftSize}"
+                                SpectrumSampleRate="{Binding SpectrumSampleRate}"
+                                SpectrumBrush="{DynamicResource ElbwaldAccentSoftStrongBrush}"
+                                CurveBrush="{DynamicResource ElbwaldAccentBrush}"
+                                GuideBrush="{DynamicResource ElbwaldBorderBrush}" />
+
+                            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto" Margin="0,1,0,1">
+                                <TextBlock Grid.Row="0" Text="+24" Classes="eq-muted" FontSize="8" />
+                                <TextBlock Grid.Row="2" Text="+12" Classes="eq-muted" FontSize="8" />
+                                <TextBlock Grid.Row="4" Text="0" Classes="eq-muted" FontSize="8" />
+                                <TextBlock Grid.Row="6" Text="−12" Classes="eq-muted" FontSize="8" />
+                                <TextBlock Grid.Row="8" Text="−24" Classes="eq-muted" FontSize="8" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto">
+                        <TextBlock Text="20 Hz" Classes="eq-muted" FontSize="8" />
+                        <TextBlock Grid.Column="2" Text="100 Hz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="4" Text="1 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="6" Text="10 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="8" Text="20 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="0.9*,1.4*,0.9*" ColumnSpacing="10">
+                <Border Classes="eq-panel" Padding="10">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Hochpass" Classes="eq-title" />
+                        <CheckBox Content="Aktiv" IsChecked="{Binding HighPassEnabled, Mode=TwoWay}" FontSize="10" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Slider Minimum="20" Maximum="600" IsEnabled="{Binding HighPassEnabled}" Value="{Binding HighPassFrequencyHz, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="1" Text="{Binding HighPassFrequencyLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="Entfernt tieffrequenten Trittschall und Rumpeln." Classes="eq-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Classes="eq-panel" Padding="10">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBlock Text="Equalizer" Classes="eq-title" />
+                            <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding EqualizerEnabled, Mode=TwoWay}" FontSize="10" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="58,*,58" ColumnSpacing="7">
+                            <TextBlock Text="Bass" FontSize="10" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="-12" Maximum="12" IsEnabled="{Binding EqualizerEnabled}" Value="{Binding BassDb, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding BassLabel}" Classes="eq-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,58" ColumnSpacing="7">
+                            <TextBlock Text="Mitten" FontSize="10" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="-12" Maximum="12" IsEnabled="{Binding EqualizerEnabled}" Value="{Binding MidDb, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding MidLabel}" Classes="eq-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,66" ColumnSpacing="7">
+                            <TextBlock Text="Mitten bei" FontSize="10" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="120" Maximum="8000" IsEnabled="{Binding EqualizerEnabled}" Value="{Binding MidFrequencyHz, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding MidFrequencyLabel}" Classes="eq-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,58" ColumnSpacing="7">
+                            <TextBlock Text="Höhen" FontSize="10" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="-12" Maximum="12" IsEnabled="{Binding EqualizerEnabled}" Value="{Binding TrebleDb, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding TrebleLabel}" Classes="eq-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Classes="eq-panel" Padding="10">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Tiefpass" Classes="eq-title" />
+                        <CheckBox Content="Aktiv" IsChecked="{Binding LowPassEnabled, Mode=TwoWay}" FontSize="10" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Slider Minimum="2000" Maximum="20000" IsEnabled="{Binding LowPassEnabled}" Value="{Binding LowPassFrequencyHz, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="1" Text="{Binding LowPassFrequencyLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="Begrenzt sehr hohe Frequenzen und störendes Höhenrauschen." Classes="eq-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Classes="eq-panel" Padding="10" IsVisible="{Binding IsTrackTarget}">
+                <Grid ColumnDefinitions="1.1*,1.1*,1.2*" ColumnSpacing="10">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <TextBlock Text="Notch · Störfrequenz" Classes="eq-title" />
+                            <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding NotchEnabled, Mode=TwoWay}" FontSize="9" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,64" ColumnSpacing="6">
+                            <TextBlock Text="Frequenz" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="20" Maximum="20000" IsEnabled="{Binding NotchEnabled}" Value="{Binding NotchFrequencyHz, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding NotchFrequencyLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,64" ColumnSpacing="6">
+                            <TextBlock Text="Breite" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" IsEnabled="{Binding NotchEnabled}" Value="{Binding NotchWidthPercent, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding NotchWidthLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <TextBlock Text="Brummfilter" Classes="eq-title" />
+                            <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding HumRemovalEnabled, Mode=TwoWay}" FontSize="9" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="Netz" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <RadioButton Content="50 Hz" GroupName="EqHumFrequency" IsChecked="{Binding IsHum50Hz, Mode=TwoWay}" FontSize="8" />
+                            <RadioButton Content="60 Hz" GroupName="EqHumFrequency" IsChecked="{Binding IsHum60Hz, Mode=TwoWay}" FontSize="8" />
+                        </StackPanel>
+                        <Grid ColumnDefinitions="58,*,64" ColumnSpacing="6">
+                            <TextBlock Text="Oberw." Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="1" Maximum="8" TickFrequency="1" IsSnapToTickEnabled="True" IsEnabled="{Binding HumRemovalEnabled}" Value="{Binding HumHarmonics, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding HumHarmonicsLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,64" ColumnSpacing="6">
+                            <TextBlock Text="Stärke" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="0" Maximum="30" IsEnabled="{Binding HumRemovalEnabled}" Value="{Binding HumReductionDb, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding HumReductionLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="Die Kerben bei Grundfrequenz und Oberwellen werden direkt in der Kurve dargestellt." Classes="eq-muted" FontSize="8" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <TextBlock Text="De-Esser · dynamisch" Classes="eq-title" />
+                            <CheckBox Grid.Column="1" Content="Aktiv" IsChecked="{Binding DeEsserEnabled, Mode=TwoWay}" FontSize="9" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,64" ColumnSpacing="6">
+                            <TextBlock Text="Bereich" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="3000" Maximum="12000" IsEnabled="{Binding DeEsserEnabled}" Value="{Binding DeEsserFrequencyHz, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding DeEsserFrequencyLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="58,*,64" ColumnSpacing="6">
+                            <TextBlock Text="Stärke" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1" Minimum="0" Maximum="100" IsEnabled="{Binding DeEsserEnabled}" Value="{Binding DeEsserStrength, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="{Binding DeEsserStrengthLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="Der markierte Bereich zeigt nur, wo der De-Esser lauscht – keine dauerhafte Absenkung." Classes="eq-muted" FontSize="8" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+            </Grid>
+
+            <Grid IsVisible="{Binding IsWaveformView}" RowDefinitions="*,Auto" RowSpacing="10">
+                <Border Grid.Row="0" Classes="eq-panel" Padding="10">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <StackPanel Spacing="1">
+                                <TextBlock Text="Wellenform &amp; Rauschkontrolle" FontSize="13" FontWeight="SemiBold" />
+                                <TextBlock Text="Zeit- und Pegel-Zoom sind rein visuell. Zum Markieren mit gedrückter linker Maustaste über die Wellenform ziehen." Classes="eq-muted" FontSize="9" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding WaveformTimeZoomLabel}" Classes="eq-muted" FontSize="9" />
+                                <TextBlock Text="{Binding WaveformAmplitudeZoomLabel}" Classes="eq-muted" FontSize="9" />
+                                <TextBlock Text="{Binding WaveformWindowLabel}" Classes="eq-muted" FontSize="9" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Border
+                            Grid.Row="1"
+                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="8"
+                            MinHeight="340"
+                            ClipToBounds="True">
+                            <controls:AudioWaveformView
+                                Envelope="{Binding TargetWaveform}"
+                                WindowStartSeconds="{Binding WaveformWindowStartSeconds}"
+                                WindowDurationSeconds="{Binding WaveformWindowDurationSeconds}"
+                                CursorSeconds="{Binding WaveformCursorSeconds}"
+                                AmplitudeScale="{Binding WaveformAmplitudeScale}"
+                                IsSelectionEnabled="True"
+                                SelectionStartSeconds="{Binding WaveformSelectionStartSeconds, Mode=TwoWay}"
+                                SelectionEndSeconds="{Binding WaveformSelectionEndSeconds, Mode=TwoWay}"
+                                WaveformBrush="{DynamicResource ElbwaldAccentBrush}"
+                                GuideBrush="{DynamicResource ElbwaldBorderBrush}"
+                                CursorBrush="{DynamicResource ElbwaldTextBrush}"
+                                SelectionBrush="{DynamicResource ElbwaldAccentBrush}" />
+                        </Border>
+
+                        <Grid Grid.Row="2" ColumnDefinitions="Auto,160,Auto,160,*" ColumnSpacing="10">
+                            <TextBlock Text="Zeit-Zoom" FontSize="10" VerticalAlignment="Center" />
+                            <Slider
+                                Grid.Column="1"
+                                Minimum="0"
+                                Maximum="6"
+                                TickFrequency="1"
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding WaveformTimeZoomLevel, Mode=TwoWay}" />
+                            <TextBlock Grid.Column="2" Text="Pegel-Zoom" FontSize="10" VerticalAlignment="Center" />
+                            <Slider
+                                Grid.Column="3"
+                                Minimum="0"
+                                Maximum="7"
+                                TickFrequency="1"
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding WaveformAmplitudeZoomLevel, Mode=TwoWay}" />
+                            <TextBlock
+                                Grid.Column="4"
+                                Text="Tipp: Für leises Grundrauschen Zeit stark vergrößern und den Pegel-Zoom schrittweise anheben."
+                                Classes="eq-muted"
+                                FontSize="9"
+                                TextWrapping="Wrap"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Classes="eq-panel" Padding="10,7">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <TextBlock Text="Ausschnitt" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                        <Slider
+                            Grid.Column="1"
+                            Minimum="0"
+                            Maximum="{Binding WaveformMaximumStartSeconds}"
+                            Value="{Binding WaveformWindowStartSeconds, Mode=TwoWay}"
+                            IsEnabled="{Binding IsWaveformZoomed}" />
+                        <TextBlock
+                            Grid.Column="2"
+                            Text="{Binding WaveformWindowLabel}"
+                            Classes="eq-muted"
+                            FontSize="9"
+                            VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Grid IsVisible="{Binding IsLevelView}" RowDefinitions="*,Auto" RowSpacing="10">
+                <Border Grid.Row="0" Classes="eq-panel" Padding="10">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Pegelverlauf · dBFS" FontSize="13" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding LevelHistorySignalLabel}" Classes="eq-muted" FontSize="9" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                <StackPanel IsVisible="{Binding IsMasterTarget}" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                    <TextBlock Text="Quelle" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                                    <RadioButton Content="Vor Master-Limiter" GroupName="LevelHistorySource" IsChecked="{Binding IsPreLimiterLevelHistory, Mode=TwoWay}" FontSize="9" />
+                                    <RadioButton Content="Finaler Master" GroupName="LevelHistorySource" IsChecked="{Binding IsFinalLevelHistory, Mode=TwoWay}" FontSize="9" />
+                                    <RadioButton Content="Vergleich" GroupName="LevelHistorySource" IsChecked="{Binding IsComparisonLevelHistory, Mode=TwoWay}" FontSize="9" />
+                                    <CheckBox Content="Pre-Limiter-Probleme" IsChecked="{Binding ShowLevelProblemMarkers, Mode=TwoWay}" FontSize="9" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                                    <TextBlock Text="L" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldAccentBrush}" />
+                                    <TextBlock Text="R" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldMutedTextBrush}" />
+                                    <TextBlock Text="· gelb ab −3 dBFS" Classes="eq-muted" FontSize="9" />
+                                    <TextBlock Text="· rot ab 0 dBFS" Classes="eq-muted" FontSize="9" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border
+                            Grid.Row="1"
+                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="8"
+                            MinHeight="360"
+                            ClipToBounds="True">
+                            <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="6">
+                                <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto,*,Auto,*,Auto,*,Auto,*,Auto" Margin="0,1,0,1">
+                                    <TextBlock Grid.Row="0" Text="+6" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="2" Text="0" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="4" Text="−3" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="6" Text="−6" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="8" Text="−12" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="10" Text="−24" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="12" Text="−36" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="14" Text="−48" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    <TextBlock Grid.Row="16" Text="−60" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                </Grid>
+
+                                <controls:LevelHistoryView
+                                    Grid.Column="1"
+                                    Envelope="{Binding TargetWaveform}"
+                                    LevelHistory="{Binding TargetLevelHistory}"
+                                    ComparisonLevelHistory="{Binding TargetComparisonLevelHistory}"
+                                    WindowStartSeconds="{Binding WaveformWindowStartSeconds}"
+                                    WindowDurationSeconds="{Binding WaveformWindowDurationSeconds}"
+                                    CursorSeconds="{Binding WaveformCursorSeconds}"
+                                    FloorDb="-60"
+                                    CeilingDb="6"
+                                    LeftBrush="{DynamicResource ElbwaldAccentBrush}"
+                                    RightBrush="{DynamicResource ElbwaldMutedTextBrush}"
+                                    GuideBrush="{DynamicResource ElbwaldBorderBrush}"
+                                    CursorBrush="{DynamicResource ElbwaldTextBrush}"
+                                    WarningMarkers="{Binding TargetLevelWarningMarkers}" />
+
+                                <StackPanel Grid.Column="2" Spacing="3" Margin="4,0,0,0" VerticalAlignment="Top">
+                                    <TextBlock Text="Peak" Classes="eq-muted" FontSize="8" />
+                                    <TextBlock Text="{Binding LevelHistoryPeakLabel}" FontSize="9" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="6">
+                            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
+                                <TextBlock Text="{Binding WaveformStartLabel}" Classes="eq-muted" FontSize="8" />
+                                <TextBlock Grid.Column="1" Text="{Binding WaveformMiddleLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding WaveformEndLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                            </Grid>
+                            <Grid Grid.Row="1" ColumnDefinitions="Auto,160,*,Auto" ColumnSpacing="10">
+                                <TextBlock Text="Zeit-Zoom" FontSize="10" VerticalAlignment="Center" />
+                                <Slider
+                                    Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="6"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding WaveformTimeZoomLevel, Mode=TwoWay}" />
+                                <Slider
+                                    Grid.Column="2"
+                                    Minimum="0"
+                                    Maximum="{Binding WaveformMaximumStartSeconds}"
+                                    Value="{Binding WaveformWindowStartSeconds, Mode=TwoWay}"
+                                    IsEnabled="{Binding IsWaveformZoomed}" />
+                                <TextBlock Grid.Column="3" Text="{Binding WaveformTimeZoomLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Classes="eq-panel" Padding="10,7">
+                    <TextBlock
+                        Text="Nach einer Projektanalyse zeigt MASTER den final gerenderten Sample-Peak-Verlauf nach DSP/Limiter. True-Peak-Ereignismarker kennzeichnen zusätzlich die problematischen Stellen vor dem Limiter. Ohne Analyse bzw. bei Einzelspuren dient die Wellenform-Hüllkurve als schnelle Näherung."
+                        Classes="eq-muted"
+                        FontSize="9"
+                        TextWrapping="Wrap" />
+                </Border>
+            </Grid>
+
+            <Grid IsVisible="{Binding IsRestorationView}" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+                <Border Classes="eq-panel" Padding="10,8">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Restaurierung · Analysebasis" FontSize="13" FontWeight="SemiBold" />
+                            <TextBlock Text="Mit gedrückter linker Maustaste einen möglichst reinen Rauschabschnitt markieren. Bei vorhandener Auswahl zeigt das Spektrogramm automatisch genau diesen Bereich." Classes="eq-muted" FontSize="9" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding NoiseSelectionLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Button Classes="eq-button" Content="Auswahl löschen" Command="{Binding ClearNoiseSelectionCommand}" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="eq-button" Content="Profil lernen &amp; übernehmen" Command="{Binding LearnNoiseProfileCommand}" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1" ColumnDefinitions="1.45*,0.85*" ColumnSpacing="10">
+                    <Border Classes="eq-panel" Padding="10">
+                        <Grid RowDefinitions="Auto,150,Auto,*,Auto" RowSpacing="7">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <StackPanel Spacing="1">
+                                    <TextBlock Text="Zeitbereich &amp; Spektrogramm" Classes="eq-title" />
+                                    <TextBlock Text="Im Spektrogramm erscheinen konstante Pfeif-/Brummtöne als horizontale Linien, breitbandiges Rauschen als diffuse Fläche." Classes="eq-muted" FontSize="9" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding SpectrogramStatusLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+
+                            <Border Grid.Row="1" Classes="eq-soft" Padding="6" ClipToBounds="True">
+                                <controls:AudioWaveformView
+                                    Envelope="{Binding TargetWaveform}"
+                                    WindowStartSeconds="{Binding WaveformWindowStartSeconds}"
+                                    WindowDurationSeconds="{Binding WaveformWindowDurationSeconds}"
+                                    CursorSeconds="{Binding WaveformCursorSeconds}"
+                                    AmplitudeScale="{Binding WaveformAmplitudeScale}"
+                                    IsSelectionEnabled="True"
+                                    SelectionStartSeconds="{Binding WaveformSelectionStartSeconds, Mode=TwoWay}"
+                                    SelectionEndSeconds="{Binding WaveformSelectionEndSeconds, Mode=TwoWay}"
+                                    WaveformBrush="{DynamicResource ElbwaldAccentBrush}"
+                                    GuideBrush="{DynamicResource ElbwaldBorderBrush}"
+                                    CursorBrush="{DynamicResource ElbwaldTextBrush}"
+                                    SelectionBrush="{DynamicResource ElbwaldAccentBrush}" />
+                            </Border>
+
+                            <Grid Grid.Row="2" ColumnDefinitions="Auto,160,Auto,160,*" ColumnSpacing="10">
+                                <TextBlock Text="Zeit-Zoom" FontSize="9" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Minimum="0" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding WaveformTimeZoomLevel, Mode=TwoWay}" />
+                                <TextBlock Grid.Column="2" Text="Pegel-Zoom" FontSize="9" VerticalAlignment="Center" />
+                                <Slider Grid.Column="3" Minimum="0" Maximum="7" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding WaveformAmplitudeZoomLevel, Mode=TwoWay}" />
+                                <TextBlock Grid.Column="4" Text="{Binding WaveformWindowLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+
+                            <Border Grid.Row="3" Classes="eq-soft" Padding="6" MinHeight="230" ClipToBounds="True">
+                                <Grid ColumnDefinitions="42,*" RowDefinitions="*,Auto" ColumnSpacing="5">
+                                    <Grid RowDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto" Margin="0,1,0,1">
+                                        <TextBlock Grid.Row="0" Text="20 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="2" Text="10 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="4" Text="1 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="6" Text="100 Hz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="8" Text="20 Hz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <controls:SpectrogramView
+                                        Grid.Column="1"
+                                        Data="{Binding Spectrogram}"
+                                        AccentBrush="{DynamicResource ElbwaldAccentBrush}"
+                                        GuideBrush="{DynamicResource ElbwaldBorderBrush}" />
+                                    <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="Auto,*,Auto,*,Auto" Margin="2,4,2,0">
+                                        <TextBlock Text="{Binding SpectrogramStartLabel}" Classes="eq-muted" FontSize="8" />
+                                        <TextBlock Grid.Column="2" Text="{Binding SpectrogramMiddleLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Center" />
+                                        <TextBlock Grid.Column="4" Text="{Binding SpectrogramEndLabel}" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <TextBlock Text="Ausschnitt" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Minimum="0" Maximum="{Binding WaveformMaximumStartSeconds}" Value="{Binding WaveformWindowStartSeconds, Mode=TwoWay}" IsEnabled="{Binding IsWaveformZoomed}" />
+                                <TextBlock Grid.Column="2" Text="{Binding WaveformWindowLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="1" Classes="eq-panel" Padding="10">
+                        <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Gelerntes Rauschprofil" Classes="eq-title" />
+                                <TextBlock Text="{Binding NoiseProfileStatusLabel}" Classes="eq-muted" FontSize="9" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding NoiseProfilePeakLabel}" Classes="eq-muted" FontSize="9" />
+                            </StackPanel>
+
+                            <Border Grid.Row="1" Classes="eq-soft" Padding="6" MinHeight="260">
+                                <Grid ColumnDefinitions="34,*" RowDefinitions="*">
+                                    <Grid RowDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto">
+                                        <TextBlock Grid.Row="0" Text="0" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="2" Text="−30" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="4" Text="−60" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="6" Text="−90" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Row="8" Text="−120" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <controls:NoiseProfileView
+                                        Grid.Column="1"
+                                        ProfileDb="{Binding NoiseProfileDb}"
+                                        SampleRate="{Binding NoiseProfileSampleRate}"
+                                        FftSize="{Binding NoiseProfileFftSize}"
+                                        CurveBrush="{DynamicResource ElbwaldAccentBrush}"
+                                        GuideBrush="{DynamicResource ElbwaldBorderBrush}" />
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                <TextBlock Text="20 Hz" Classes="eq-muted" FontSize="8" />
+                                <TextBlock Grid.Column="1" Text="1 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="20 kHz" Classes="eq-muted" FontSize="8" HorizontalAlignment="Right" />
+                            </Grid>
+
+                            <Border Grid.Row="3" Classes="eq-soft" Padding="8">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <CheckBox
+                                            Content="Spektrale Rauschreduzierung aktiv"
+                                            IsEnabled="{Binding Track.HasNoiseProfile}"
+                                            IsChecked="{Binding Track.NoiseReductionEnabled, Mode=TwoWay}"
+                                            FontSize="10"
+                                            FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Track.NoiseReductionStrengthLabel}" Classes="eq-muted" FontSize="9" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Slider
+                                        Minimum="0"
+                                        Maximum="100"
+                                        IsEnabled="{Binding Track.NoiseReductionEnabled}"
+                                        Value="{Binding Track.NoiseReductionStrength, Mode=TwoWay}" />
+                                    <CheckBox
+                                        Content="Nur entfernten Rauschanteil anhören"
+                                        IsEnabled="{Binding Track.NoiseReductionEnabled}"
+                                        IsChecked="{Binding Track.NoiseReductionListenRemoved, Mode=TwoWay}"
+                                        FontSize="9" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock
+                                            Text="Nicht-destruktiv · wirkt live vor EQ und Dynamik. Je höher die Stärke, desto aggressiver werden Frequenzanteile nahe am gelernten Rauschboden abgesenkt."
+                                            Classes="eq-muted"
+                                            FontSize="8"
+                                            TextWrapping="Wrap" />
+                                        <Button Grid.Column="1" Classes="eq-button" Content="Profil löschen" Command="{Binding ClearNoiseProfileCommand}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Row="2" Classes="eq-panel" Padding="10,7">
+                    <TextBlock Text="Empfehlung: 0,5–5 s möglichst reines Grundrauschen markieren. Für Suno-Zirpen gezielt einen Abschnitt wählen, in dem das metallische Artefakt deutlich, musikalischer Inhalt aber möglichst gering ist." Classes="eq-muted" FontSize="9" TextWrapping="Wrap" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="2" Classes="eq-panel" Padding="10,7">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBlock
+                    Text="EQ: Frequenzgang/Spektrum. Wellenform: Detailkontrolle. Pegel/dBFS: zeitlicher Peak-Verlauf. Restaurierung: Profil lernen und Rauschreduzierung vorhören."
+                    Classes="eq-muted"
+                    FontSize="9"
+                    TextWrapping="Wrap" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <TextBlock Text="L" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                    <ProgressBar Minimum="-60" Maximum="0" Value="{Binding MeterLeftDb}" Width="90" Height="5" />
+                    <TextBlock Text="R" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                    <ProgressBar Minimum="-60" Maximum="0" Value="{Binding MeterRightDb}" Width="90" Height="5" />
+                    <TextBlock Text="{Binding MeterPeakLabel}" Classes="eq-muted" FontSize="8" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

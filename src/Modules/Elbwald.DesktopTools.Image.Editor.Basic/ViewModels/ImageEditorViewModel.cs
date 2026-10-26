@@ -3,11 +3,13 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Elbwald.DesktopTools.Contracts.Media;
+using Elbwald.DesktopTools.Contracts.Media.Decoding;
 using Elbwald.DesktopTools.Contracts.Media.Editing;
 using Elbwald.DesktopTools.Contracts.MediaIndex;
 using Elbwald.DesktopTools.Image.Editor.Basic.Operations;
 using Elbwald.DesktopTools.Image.Editor.Basic.Presentation;
 using Elbwald.DesktopTools.Image.Editor.Basic.Preview;
+using Elbwald.DesktopTools.Image.Editor.Basic.Rendering;
 
 namespace Elbwald.DesktopTools.Image.Editor.Basic.ViewModels;
 
@@ -18,10 +20,13 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
     private const double MinimumZoomPercent = 25;
     private const double MaximumZoomPercent = 400;
     private const double ZoomStepPercent = 25;
-    private const int TonePreviewDebounceMilliseconds = 90;
+    private const int FastTonePreviewMaxEdge = 1024;
+    private const int TonePreviewDebounceMilliseconds = 8;
+    private const int TonePreviewHighQualitySettleMilliseconds = 120;
 
     private readonly IMediaIndexService _mediaIndexService;
     private readonly ImageEditPreviewService _previewService;
+    private readonly ImageEditRenderer _renderer;
     private readonly IImageEditDocumentStore _documentStore;
     private readonly Stack<ImageEditDocument> _undoStack = new();
     private readonly Stack<ImageEditDocument> _redoStack = new();
@@ -30,6 +35,8 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _tonePreviewCancellation;
     private long _tonePreviewGeneration;
     private ImageEditDocument? _workingDocument;
+    private DecodedImageFrame? _sourcePreviewFrame;
+    private DecodedImageFrame? _fastSourcePreviewFrame;
     private ImageEditDocument? _savedDocument;
     private bool _isInitialized;
     private bool _isBusy;
@@ -47,9 +54,17 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
     private double _exposureEv;
     private double _contrast;
     private double _saturation;
+    private double _temperature;
+    private double _tint;
+    private double _shadows;
+    private double _highlights;
     private double _committedExposureEv;
     private double _committedContrast;
     private double _committedSaturation;
+    private double _committedTemperature;
+    private double _committedTint;
+    private double _committedShadows;
+    private double _committedHighlights;
     private string? _editableToneOperationId;
     private bool _suppressTonePreview;
     private double _zoomPercent = 100;
@@ -70,14 +85,17 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
     public ImageEditorViewModel(
         IMediaIndexService mediaIndexService,
         ImageEditPreviewService previewService,
+        ImageEditRenderer renderer,
         IImageEditDocumentStore documentStore)
     {
         ArgumentNullException.ThrowIfNull(mediaIndexService);
         ArgumentNullException.ThrowIfNull(previewService);
+        ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(documentStore);
 
         _mediaIndexService = mediaIndexService;
         _previewService = previewService;
+        _renderer = renderer;
         _documentStore = documentStore;
 
         InitializeCommand = new AsyncRelayCommand(InitializeAsync);
@@ -480,21 +498,108 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
         }
     }
 
+    public double Temperature
+    {
+        get => _temperature;
+        set
+        {
+            var clamped = Math.Round(Math.Clamp(value, -100d, 100d));
+            if (!SetProperty(ref _temperature, clamped))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(TemperatureLabel));
+            OnToneControlChanged();
+        }
+    }
+
+    public double Tint
+    {
+        get => _tint;
+        set
+        {
+            var clamped = Math.Round(Math.Clamp(value, -100d, 100d));
+            if (!SetProperty(ref _tint, clamped))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(TintLabel));
+            OnToneControlChanged();
+        }
+    }
+
+    public double Shadows
+    {
+        get => _shadows;
+        set
+        {
+            var clamped = Math.Round(Math.Clamp(value, -100d, 100d));
+            if (!SetProperty(ref _shadows, clamped))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(ShadowsLabel));
+            OnToneControlChanged();
+        }
+    }
+
+    public double Highlights
+    {
+        get => _highlights;
+        set
+        {
+            var clamped = Math.Round(Math.Clamp(value, -100d, 100d));
+            if (!SetProperty(ref _highlights, clamped))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(HighlightsLabel));
+            OnToneControlChanged();
+        }
+    }
+
     public string ExposureLabel => $"{ExposureEv:+0.0;-0.0;0.0} EV";
 
     public string ContrastLabel => $"{Contrast:+0;-0;0}";
 
     public string SaturationLabel => $"{Saturation:+0;-0;0}";
 
+    public string TemperatureLabel => $"{Temperature:+0;-0;0}";
+
+    public string TintLabel => $"{Tint:+0;-0;0}";
+
+    public string ShadowsLabel => $"{Shadows:+0;-0;0}";
+
+    public string HighlightsLabel => $"{Highlights:+0;-0;0}";
+
     public bool HasToneDraft => !AreToneValuesEqual(
         ExposureEv,
         Contrast,
         Saturation,
+        Temperature,
+        Tint,
+        Shadows,
+        Highlights,
         _committedExposureEv,
         _committedContrast,
-        _committedSaturation);
+        _committedSaturation,
+        _committedTemperature,
+        _committedTint,
+        _committedShadows,
+        _committedHighlights);
 
-    public bool HasToneAdjustment => !IsToneNeutral(ExposureEv, Contrast, Saturation);
+    public bool HasToneAdjustment => !IsToneNeutral(
+        ExposureEv,
+        Contrast,
+        Saturation,
+        Temperature,
+        Tint,
+        Shadows,
+        Highlights);
 
     public bool ShowOriginal
     {
@@ -697,6 +802,13 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            var fastSourceFrame = await Task.Run(
+                () => DecodedImageFrameResampler.ResizeToMaxEdge(
+                    result.SourceFrame,
+                    FastTonePreviewMaxEdge),
+                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
             var sourceBitmap = DecodedImageFrameBitmapFactory.Create(result.SourceFrame);
             var renderedBitmap = DecodedImageFrameBitmapFactory.Create(result.RenderedFrame);
 
@@ -705,6 +817,8 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
             _sourcePixelHeight = result.SourceFrame.PixelHeight;
             UpdateRenderedDimensions(result.RenderedFrame.PixelWidth, result.RenderedFrame.PixelHeight);
 
+            _sourcePreviewFrame = result.SourceFrame;
+            _fastSourcePreviewFrame = fastSourceFrame;
             _workingDocument = result.Document;
             _savedDocument = result.Document;
             _undoStack.Clear();
@@ -847,7 +961,7 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
 
         CancelTonePreview();
         var candidate = BuildToneCandidateDocument(current);
-        if (!await TryRenderWorkingDocumentAsync(candidate, "Tonwerte werden übernommen …"))
+        if (!await TryRenderWorkingDocumentAsync(candidate, "Licht & Farbe werden übernommen …"))
         {
             return;
         }
@@ -858,12 +972,20 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
         CommitToneControlState(candidate);
         UpdateEditState();
         RefreshEditorCommandStates();
-        StatusMessage = "Tonwerte übernommen. Die Regler bleiben auf dem aktuellen Wert; Änderungen sind noch nicht gespeichert.";
+        StatusMessage = "Licht & Farbe übernommen. Die Regler bleiben auf den aktuellen Werten; Änderungen sind noch nicht gespeichert.";
     }
 
     private void ResetToneDraft()
     {
-        SetToneControlValues(0d, 0d, 0d, suppressPreview: false);
+        SetToneControlValues(
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            suppressPreview: false);
     }
 
     private void OnToneControlChanged()
@@ -888,10 +1010,10 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
         var cancellation = new CancellationTokenSource();
         _tonePreviewCancellation = cancellation;
         var generation = ++_tonePreviewGeneration;
-        _ = RenderTonePreviewAfterDelayAsync(generation, cancellation.Token);
+        _ = RenderTonePreviewSequenceAsync(generation, cancellation.Token);
     }
 
-    private async Task RenderTonePreviewAfterDelayAsync(
+    private async Task RenderTonePreviewSequenceAsync(
         long generation,
         CancellationToken cancellationToken)
     {
@@ -900,40 +1022,69 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
             await Task.Delay(TonePreviewDebounceMilliseconds, cancellationToken);
 
             var baseDocument = _workingDocument;
-            if (baseDocument is null)
+            var fastSourceFrame = _fastSourcePreviewFrame;
+            var fullSourceFrame = _sourcePreviewFrame;
+            if (baseDocument is null || fastSourceFrame is null || fullSourceFrame is null)
             {
                 return;
             }
 
             var candidate = BuildToneCandidateDocument(baseDocument);
-            var result = await _previewService.RenderAsync(
-                new ImageEditPreviewRequest(
-                    candidate.MediaItemId,
-                    DefaultPreviewMaxEdge,
-                    candidate),
+            var fastRenderedFrame = await RenderToneFrameAsync(
+                fastSourceFrame,
+                candidate,
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (generation != _tonePreviewGeneration || !ReferenceEquals(baseDocument, _workingDocument))
+            if (!IsCurrentTonePreview(generation, baseDocument))
             {
                 return;
             }
 
-            var renderedBitmap = DecodedImageFrameBitmapFactory.Create(result.RenderedFrame);
-            ReplaceRenderedBitmap(renderedBitmap);
-            UpdateRenderedDimensions(result.RenderedFrame.PixelWidth, result.RenderedFrame.PixelHeight);
-            UpdateCurrentFileDetails(
-                result.RenderedFrame.PixelWidth,
-                result.RenderedFrame.PixelHeight,
-                result.SourceFile.Extension);
+            var fastBitmap = DecodedImageFrameBitmapFactory.Create(fastRenderedFrame);
+            ReplaceRenderedBitmap(fastBitmap);
             ShowOriginal = false;
             StatusMessage = HasToneDraft
-                ? "Live-Vorschau aktiv · Anwenden übernimmt die aktuellen Reglerwerte in den Bearbeitungsstand."
-                : "Tonwerte entsprechen wieder dem übernommenen Stand.";
+                ? "Live-Vorschau · schnelle Arbeitsauflösung"
+                : "Licht & Farbe entsprechen dem übernommenen Stand.";
+
+            if (ReferenceEquals(fastSourceFrame, fullSourceFrame))
+            {
+                UpdateRenderedDimensions(fastRenderedFrame.PixelWidth, fastRenderedFrame.PixelHeight);
+                UpdateCurrentFileDetails(
+                    fastRenderedFrame.PixelWidth,
+                    fastRenderedFrame.PixelHeight,
+                    Path.GetExtension(SelectedMediaItem?.RelativePath ?? string.Empty));
+                return;
+            }
+
+            await Task.Delay(TonePreviewHighQualitySettleMilliseconds, cancellationToken);
+            var fullRenderedFrame = await RenderToneFrameAsync(
+                fullSourceFrame,
+                candidate,
+                cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentTonePreview(generation, baseDocument))
+            {
+                return;
+            }
+
+            var fullBitmap = DecodedImageFrameBitmapFactory.Create(fullRenderedFrame);
+            ReplaceRenderedBitmap(fullBitmap);
+            UpdateRenderedDimensions(fullRenderedFrame.PixelWidth, fullRenderedFrame.PixelHeight);
+            UpdateCurrentFileDetails(
+                fullRenderedFrame.PixelWidth,
+                fullRenderedFrame.PixelHeight,
+                Path.GetExtension(SelectedMediaItem?.RelativePath ?? string.Empty));
+            ShowOriginal = false;
+            StatusMessage = HasToneDraft
+                ? "Live-Vorschau · volle Vorschauqualität · Anwenden übernimmt die Reglerwerte."
+                : "Licht & Farbe entsprechen dem übernommenen Stand.";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // A newer slider value superseded this preview.
+            // A newer slider value superseded both preview quality stages.
         }
         catch (Exception exception)
         {
@@ -944,8 +1095,26 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
 
             HasError = true;
             ErrorMessage = exception.GetBaseException().Message;
-            StatusMessage = "Die Live-Vorschau der Tonwerte konnte nicht gerendert werden.";
+            StatusMessage = "Die Live-Vorschau von Licht & Farbe konnte nicht gerendert werden.";
         }
+    }
+
+    private async Task<DecodedImageFrame> RenderToneFrameAsync(
+        DecodedImageFrame sourceFrame,
+        ImageEditDocument candidate,
+        CancellationToken cancellationToken)
+    {
+        return await Task.Run(
+            async () => await _renderer
+                .RenderAsync(sourceFrame, candidate.Operations, cancellationToken)
+                .ConfigureAwait(false),
+            cancellationToken);
+    }
+
+    private bool IsCurrentTonePreview(long generation, ImageEditDocument baseDocument)
+    {
+        return generation == _tonePreviewGeneration
+            && ReferenceEquals(baseDocument, _workingDocument);
     }
 
     private ImageEditDocument BuildToneCandidateDocument(ImageEditDocument baseDocument)
@@ -956,7 +1125,14 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
             : operations.FindIndex(operation =>
                 string.Equals(operation.Id, _editableToneOperationId, StringComparison.Ordinal));
 
-        if (IsToneNeutral(ExposureEv, Contrast, Saturation))
+        if (IsToneNeutral(
+                ExposureEv,
+                Contrast,
+                Saturation,
+                Temperature,
+                Tint,
+                Shadows,
+                Highlights))
         {
             if (existingIndex >= 0)
             {
@@ -970,6 +1146,10 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
             ExposureEv,
             Contrast,
             Saturation,
+            Temperature,
+            Tint,
+            Shadows,
+            Highlights,
             existingIndex >= 0 ? operations[existingIndex].Id : _editableToneOperationId);
 
         if (existingIndex >= 0)
@@ -993,33 +1173,56 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
                     operation.TypeId,
                     BasicImageEditOperationTypeIds.Tone,
                     StringComparison.OrdinalIgnoreCase)
-                && operation.Version == ToneImageEditOperationProcessor.SupportedVersion);
+                && operation.Version is ToneImageEditOperationProcessor.LegacyVersion
+                    or ToneImageEditOperationProcessor.SupportedVersion);
 
         if (toneOperation is not null
             && ToneImageEditOperationProcessor.TryReadParameters(
                 toneOperation,
                 out var exposureEv,
                 out var contrast,
-                out var saturation))
+                out var saturation,
+                out var temperature,
+                out var tint,
+                out var shadows,
+                out var highlights))
         {
             _editableToneOperationId = toneOperation.Id;
-            _committedExposureEv = exposureEv;
-            _committedContrast = contrast;
-            _committedSaturation = saturation;
-            SetToneControlValues(exposureEv, contrast, saturation, suppressPreview: true);
+            SetCommittedToneValues(
+                exposureEv,
+                contrast,
+                saturation,
+                temperature,
+                tint,
+                shadows,
+                highlights);
+            SetToneControlValues(
+                exposureEv,
+                contrast,
+                saturation,
+                temperature,
+                tint,
+                shadows,
+                highlights,
+                suppressPreview: true);
             return;
         }
 
         _editableToneOperationId = null;
-        _committedExposureEv = 0d;
-        _committedContrast = 0d;
-        _committedSaturation = 0d;
-        SetToneControlValues(0d, 0d, 0d, suppressPreview: true);
+        SetCommittedToneValues(0d, 0d, 0d, 0d, 0d, 0d, 0d);
+        SetToneControlValues(0d, 0d, 0d, 0d, 0d, 0d, 0d, suppressPreview: true);
     }
 
     private void CommitToneControlState(ImageEditDocument document)
     {
-        var toneOperation = IsToneNeutral(ExposureEv, Contrast, Saturation)
+        var toneOperation = IsToneNeutral(
+                ExposureEv,
+                Contrast,
+                Saturation,
+                Temperature,
+                Tint,
+                Shadows,
+                Highlights)
             ? null
             : document.Operations
                 .LastOrDefault(operation =>
@@ -1028,21 +1231,49 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
                         operation.TypeId,
                         BasicImageEditOperationTypeIds.Tone,
                         StringComparison.OrdinalIgnoreCase)
-                    && operation.Version == ToneImageEditOperationProcessor.SupportedVersion);
+                    && operation.Version is ToneImageEditOperationProcessor.LegacyVersion
+                        or ToneImageEditOperationProcessor.SupportedVersion);
 
         _editableToneOperationId = toneOperation?.Id;
-        _committedExposureEv = ExposureEv;
-        _committedContrast = Contrast;
-        _committedSaturation = Saturation;
+        SetCommittedToneValues(
+            ExposureEv,
+            Contrast,
+            Saturation,
+            Temperature,
+            Tint,
+            Shadows,
+            Highlights);
         OnPropertyChanged(nameof(HasToneDraft));
         OnPropertyChanged(nameof(HasToneAdjustment));
         OpenSelectedCommand.NotifyCanExecuteChanged();
+    }
+
+    private void SetCommittedToneValues(
+        double exposureEv,
+        double contrast,
+        double saturation,
+        double temperature,
+        double tint,
+        double shadows,
+        double highlights)
+    {
+        _committedExposureEv = exposureEv;
+        _committedContrast = contrast;
+        _committedSaturation = saturation;
+        _committedTemperature = temperature;
+        _committedTint = tint;
+        _committedShadows = shadows;
+        _committedHighlights = highlights;
     }
 
     private void SetToneControlValues(
         double exposureEv,
         double contrast,
         double saturation,
+        double temperature,
+        double tint,
+        double shadows,
+        double highlights,
         bool suppressPreview)
     {
         var oldSuppress = _suppressTonePreview;
@@ -1052,6 +1283,10 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
             ExposureEv = exposureEv;
             Contrast = contrast;
             Saturation = saturation;
+            Temperature = temperature;
+            Tint = tint;
+            Shadows = shadows;
+            Highlights = highlights;
         }
         finally
         {
@@ -1080,19 +1315,52 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
         double leftExposure,
         double leftContrast,
         double leftSaturation,
+        double leftTemperature,
+        double leftTint,
+        double leftShadows,
+        double leftHighlights,
         double rightExposure,
         double rightContrast,
-        double rightSaturation)
+        double rightSaturation,
+        double rightTemperature,
+        double rightTint,
+        double rightShadows,
+        double rightHighlights)
     {
         const double epsilon = 0.0001d;
         return Math.Abs(leftExposure - rightExposure) <= epsilon
             && Math.Abs(leftContrast - rightContrast) <= epsilon
-            && Math.Abs(leftSaturation - rightSaturation) <= epsilon;
+            && Math.Abs(leftSaturation - rightSaturation) <= epsilon
+            && Math.Abs(leftTemperature - rightTemperature) <= epsilon
+            && Math.Abs(leftTint - rightTint) <= epsilon
+            && Math.Abs(leftShadows - rightShadows) <= epsilon
+            && Math.Abs(leftHighlights - rightHighlights) <= epsilon;
     }
 
-    private static bool IsToneNeutral(double exposureEv, double contrast, double saturation)
+    private static bool IsToneNeutral(
+        double exposureEv,
+        double contrast,
+        double saturation,
+        double temperature,
+        double tint,
+        double shadows,
+        double highlights)
     {
-        return AreToneValuesEqual(exposureEv, contrast, saturation, 0d, 0d, 0d);
+        return AreToneValuesEqual(
+            exposureEv,
+            contrast,
+            saturation,
+            temperature,
+            tint,
+            shadows,
+            highlights,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d,
+            0d);
     }
 
     private async Task ApplyOperationAsync(
@@ -1229,19 +1497,24 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
 
         try
         {
-            var result = await _previewService.RenderAsync(
-                new ImageEditPreviewRequest(
-                    document.MediaItemId,
-                    DefaultPreviewMaxEdge,
-                    document));
+            var sourceFrame = _sourcePreviewFrame;
+            if (sourceFrame is null)
+            {
+                throw new InvalidOperationException("Die geladene Preview-Basis ist nicht mehr verfügbar.");
+            }
 
-            var renderedBitmap = DecodedImageFrameBitmapFactory.Create(result.RenderedFrame);
+            var renderedFrame = await Task.Run(
+                async () => await _renderer
+                    .RenderAsync(sourceFrame, document.Operations)
+                    .ConfigureAwait(false));
+
+            var renderedBitmap = DecodedImageFrameBitmapFactory.Create(renderedFrame);
             ReplaceRenderedBitmap(renderedBitmap);
-            UpdateRenderedDimensions(result.RenderedFrame.PixelWidth, result.RenderedFrame.PixelHeight);
+            UpdateRenderedDimensions(renderedFrame.PixelWidth, renderedFrame.PixelHeight);
             UpdateCurrentFileDetails(
-                result.RenderedFrame.PixelWidth,
-                result.RenderedFrame.PixelHeight,
-                result.SourceFile.Extension);
+                renderedFrame.PixelWidth,
+                renderedFrame.PixelHeight,
+                Path.GetExtension(SelectedMediaItem?.RelativePath ?? string.Empty));
 
             ShowOriginal = false;
             return true;
@@ -1392,11 +1665,15 @@ public sealed class ImageEditorViewModel : ObservableObject, IDisposable
         ExposureEv = 0d;
         Contrast = 0d;
         Saturation = 0d;
+        Temperature = 0d;
+        Tint = 0d;
+        Shadows = 0d;
+        Highlights = 0d;
         _suppressTonePreview = false;
-        _committedExposureEv = 0d;
-        _committedContrast = 0d;
-        _committedSaturation = 0d;
+        SetCommittedToneValues(0d, 0d, 0d, 0d, 0d, 0d, 0d);
         _editableToneOperationId = null;
+        _sourcePreviewFrame = null;
+        _fastSourcePreviewFrame = null;
         _workingDocument = null;
         _savedDocument = null;
         _undoStack.Clear();

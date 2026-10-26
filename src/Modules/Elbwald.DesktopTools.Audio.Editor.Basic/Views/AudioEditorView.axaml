@@ -1,0 +1,868 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Elbwald.DesktopTools.Audio.Editor.Basic.ViewModels"
+    xmlns:controls="using:Elbwald.DesktopTools.Audio.Editor.Basic.Controls"
+    xmlns:models="using:Elbwald.DesktopTools.Audio.Editor.Basic.Models"
+    x:Class="Elbwald.DesktopTools.Audio.Editor.Basic.Views.AudioEditorView"
+    x:DataType="vm:AudioEditorViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.audio-panel">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <Style Selector="Button.audio-button">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="Button.audio-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+        </Style>
+        <Style Selector="Button.audio-primary">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="9,4" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="ToggleButton.audio-toggle">
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Padding" Value="5,2" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="TextBlock.audio-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.audio-section-title">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="TextBlock.audio-warning">
+            <Setter Property="Foreground" Value="#B45B22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.audio-soft">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8" />
+        </Style>
+        <Style Selector="ListBox.audio-track-list > ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.audio-track-list > ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.audio-track-list > ListBoxItem:selected Border.track-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldAccentSoftStrongBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Margin="14,10,14,14" RowDefinitions="Auto,Auto,*" RowSpacing="7">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="1" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock
+                        Text="Audio-Studio"
+                        FontSize="24"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource ElbwaldTextBrush}" />
+                    <TextBlock
+                        Text="{Binding ProjectTitle}"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource ElbwaldAccentBrush}"
+                        VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock
+                    Text="{Binding ProjectLocationLabel}"
+                    Classes="audio-muted"
+                    FontSize="9"
+                    TextTrimming="CharacterEllipsis"
+                    MaxWidth="760" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Button Classes="audio-button" Content="Neu" Command="{Binding NewProjectCommand}" />
+                <Button Classes="audio-button" Content="Öffnen" Command="{Binding OpenProjectCommand}" />
+                <Button Classes="audio-button" Content="Speichern" Command="{Binding SaveProjectCommand}" />
+                <Button Classes="audio-button" Content="Speichern unter" Command="{Binding SaveProjectAsCommand}" />
+                <Button Classes="audio-primary" Content="WAV importieren" Command="{Binding ImportWavCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" Classes="audio-panel" Padding="9,6">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding TrackCountLabel}" FontSize="11" FontWeight="SemiBold" />
+                        <TextBlock Text="·" Classes="audio-muted" FontSize="10" />
+                        <TextBlock Text="{Binding ProjectSampleRateLabel}" Classes="audio-muted" FontSize="10" />
+                        <TextBlock Text="·" Classes="audio-muted" FontSize="10" />
+                        <TextBlock Text="{Binding StatusMessage}" Classes="audio-muted" FontSize="10" />
+                    </StackPanel>
+                    <TextBlock
+                        Text="{Binding MissingSourceLabel}"
+                        Classes="audio-warning"
+                        IsVisible="{Binding HasMissingSources}"
+                        FontSize="9" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <Button Classes="audio-button" Content="+ Mono" Command="{Binding AddMonoTrackCommand}" />
+                    <Button Classes="audio-button" Content="+ Stereo" Command="{Binding AddStereoTrackCommand}" />
+                    <Border
+                        IsVisible="{Binding HasUnsavedChanges}"
+                        Background="#FFF1D8"
+                        BorderBrush="#D89B35"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="6,2"
+                        VerticalAlignment="Center">
+                        <TextBlock Text="Projekt geändert" Foreground="#8A5A09" FontSize="9" FontWeight="SemiBold" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,300" ColumnSpacing="8" MinHeight="500">
+            <Grid Grid.Column="0" RowDefinitions="*,188" RowSpacing="7">
+                <Border Grid.Row="0" Classes="audio-panel" Padding="8">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
+                        <Grid ColumnDefinitions="34,2.3*,70,62,1.55*,112,36,46" ColumnSpacing="8" Margin="5,0,5,0">
+                            <TextBlock Grid.Column="0" Text="#" Classes="audio-muted" FontSize="9" />
+                            <TextBlock Grid.Column="1" Text="Spur / Mix" Classes="audio-muted" FontSize="9" />
+                            <TextBlock Grid.Column="2" Text="Status" Classes="audio-muted" FontSize="9" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="3" Text="Kanäle" Classes="audio-muted" FontSize="9" HorizontalAlignment="Center" />
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="Spur-Wellenform" Classes="audio-muted" FontSize="9" VerticalAlignment="Center" />
+                                <ToggleButton
+                                    Classes="audio-toggle"
+                                    IsChecked="{Binding IsWaveformAutoScale, Mode=TwoWay}"
+                                    Content="{Binding WaveformScaleModeLabel}"
+                                    Padding="6,1"
+                                    MinWidth="64"
+                                    FontSize="8"
+                                    ToolTip.Tip="Absolut dB: gemeinsame Skala von -60 bis +6 dBFS. Auto: jede Wellenform wird nur zur besseren Sichtbarkeit auf ihren eigenen Peak skaliert." />
+                                <TextBlock Text="■ −3" Foreground="#D89B35" FontSize="7" VerticalAlignment="Center" ToolTip.Tip="Spuren: Gelb ab −3 dBFS Sample-Peak" />
+                                <TextBlock Text="■ 0 dBFS" Foreground="#C94A4A" FontSize="7" VerticalAlignment="Center" ToolTip.Tip="Spuren: Rot ab 0 dBFS Sample-Peak" />
+                                <TextBlock Text="MASTER: TP gruppiert" Classes="audio-muted" FontSize="7" VerticalAlignment="Center" ToolTip.Tip="MASTER: Nach Projektanalyse werden True-Peak-Bereiche gruppiert. Gelb = −3 bis 0 dBTP, rote Linie = kurzer Peak ab 0 dBTP, rotes Band = länger anhaltend ab 0 dBTP." />
+                            </StackPanel>
+                            <TextBlock Grid.Column="5" Text="Pegel" Classes="audio-muted" FontSize="9" HorizontalAlignment="Center" />
+                            <TextBlock Grid.Column="6" Text="Repair" Classes="audio-muted" FontSize="8" HorizontalAlignment="Center" />
+                        </Grid>
+
+                        <ListBox
+                            Grid.Row="1"
+                            Classes="audio-track-list"
+                            ItemsSource="{Binding Tracks}"
+                            SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                            Background="Transparent"
+                            BorderThickness="0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AudioTrackViewModel">
+                                    <Border
+                                        Classes="track-card"
+                                        Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                        BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="7"
+                                        Padding="5"
+                                        Margin="0,0,0,3">
+                                        <Grid ColumnDefinitions="34,2.3*,70,62,1.55*,112,36,46" ColumnSpacing="8" VerticalAlignment="Center" MinHeight="42">
+                                            <TextBlock
+                                                Grid.Column="0"
+                                                Text="{Binding TrackLabel}"
+                                                FontSize="12"
+                                                FontWeight="SemiBold"
+                                                Foreground="{DynamicResource ElbwaldAccentBrush}"
+                                                HorizontalAlignment="Center" />
+
+                                            <StackPanel Grid.Column="1" Spacing="1">
+                                                <TextBox
+                                                    Text="{Binding Name, Mode=TwoWay}"
+                                                    MinHeight="23"
+                                                    FontSize="10"
+                                                    VerticalContentAlignment="Center" />
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <TextBlock Text="{Binding VolumeLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="·" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding PanLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="·" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding ClipCountLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="·" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding ProjectDurationLabel}" Classes="audio-muted" FontSize="8" />
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                                                <ToggleButton Classes="audio-toggle" Content="M" IsChecked="{Binding IsMuted, Mode=TwoWay}" ToolTip.Tip="Mute" />
+                                                <ToggleButton Classes="audio-toggle" Content="S" IsChecked="{Binding IsSolo, Mode=TwoWay}" ToolTip.Tip="Solo" />
+                                            </StackPanel>
+
+                                            <Border Grid.Column="3" Background="{DynamicResource ElbwaldAccentSoftBrush}" CornerRadius="6" Padding="6,3" HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding ChannelLabel}" FontSize="9" Foreground="{DynamicResource ElbwaldAccentBrush}" />
+                                            </Border>
+
+                                            <Border
+                                                Grid.Column="4"
+                                                Height="30"
+                                                MinWidth="0"
+                                                Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                                BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="5"
+                                                ClipToBounds="True"
+                                                VerticalAlignment="Center"
+                                                ToolTip.Tip="Spur-Wellenform über die gesamte Projektzeit · Fader/Pan berücksichtigt, Effekte nicht eingerechnet · Klick setzt Wiedergabeposition"
+                                                Cursor="Hand">
+                                                <controls:AudioWaveformView
+                                                    Envelope="{Binding TrackDisplayWaveform}"
+                                                    WindowStartSeconds="0"
+                                                    WindowDurationSeconds="0"
+                                                    CursorSeconds="-1"
+                                                    WaveformBrush="{DynamicResource ElbwaldAccentBrush}"
+                                                    GuideBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                    CursorBrush="{DynamicResource ElbwaldTextBrush}"
+                                                    UseDecibelScale="True"
+                                                    AutoNormalizeAmplitude="{Binding WaveformAutoScale}"
+                                                    DecibelFloor="-60"
+                                                    DecibelCeiling="6"
+                                                    ShowLevelWarnings="True"
+                                                    WarningThresholdDb="-3"
+                                                    CriticalThresholdDb="0"
+                                                    WarningBrush="#D89B35"
+                                                    CriticalBrush="#C94A4A"
+                                                    PointerPressed="OnProjectWaveformPointerPressed" />
+                                            </Border>
+
+                                            <StackPanel Grid.Column="5" Width="96" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Center" ClipToBounds="True">
+                                                <ProgressBar Minimum="-60" Maximum="0" Value="{Binding MeterLeftDb}" Width="88" Height="4" HorizontalAlignment="Center" />
+                                                <ProgressBar Minimum="-60" Maximum="0" Value="{Binding MeterRightDb}" Width="88" Height="4" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding MeterPeakLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Center" />
+                                            </StackPanel>
+
+                                            <Button
+                                                Grid.Column="6"
+                                                Classes="audio-button"
+                                                Content="◎"
+                                                Click="OnStemRepairClick"
+                                                Padding="4,2"
+                                                MinWidth="30"
+                                                ToolTip.Tip="Stem technisch analysieren und Reparaturfilter öffnen" />
+
+                                            <Button
+                                                Grid.Column="7"
+                                                Classes="audio-button"
+                                                Content="×"
+                                                Command="{Binding RemoveCommand}"
+                                                Padding="4,2"
+                                                MinWidth="32"
+                                                ToolTip.Tip="Spur entfernen" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Border
+                            Grid.Row="2"
+                            Background="{DynamicResource ElbwaldAccentSoftBrush}"
+                            BorderBrush="{DynamicResource ElbwaldAccentSoftStrongBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="7"
+                            Margin="0,3,0,0"
+                            Cursor="Hand"
+                            ToolTip.Tip="MASTER / Gesamtprojekt auswählen"
+                            PointerPressed="OnMasterRowPointerPressed">
+                            <Grid ColumnDefinitions="34,132,*,96,112" ColumnSpacing="10" MinHeight="58">
+                                <TextBlock Grid.Column="0" Text="Σ" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource ElbwaldAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                    <TextBlock Text="MASTER" FontSize="11" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding MasterTrackSummary}" Classes="audio-muted" FontSize="8" />
+                                    <TextBlock Text="{Binding MasterWaveformStateLabel}" Classes="audio-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding MasterPeakWarningSummaryLabel}" Classes="audio-muted" FontSize="7" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MasterPeakWarningDetailLabel}" />
+                                </StackPanel>
+                                <Border Grid.Column="2" Height="42" Margin="0,0,3,0" Background="{DynamicResource ElbwaldSurfaceQuietBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1" CornerRadius="5" ClipToBounds="True" VerticalAlignment="Center">
+                                    <controls:AudioWaveformView
+                                        Envelope="{Binding MasterWaveform}"
+                                        WindowStartSeconds="0"
+                                        WindowDurationSeconds="{Binding ProjectDurationSeconds}"
+                                        CursorSeconds="{Binding TimelineCursorSeconds}"
+                                        WaveformBrush="{DynamicResource ElbwaldAccentBrush}"
+                                        GuideBrush="{DynamicResource ElbwaldBorderBrush}"
+                                        CursorBrush="{DynamicResource ElbwaldTextBrush}"
+                                        UseDecibelScale="True"
+                                        AutoNormalizeAmplitude="{Binding IsWaveformAutoScale}"
+                                        DecibelFloor="-60"
+                                        DecibelCeiling="6"
+                                        ShowLevelWarnings="False"
+                                        WarningThresholdDb="-3"
+                                        CriticalThresholdDb="0"
+                                        WarningBrush="#D89B35"
+                                        CriticalBrush="#C94A4A"
+                                        WarningMarkers="{Binding MasterWaveformWarningMarkers}"
+                                        Cursor="Hand"
+                                        ToolTip.Tip="Master-Wellenform · Projektanalyse: Gelb = −3 bis 0 dBTP · rote Linie = kurzer Peak ab 0 dBTP · rotes Band = länger anhaltende Übersteuerung · Klick setzt Wiedergabeposition"
+                                        PointerPressed="OnProjectWaveformPointerPressed" />
+                                </Border>
+                                <StackPanel Grid.Column="3" Width="86" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Center" ClipToBounds="True">
+                                    <ProgressBar Minimum="-60" Maximum="0" Value="{Binding MasterMeterLeftDb}" Width="82" Height="4" />
+                                    <ProgressBar Minimum="-60" Maximum="0" Value="{Binding MasterMeterRightDb}" Width="82" Height="4" />
+                                    <TextBlock Text="{Binding MasterPeakReadout}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="4" Spacing="1" VerticalAlignment="Center">
+                                    <Slider Minimum="-60" Maximum="12" Value="{Binding MasterVolumeDb, Mode=TwoWay}" />
+                                    <TextBlock Text="{Binding MasterVolumeLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Classes="audio-panel" Padding="8">
+                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+                        <Grid ColumnDefinitions="Auto,*,Auto,110,54" ColumnSpacing="7">
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Button Classes="audio-primary" Content="▶" Command="{Binding PlayCommand}" MinWidth="34" Padding="7,3" ToolTip.Tip="Abspielen / fortsetzen" />
+                                <Button Classes="audio-button" Content="Ⅱ" Command="{Binding PauseCommand}" MinWidth="32" Padding="7,3" ToolTip.Tip="Pause" />
+                                <Button Classes="audio-button" Content="■" Command="{Binding StopCommand}" MinWidth="32" Padding="7,3" ToolTip.Tip="Stopp" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <TextBlock Text="Timeline / Wellenform" FontSize="12" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding PlaybackStateLabel}" Foreground="{DynamicResource ElbwaldAccentBrush}" FontSize="9" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding PlaybackBufferLabel}" Classes="audio-muted" FontSize="8" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding TimelineCursorLabel}" Classes="audio-muted" FontSize="9" VerticalAlignment="Center" />
+                            <Slider Grid.Column="3" Minimum="20" Maximum="240" Value="{Binding TimelineZoom, Mode=TwoWay}" ToolTip.Tip="Timeline-Zoom" />
+                            <TextBlock Grid.Column="4" Text="{Binding TimelineZoomLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="7">
+                            <Slider
+                                Minimum="0"
+                                Maximum="{Binding TimelineMaximumSeconds}"
+                                Value="{Binding TimelineCursorSeconds, Mode=TwoWay}"
+                                PointerPressed="OnTimelinePointerPressed"
+                                PointerReleased="OnTimelinePointerReleased" />
+                            <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SelectedClip.WaveformStateLabel}" Classes="audio-muted" FontSize="8" />
+                                <TextBlock Text="{Binding SelectedClipTitle}" Classes="audio-muted" FontSize="8" MaxWidth="210" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="2" IsEnabled="{Binding HasSelectedClip}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <Border
+                                Width="{Binding SelectedClipWaveformWidth}"
+                                MinWidth="640"
+                                Height="98"
+                                Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="7"
+                                ClipToBounds="True">
+                                <controls:AudioWaveformView
+                                    Envelope="{Binding SelectedClip.Waveform}"
+                                    WindowStartSeconds="{Binding SelectedClip.SourceStartSeconds}"
+                                    WindowDurationSeconds="{Binding SelectedClip.DurationSeconds}"
+                                    CursorSeconds="{Binding SelectedClipCursorSourceSeconds}"
+                                    WaveformBrush="{DynamicResource ElbwaldAccentBrush}"
+                                    GuideBrush="{DynamicResource ElbwaldBorderBrush}"
+                                    CursorBrush="{DynamicResource ElbwaldTextBrush}"
+                                    Cursor="Hand"
+                                    ToolTip.Tip="Clip-Wellenform · Klick setzt Wiedergabeposition"
+                                    PointerPressed="OnSelectedClipWaveformPointerPressed" />
+                            </Border>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Grid.Column="1" Classes="audio-panel" Padding="9">
+                <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="Inspector" FontSize="14" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding InspectorContextTitle}" FontSize="10" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding InspectorContextSubtitle}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="1"
+                            Classes="audio-button"
+                            Content="EQ ↗"
+                            Command="{Binding OpenEqAnalysisCommand}"
+                            ToolTip.Tip="EQ &amp; Analyse für Spur oder MASTER öffnen"
+                            VerticalAlignment="Center" />
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <TabControl Margin="0,2,0,0" IsVisible="{Binding IsTrackInspectorSelected}">
+                        <TabItem Header="Mix" FontSize="10" Padding="7,5" IsEnabled="{Binding HasSelectedTrack}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,8,2,2" Spacing="10">
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="7">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <TextBlock Text="Lautstärke" Classes="audio-section-title" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.VolumeLabel}" Classes="audio-muted" FontSize="9" />
+                                            </Grid>
+                                            <Slider Minimum="-60" Maximum="12" Value="{Binding SelectedTrack.VolumeDb, Mode=TwoWay}" />
+
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <TextBlock Text="Panorama" Classes="audio-section-title" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.PanLabel}" Classes="audio-muted" FontSize="9" />
+                                            </Grid>
+                                            <Slider Minimum="-100" Maximum="100" Value="{Binding SelectedTrack.Pan, Mode=TwoWay}" />
+
+                                            <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <ToggleButton Classes="audio-toggle" Content="Mute" IsChecked="{Binding SelectedTrack.IsMuted, Mode=TwoWay}" />
+                                                    <ToggleButton Classes="audio-toggle" Content="Solo" IsChecked="{Binding SelectedTrack.IsSolo, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <Grid Grid.Row="1" ColumnDefinitions="14,*,52" RowDefinitions="Auto,Auto" ColumnSpacing="5" RowSpacing="3">
+                                                    <TextBlock Grid.Row="0" Text="L" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                    <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="-60" Maximum="0" Value="{Binding SelectedTrack.MeterLeftDb}" Height="5" />
+                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SelectedTrack.MeterPeakLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Row="1" Text="R" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                    <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-60" Maximum="0" Value="{Binding SelectedTrack.MeterRightDb}" Height="5" />
+                                                </Grid>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock
+                                        Text="Die Spurzeile bleibt absichtlich kompakt. Detailregler wirken hier live auf die ausgewählte Spur."
+                                        Classes="audio-muted"
+                                        FontSize="9"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="EQ" FontSize="10" Padding="7,5" IsEnabled="{Binding HasSelectedTrack}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,8,2,2" Spacing="9">
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="7">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="High-Pass" IsChecked="{Binding SelectedTrack.HighPassEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.HighPassFrequencyLabel}" Classes="audio-muted" FontSize="9" VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="Equalizer" IsChecked="{Binding SelectedTrack.EqualizerEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="3 Bänder" Classes="audio-muted" FontSize="9" VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="Low-Pass" IsChecked="{Binding SelectedTrack.LowPassEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.LowPassFrequencyLabel}" Classes="audio-muted" FontSize="9" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock
+                                        Text="{Binding SelectedTrack.EqualizerSummaryLabel}"
+                                        Classes="audio-muted"
+                                        FontSize="9"
+                                        TextWrapping="Wrap" />
+
+                                    <Button
+                                        Classes="audio-primary"
+                                        Content="EQ &amp; Analyse öffnen ↗"
+                                        Command="{Binding OpenEqAnalysisCommand}"
+                                        HorizontalAlignment="Stretch" />
+
+                                    <TextBlock
+                                        Text="Die große Frequenzkurve und alle Detailregler liegen im abkoppelbaren Werkzeugfenster. Änderungen wirken dort und hier auf exakt dieselben Spurparameter."
+                                        Classes="audio-muted"
+                                        FontSize="9"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Clips" FontSize="10" Padding="7,5" IsEnabled="{Binding HasSelectedTrack}">
+                            <StackPanel Margin="2,8,2,2" Spacing="7">
+                                <TextBlock Text="{Binding SelectedTrackClipSummary}" Classes="audio-muted" FontSize="9" />
+                                <ListBox
+                                    ItemsSource="{Binding SelectedTrack.Clips}"
+                                    SelectedItem="{Binding SelectedClip, Mode=TwoWay}"
+                                    Background="Transparent"
+                                    BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:AudioClipViewModel">
+                                            <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1" CornerRadius="7" Padding="7" Margin="0,0,0,5">
+                                                <StackPanel Spacing="2">
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                        <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding DurationLabel}" Classes="audio-muted" FontSize="9" />
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding TechnicalLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding SourceRangeLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding SourceStateLabel}" Classes="audio-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="Quelldatei fehlt" Classes="audio-warning" FontSize="8" IsVisible="{Binding IsMissing}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </TabItem>
+
+                        <TabItem Header="Dynamik" FontSize="10" Padding="7,5" IsEnabled="{Binding HasSelectedTrack}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,8,2,2" Spacing="8">
+                                    <TextBlock Text="Reparatur und Dynamik arbeiten live und nicht-destruktiv. Erst bereinigen, dann formen: Rauschen/Gate → Brumm/Notch → EQ → De-Esser → Kompressor/Limiter." Classes="audio-muted" FontSize="9" TextWrapping="Wrap" />
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <CheckBox Content="Rauschreduzierung" IsEnabled="{Binding SelectedTrack.HasNoiseProfile}" IsChecked="{Binding SelectedTrack.NoiseReductionEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.NoiseReductionStrengthLabel}" Classes="audio-muted" FontSize="9" />
+                                            </Grid>
+                                            <Slider IsEnabled="{Binding SelectedTrack.NoiseReductionEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.NoiseReductionStrength, Mode=TwoWay}" />
+                                            <TextBlock Text="{Binding SelectedTrack.NoiseProfileSummaryLabel}" Classes="audio-muted" FontSize="8" />
+                                            <TextBlock Text="Rauschprofil im Fenster EQ &amp; Analyse → Restaurierung lernen." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <CheckBox Content="Expander / Noise Gate" IsChecked="{Binding SelectedTrack.ExpanderEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Schwelle" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ExpanderEnabled}" Minimum="-80" Maximum="-10" Value="{Binding SelectedTrack.ExpanderThresholdDb, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ExpanderThresholdLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Absenkung" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ExpanderEnabled}" Minimum="0" Maximum="60" Value="{Binding SelectedTrack.ExpanderReductionDb, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ExpanderReductionLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="Senkt leise Passagen weich ab, statt sie hart stummzuschalten. Gut für Grundrauschen zwischen Signalen." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <CheckBox Content="Notch · einzelne Störfrequenz" IsChecked="{Binding SelectedTrack.NotchEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Frequenz" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.NotchEnabled}" Minimum="20" Maximum="20000" Value="{Binding SelectedTrack.NotchFrequencyHz, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.NotchFrequencyLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Breite" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.NotchEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.NotchWidthPercent, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.NotchWidthLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="Für Pfeifen, Zirpen oder eine klar lokalisierbare Störfrequenz. Möglichst schmal beginnen." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <CheckBox Content="Brummen entfernen" IsChecked="{Binding SelectedTrack.HumRemovalEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="68,Auto,Auto,*" ColumnSpacing="8">
+                                                <TextBlock Text="Netzfrequenz" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <RadioButton Grid.Column="1" Content="50 Hz" GroupName="HumFrequency" IsChecked="{Binding SelectedTrack.IsHum50Hz, Mode=TwoWay}" FontSize="8" />
+                                                <RadioButton Grid.Column="2" Content="60 Hz" GroupName="HumFrequency" IsChecked="{Binding SelectedTrack.IsHum60Hz, Mode=TwoWay}" FontSize="8" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Oberwellen" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.HumRemovalEnabled}" Minimum="1" Maximum="8" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding SelectedTrack.HumHarmonics, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.HumHarmonicsLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Stärke" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.HumRemovalEnabled}" Minimum="0" Maximum="30" Value="{Binding SelectedTrack.HumReductionDb, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.HumReductionLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="Dämpft die Netzfrequenz und ausgewählte Oberwellen mit schmalen Filtern." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <CheckBox Content="De-Esser · Zischlaute" IsChecked="{Binding SelectedTrack.DeEsserEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Bereich" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.DeEsserEnabled}" Minimum="3000" Maximum="12000" Value="{Binding SelectedTrack.DeEsserFrequencyHz, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.DeEsserFrequencyLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Stärke" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.DeEsserEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.DeEsserStrength, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding SelectedTrack.DeEsserStrengthLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="Reduziert nur den hohen Signalanteil, wenn er im gewählten Bereich auffällig wird." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <CheckBox Content="Kompressor" IsChecked="{Binding SelectedTrack.CompressorEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.CompressorStrengthLabel}" Classes="audio-muted" FontSize="9" />
+                                            </Grid>
+                                            <Slider IsEnabled="{Binding SelectedTrack.CompressorEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.CompressorStrength, Mode=TwoWay}" />
+                                            <TextBlock Text="Live · Stärke steuert Threshold, Ratio und Timing gemeinsam." Classes="audio-muted" FontSize="8" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <CheckBox Content="Limiter" IsChecked="{Binding SelectedTrack.LimiterEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.LimiterCeilingLabel}" Classes="audio-muted" FontSize="9" />
+                                            </Grid>
+                                            <Slider IsEnabled="{Binding SelectedTrack.LimiterEnabled}" Minimum="-12" Maximum="0" Value="{Binding SelectedTrack.LimiterCeilingDb, Mode=TwoWay}" />
+                                            <TextBlock Text="Live · Sample-Peak-Limiter. True-Peak/Oversampling folgt später." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        </TabControl>
+
+                        <TabControl Margin="0,2,0,0" IsVisible="{Binding IsMasterInspectorSelected}">
+                        <TabItem Header="Projekt / Master" FontSize="10" Padding="7,5">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,8,2,2" Spacing="9">
+                                    <StackPanel Spacing="3">
+                                        <Grid ColumnDefinitions="14,*,52" ColumnSpacing="5">
+                                            <TextBlock Text="L" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                            <ProgressBar Grid.Column="1" Minimum="-60" Maximum="0" Value="{Binding MasterMeterLeftDb}" Height="6" />
+                                            <TextBlock Grid.Column="2" Text="{Binding MasterPeakReadout}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="14,*" ColumnSpacing="5">
+                                            <TextBlock Text="R" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                            <ProgressBar Grid.Column="1" Minimum="-60" Maximum="0" Value="{Binding MasterMeterRightDb}" Height="6" />
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <TextBlock Text="PROJEKTANALYSE" FontSize="9" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="kompletter Mix" Classes="audio-muted" FontSize="8" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock Text="Integrated" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding ProjectIntegratedReadout}" FontSize="17" FontWeight="SemiBold" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Text="True Peak" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding ProjectTruePeakReadout}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5">
+                                                <TextBlock Text="ST max" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Column="1" Text="{Binding ProjectShortTermReadout}" FontSize="9" />
+                                                <TextBlock Grid.Column="2" Text="M max" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Column="3" Text="{Binding ProjectMomentaryReadout}" FontSize="9" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding ProjectTruePeakStatusLabel}" FontSize="8" TextWrapping="Wrap" />
+                                            <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="5" Padding="5,3">
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock Text="{Binding MasterPeakWarningSummaryLabel}" FontSize="8" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding MasterPeakWarningDetailLabel}" Classes="audio-muted" FontSize="7" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
+                                                <ProgressBar Minimum="0" Maximum="100" Value="{Binding MasterAnalysisProgress}" Height="4" VerticalAlignment="Center" />
+                                                <Button Grid.Column="1" Classes="audio-primary" Content="{Binding MasterAnalysisButtonLabel}" Command="{Binding AnalyzeMasterCommand}" Padding="10,5" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="4">
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,*,Auto" ColumnSpacing="5">
+                                                <TextBlock Text="LIVE" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="ST" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Column="2" Text="{Binding LiveShortTermReadout}" FontSize="9" />
+                                                <TextBlock Grid.Column="3" Text="M" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Column="4" Text="{Binding LiveMomentaryReadout}" FontSize="9" />
+                                                <TextBlock Grid.Column="5" Text="{Binding LiveTruePeakReadout}" FontSize="9" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                                                <TextBlock Text="Limiter GR" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Column="1" Text="{Binding LiveLimiterReductionReadout}" FontSize="9" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding LiveAnalysisStatusLabel}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Grid ColumnDefinitions="Auto,*,58" ColumnSpacing="7">
+                                        <TextBlock Text="Master" Classes="audio-section-title" VerticalAlignment="Center" />
+                                        <Slider Grid.Column="1" Minimum="-60" Maximum="12" Value="{Binding MasterVolumeDb, Mode=TwoWay}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding MasterVolumeLabel}" Classes="audio-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="7">
+                                                <TextBlock Text="Mastering-Ziel" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding MasteringPresets}" SelectedItem="{Binding SelectedMasteringPreset, Mode=TwoWay}" HorizontalAlignment="Stretch" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding MasteringPresetDescription}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+
+                                            <Grid ColumnDefinitions="72,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="Integrated" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" Minimum="-30" Maximum="-5" Value="{Binding TargetLufs, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding TargetLufsLabel}" Classes="audio-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="72,*,58" ColumnSpacing="6">
+                                                <TextBlock Text="True Peak" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                                <Slider Grid.Column="1" Minimum="-6" Maximum="0" Value="{Binding MasterLimiterCeilingDb, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding MasterLimiterCeilingLabel}" Classes="audio-muted" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="2">
+                                                <TextBlock Text="Benötigtes Gesamt-Gain" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Column="1" Text="{Binding RecommendedMasterGainLabel}" FontSize="9" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="1" Text="True Peak nach Gain" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ProjectedTruePeakLabel}" FontSize="9" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="2" Text="Nötige Peak-Kontrolle" Classes="audio-muted" FontSize="8" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding RequiredPeakReductionLabel}" FontSize="9" FontWeight="SemiBold" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding MasterTargetAssessmentLabel}" FontSize="8" TextWrapping="Wrap" />
+                                            <Button Content="Auf Ziel normalisieren" Command="{Binding ApplyLoudnessTargetCommand}" HorizontalAlignment="Stretch" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="6">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <TextBlock Text="MASTERING-ASSISTENT" FontSize="9" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="{Binding MasteringAssistantLevelLabel}" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding MasteringAssistantHeadline}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding MasteringAssistantSummary}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+
+                                            <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" BorderBrush="{DynamicResource ElbwaldBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="{Binding MasteringAssistantStep1}" FontSize="8" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding MasteringAssistantStep2}" FontSize="8" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding MasteringAssistantStep3}" FontSize="8" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                                <Button Content="A/B hören" Command="{Binding ToggleMasteringPreviewCommand}" HorizontalAlignment="Stretch" />
+                                                <Button Grid.Column="1" Classes="audio-primary" Content="Auto anwenden" Command="{Binding ApplyMasteringAssistantCommand}" IsEnabled="{Binding CanAutoApplyMasteringAssistant}" HorizontalAlignment="Stretch" />
+                                            </Grid>
+                                            <Button Content="Automatik rückgängig" Command="{Binding UndoMasteringAssistantCommand}" IsVisible="{Binding CanUndoMasteringAssistant}" HorizontalAlignment="Stretch" />
+                                            <TextBlock Text="{Binding MasteringPreviewStateLabel}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft" IsVisible="{Binding HasPeakEvents}">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <TextBlock Text="KRITISCHE SPITZEN · VOR MASTER-LIMITER" FontSize="9" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="Top-Ereignisse" Classes="audio-muted" FontSize="8" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding PeakEventHeadline}" FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding PeakEventSummary}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+
+                                            <ItemsControl ItemsSource="{Binding PeakEvents}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:MasteringPeakEventResult">
+                                                        <Border
+                                                            Background="{DynamicResource ElbwaldSurfaceQuietBrush}"
+                                                            BorderBrush="{DynamicResource ElbwaldBorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            Padding="6"
+                                                            Margin="0,2">
+                                                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6" RowSpacing="2">
+                                                                <TextBlock Text="{Binding TimeReadout}" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding TruePeakReadout}" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding ContributorsSummary}" Classes="audio-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
+                                                                <Button Grid.Column="3" Content="Anspringen" FontSize="8" Padding="5,2" MinHeight="22" Click="OnPeakEventJumpClick" />
+                                                                <Button Grid.Column="4" Content="Anhören" FontSize="8" Padding="5,2" MinHeight="22" Classes="audio-primary" Click="OnPeakEventListenClick" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft" IsVisible="{Binding HasPeakContributors}">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="PEAK-URSACHEN" FontSize="9" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding PeakCauseHeadline}" FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding PeakCauseSummary}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                            <ItemsControl ItemsSource="{Binding PeakContributors}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:MasteringTrackAnalysisResult">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7" Margin="0,1">
+                                                            <TextBlock Text="{Binding TrackName}" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding IntegratedReadout}" Classes="audio-muted" FontSize="8" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding TruePeakReadout}" FontSize="9" FontWeight="SemiBold" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="{Binding PeakCauseActionLabel}" FontSize="8" TextWrapping="Wrap" />
+                                            <TextBlock Text="Spurwerte: nach Spur-Effekten/Mixer, vor Master-Gain. Der Master kann durch Summierung mehrerer Spuren höher liegen." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="audio-soft">
+                                        <StackPanel Spacing="5">
+                                            <CheckBox Content="True-Peak-Limiter · 4× Analyse" IsChecked="{Binding MasterLimiterEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding MasterLimiterStateLabel}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                            <Border Background="{DynamicResource ElbwaldSurfaceQuietBrush}" CornerRadius="5" Padding="6,4">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="2">
+                                                    <TextBlock Text="Projekt-GR" FontSize="8" FontWeight="SemiBold" />
+                                                    <TextBlock Grid.Column="2" Text="Max" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Grid.Column="3" Text="{Binding ProjectLimiterMaxReductionReadout}" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                    <TextBlock Grid.Row="1" Text="Ø" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ProjectLimiterAverageReductionReadout}" FontSize="9" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="2" Text=">3 / >5 dB" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding ProjectLimiterTimeAboveThresholdsReadout}" FontSize="8" HorizontalAlignment="Right" />
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="{Binding ProjectLimiterReductionAssessmentLabel}" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="Projektanalyse = kompletter Song · Live = aktuelle Passage · Track-Peaks werden vor dem Master gemessen." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

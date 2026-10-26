@@ -76,19 +76,27 @@ public static class BasicImageEditOperations
 
 
     /// <summary>
-    /// Creates one basic photographic adjustment step. Exposure is measured in EV,
-    /// contrast and saturation use the range -100..+100.
+    /// Creates one basic photographic light/color adjustment step. Exposure is measured
+    /// in EV; all remaining controls use the range -100..+100.
     /// </summary>
     public static ImageEditOperation Tone(
         double exposureEv,
         double contrast,
         double saturation,
+        double temperature,
+        double tint,
+        double shadows,
+        double highlights,
         string? operationId = null)
     {
         ToneImageEditOperationProcessor.ValidateParameters(
             exposureEv,
             contrast,
-            saturation);
+            saturation,
+            temperature,
+            tint,
+            shadows,
+            highlights);
 
         return new ImageEditOperation(
             operationId ?? Guid.NewGuid().ToString("N"),
@@ -100,7 +108,11 @@ public static class BasicImageEditOperations
                 {
                     exposureEv,
                     contrast,
-                    saturation
+                    saturation,
+                    temperature,
+                    tint,
+                    shadows,
+                    highlights
                 }));
     }
 
