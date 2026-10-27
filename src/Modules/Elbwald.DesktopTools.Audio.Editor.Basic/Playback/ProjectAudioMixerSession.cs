@@ -76,7 +76,8 @@ internal sealed class ProjectAudioMixerSession : IDisposable
         WavMetadataReader metadataReader,
         WavSampleDecoder decoder,
         CancellationToken cancellationToken = default,
-        bool capturePreLimiterAnalysis = false)
+        bool capturePreLimiterAnalysis = false,
+        double additionalTailSeconds = 0d)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(metadataReader);
@@ -144,6 +145,7 @@ internal sealed class ProjectAudioMixerSession : IDisposable
                 .Select(clip => Math.Max(0, clip.TimelineStartSeconds) + Math.Max(0, clip.DurationSeconds))
                 .DefaultIfEmpty(0)
                 .Max();
+            durationSeconds += Math.Clamp(additionalTailSeconds, 0d, 30d);
             var durationFrames = checked((long)Math.Ceiling(durationSeconds * document.SampleRate));
 
             return new ProjectAudioMixerSession(
@@ -251,6 +253,7 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             track.NoiseReducer.Reset();
             track.BasicFx.Reset();
             track.Equalizer.Reset();
+            track.MusicalFx.Reset();
             track.Dynamics.Reset();
             track.AnalysisMeter?.Reset();
         }
@@ -315,6 +318,7 @@ internal sealed class ProjectAudioMixerSession : IDisposable
                 track.NoiseReducer.Reset();
                 track.BasicFx.Reset();
                 track.Equalizer.Reset();
+                track.MusicalFx.Reset();
                 track.Dynamics.Reset();
                 track.Mixer.SetMeter(AudioStereoMeter.Silence);
                 track.CaptureAnalysisBlock(null, output.Length);
@@ -350,7 +354,16 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             }
 
             track.BasicFx.ProcessPostEq(trackBuffer, SampleRate, track.Effects.GetBasicFxSnapshot());
-            track.Dynamics.Process(trackBuffer, SampleRate, track.Effects.GetDynamicsSnapshot());
+            var musicalFxSettings = track.Effects.GetMusicalFxSnapshot();
+            track.MusicalFx.ProcessChannelTools(trackBuffer, musicalFxSettings);
+            track.MusicalFx.ProcessSaturation(trackBuffer, musicalFxSettings);
+            var dynamicsSettings = track.Effects.GetDynamicsSnapshot();
+            track.Dynamics.ProcessCompressor(trackBuffer, SampleRate, dynamicsSettings);
+            track.MusicalFx.ProcessChorus(trackBuffer, SampleRate, musicalFxSettings);
+            track.MusicalFx.ProcessStereoWidth(trackBuffer, musicalFxSettings);
+            track.MusicalFx.ProcessDelay(trackBuffer, SampleRate, musicalFxSettings);
+            track.MusicalFx.ProcessReverb(trackBuffer, SampleRate, musicalFxSettings);
+            track.Dynamics.ProcessLimiter(trackBuffer, dynamicsSettings);
             ApplyTrackMixer(output, trackBuffer, mixer, track);
             track.CaptureAnalysisBlock(trackBuffer, trackBuffer.Length);
         }
@@ -708,6 +721,7 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             NoiseReducer = new SpectralNoiseReducer();
             BasicFx = new TrackBasicFxProcessor();
             Equalizer = new TrackEqualizerProcessor();
+            MusicalFx = new TrackMusicalFxProcessor();
             Dynamics = new TrackDynamicsProcessor();
             AnalysisMeter = captureAnalysis ? new MasterLoudnessMeter(sampleRate) : null;
         }
@@ -725,6 +739,8 @@ internal sealed class ProjectAudioMixerSession : IDisposable
         public TrackBasicFxProcessor BasicFx { get; }
 
         public TrackEqualizerProcessor Equalizer { get; }
+
+        public TrackMusicalFxProcessor MusicalFx { get; }
 
         public TrackDynamicsProcessor Dynamics { get; }
 
@@ -828,18 +844,19 @@ internal sealed class ProjectAudioMixerSession : IDisposable
         private TrackNoiseReductionSettings _noiseReductionSettings;
         private TrackBasicFxSettings _basicFxSettings;
         private TrackEqualizerSettings _equalizerSettings;
+        private TrackMusicalFxSettings _musicalFxSettings;
         private TrackDynamicsSettings _dynamicsSettings;
 
         public LiveTrackEffectsState(AudioTrackEffectsDocument effects)
         {
-            (_noiseReductionSettings, _basicFxSettings, _equalizerSettings, _dynamicsSettings) = CreateSnapshots(effects);
+            (_noiseReductionSettings, _basicFxSettings, _equalizerSettings, _musicalFxSettings, _dynamicsSettings) = CreateSnapshots(effects);
         }
 
         public void Update(AudioTrackEffectsDocument effects)
         {
             lock (_gate)
             {
-                (_noiseReductionSettings, _basicFxSettings, _equalizerSettings, _dynamicsSettings) = CreateSnapshots(effects);
+                (_noiseReductionSettings, _basicFxSettings, _equalizerSettings, _musicalFxSettings, _dynamicsSettings) = CreateSnapshots(effects);
             }
         }
 
@@ -867,6 +884,14 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             }
         }
 
+        public TrackMusicalFxSettings GetMusicalFxSnapshot()
+        {
+            lock (_gate)
+            {
+                return _musicalFxSettings;
+            }
+        }
+
         public TrackDynamicsSettings GetDynamicsSnapshot()
         {
             lock (_gate)
@@ -875,7 +900,7 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             }
         }
 
-        private static (TrackNoiseReductionSettings NoiseReduction, TrackBasicFxSettings BasicFx, TrackEqualizerSettings Equalizer, TrackDynamicsSettings Dynamics) CreateSnapshots(
+        private static (TrackNoiseReductionSettings NoiseReduction, TrackBasicFxSettings BasicFx, TrackEqualizerSettings Equalizer, TrackMusicalFxSettings MusicalFx, TrackDynamicsSettings Dynamics) CreateSnapshots(
             AudioTrackEffectsDocument effects)
         {
             var noiseReduction = new TrackNoiseReductionSettings(
@@ -912,13 +937,37 @@ internal sealed class ProjectAudioMixerSession : IDisposable
                 effects.LowPassEnabled,
                 Math.Clamp(effects.LowPassFrequencyHz, 2_000, 20_000));
 
+            var musicalFx = new TrackMusicalFxSettings(
+                Math.Clamp(effects.ChannelMode, 0, 4),
+                effects.PhaseInvertLeft,
+                effects.PhaseInvertRight,
+                effects.SaturationEnabled,
+                Math.Clamp(effects.SaturationDriveDb, 0, 18),
+                Math.Clamp(effects.SaturationMixPercent, 0, 100),
+                effects.ChorusEnabled,
+                Math.Clamp(effects.ChorusRateHz, 0.05, 3),
+                Math.Clamp(effects.ChorusDepthPercent, 0, 100),
+                Math.Clamp(effects.ChorusMixPercent, 0, 100),
+                effects.StereoWidthEnabled,
+                Math.Clamp(effects.StereoWidthPercent, 0, 200),
+                effects.DelayEnabled,
+                Math.Clamp(effects.DelayTimeMs, 20, 1_200),
+                Math.Clamp(effects.DelayFeedbackPercent, 0, 75),
+                Math.Clamp(effects.DelayMixPercent, 0, 100),
+                effects.DelayPingPong,
+                effects.ReverbEnabled,
+                Math.Clamp(effects.ReverbMixPercent, 0, 100),
+                Math.Clamp(effects.ReverbDecayPercent, 0, 100),
+                Math.Clamp(effects.ReverbDampingPercent, 0, 100),
+                Math.Clamp(effects.ReverbPreDelayMs, 0, 120));
+
             var dynamics = new TrackDynamicsSettings(
                 effects.CompressorEnabled,
                 Math.Clamp(effects.CompressorStrength, 0, 100),
                 effects.LimiterEnabled,
                 Math.Clamp(effects.LimiterCeilingDb, -12, 0));
 
-            return (noiseReduction, basicFx, equalizer, dynamics);
+            return (noiseReduction, basicFx, equalizer, musicalFx, dynamics);
         }
     }
 

@@ -29,7 +29,9 @@ public sealed record StemRepairFinding(
     double? SuggestedThresholdDb = null,
     double? SuggestedReductionDb = null,
     int? SuggestedHarmonics = null,
-    double? SuggestedWidthPercent = null);
+    double? SuggestedWidthPercent = null,
+    double? Persistence = null,
+    double? SuggestedAuditionTimeSeconds = null);
 
 public sealed record StemRepairAnalysisResult(
     Guid TrackId,

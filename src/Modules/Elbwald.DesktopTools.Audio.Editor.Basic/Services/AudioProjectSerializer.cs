@@ -153,6 +153,49 @@ public sealed class AudioProjectSerializer
             // V6 adds basic per-track cleanup FX (expander/gate, notch, hum removal
             // and de-esser). Every new effect defaults to disabled, therefore old
             // projects retain their exact mix until the user explicitly enables one.
+            document.Version = 6;
+        }
+
+        if (document.Version == 6)
+        {
+            // V7 adds musical track FX. Stereo width defaults to neutral (100 %)
+            // and both new processors remain disabled, so existing mixes do not
+            // change simply because the editor was upgraded.
+            foreach (var track in document.Tracks)
+            {
+                track.Effects.StereoWidthEnabled = false;
+                track.Effects.StereoWidthPercent = 100;
+                track.Effects.ReverbEnabled = false;
+            }
+
+            document.Version = 7;
+        }
+
+        if (document.Version == 7)
+        {
+            // V8 adds channel utilities and delay. Defaults are neutral/disabled,
+            // therefore existing projects retain their current sound.
+            foreach (var track in document.Tracks)
+            {
+                track.Effects.ChannelMode = 0;
+                track.Effects.PhaseInvertLeft = false;
+                track.Effects.PhaseInvertRight = false;
+                track.Effects.DelayEnabled = false;
+            }
+
+            document.Version = 8;
+        }
+
+        if (document.Version == 8)
+        {
+            // V9 adds saturation and chorus. Both are disabled by default,
+            // so existing projects remain sonically unchanged after migration.
+            foreach (var track in document.Tracks)
+            {
+                track.Effects.SaturationEnabled = false;
+                track.Effects.ChorusEnabled = false;
+            }
+
             document.Version = AudioProjectDocument.CurrentVersion;
         }
     }
@@ -275,6 +318,28 @@ public sealed class AudioProjectSerializer
                     DeEsserEnabled = track.Effects.DeEsserEnabled,
                     DeEsserFrequencyHz = track.Effects.DeEsserFrequencyHz,
                     DeEsserStrength = track.Effects.DeEsserStrength,
+                    ChannelMode = track.Effects.ChannelMode,
+                    PhaseInvertLeft = track.Effects.PhaseInvertLeft,
+                    PhaseInvertRight = track.Effects.PhaseInvertRight,
+                    SaturationEnabled = track.Effects.SaturationEnabled,
+                    SaturationDriveDb = track.Effects.SaturationDriveDb,
+                    SaturationMixPercent = track.Effects.SaturationMixPercent,
+                    ChorusEnabled = track.Effects.ChorusEnabled,
+                    ChorusRateHz = track.Effects.ChorusRateHz,
+                    ChorusDepthPercent = track.Effects.ChorusDepthPercent,
+                    ChorusMixPercent = track.Effects.ChorusMixPercent,
+                    StereoWidthEnabled = track.Effects.StereoWidthEnabled,
+                    StereoWidthPercent = track.Effects.StereoWidthPercent,
+                    DelayEnabled = track.Effects.DelayEnabled,
+                    DelayTimeMs = track.Effects.DelayTimeMs,
+                    DelayFeedbackPercent = track.Effects.DelayFeedbackPercent,
+                    DelayMixPercent = track.Effects.DelayMixPercent,
+                    DelayPingPong = track.Effects.DelayPingPong,
+                    ReverbEnabled = track.Effects.ReverbEnabled,
+                    ReverbMixPercent = track.Effects.ReverbMixPercent,
+                    ReverbDecayPercent = track.Effects.ReverbDecayPercent,
+                    ReverbDampingPercent = track.Effects.ReverbDampingPercent,
+                    ReverbPreDelayMs = track.Effects.ReverbPreDelayMs,
                     EqualizerEnabled = track.Effects.EqualizerEnabled,
                     BassDb = track.Effects.BassDb,
                     MidDb = track.Effects.MidDb,

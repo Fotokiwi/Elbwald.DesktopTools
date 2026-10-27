@@ -1,0 +1,239 @@
+<Window
+    x:Class="Elbwald.DesktopTools.Audio.Editor.Basic.Views.AudioExportWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="WAV-Mixdown exportieren"
+    Width="620"
+    Height="760"
+    MinWidth="560"
+    MinHeight="620"
+    WindowStartupLocation="CenterOwner"
+    CanResize="True">
+
+    <Window.Styles>
+        <Style Selector="Border.export-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentSoftBrush}" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="Border.export-metric">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldSurfaceQuietBrush}" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="9" />
+        </Style>
+        <Style Selector="TextBlock.export-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="Button.export-button">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="CornerRadius" Value="7" />
+        </Style>
+        <Style Selector="Button.export-primary">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Background" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="18" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+        <StackPanel Spacing="3">
+            <TextBlock Text="WAV-Mixdown" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock
+                Text="Der Export rendert den vollständigen Spur- und Master-Signalweg offline."
+                Classes="export-muted"
+                FontSize="10" />
+            <TextBlock Text="{Binding ProjectLabel}" Classes="export-muted" FontSize="9" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="10">
+                <Border Classes="export-card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Format" FontWeight="SemiBold" FontSize="12" />
+
+                        <Grid ColumnDefinitions="115,*" ColumnSpacing="10">
+                            <TextBlock Text="Samplerate" VerticalAlignment="Center" FontSize="10" />
+                            <ComboBox
+                                Grid.Column="1"
+                                ItemsSource="{Binding SampleRateOptions}"
+                                SelectedItem="{Binding SelectedSampleRate, Mode=TwoWay}"
+                                IsEnabled="{Binding CanChangeSettings}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="115,*" ColumnSpacing="10">
+                            <TextBlock Text="Bit-Tiefe" VerticalAlignment="Center" FontSize="10" />
+                            <ComboBox
+                                Grid.Column="1"
+                                ItemsSource="{Binding EncodingOptions}"
+                                SelectedItem="{Binding SelectedEncoding, Mode=TwoWay}"
+                                IsEnabled="{Binding CanChangeSettings}" />
+                        </Grid>
+
+                        <TextBlock
+                            Text="{Binding SelectedEncoding.Description}"
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap" />
+
+                        <CheckBox
+                            Content="TPDF-Dither bei Integer-Export"
+                            IsChecked="{Binding Dither, Mode=TwoWay}"
+                            IsEnabled="{Binding IsDitherAvailable}"
+                            FontSize="10" />
+                        <TextBlock
+                            Text="{Binding DitherHint}"
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="export-card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Projektende" FontWeight="SemiBold" FontSize="12" />
+                        <CheckBox
+                            Content="Delay- und Hall-Ausklang mit exportieren"
+                            IsChecked="{Binding IncludeEffectTail, Mode=TwoWay}"
+                            IsEnabled="{Binding CanChangeSettings}"
+                            FontSize="10" />
+                        <TextBlock
+                            Text="{Binding EffectTailLabel}"
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="export-card">
+                    <StackPanel Spacing="9">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Export-/Master-Check" FontWeight="SemiBold" FontSize="12" />
+                                <TextBlock
+                                    Text="{Binding ExportReadinessLabel}"
+                                    FontWeight="SemiBold"
+                                    FontSize="15" />
+                            </StackPanel>
+                            <Button
+                                Grid.Column="1"
+                                Classes="export-button"
+                                Content="{Binding ExportCheckButtonLabel}"
+                                Command="{Binding ExportCheckCommand}" />
+                        </Grid>
+
+                        <TextBlock
+                            Text="{Binding ExportReadinessSummary}"
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap" />
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                            <Border Classes="export-metric">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="LUFS integriert" Classes="export-muted" FontSize="8" />
+                                    <TextBlock Text="{Binding IntegratedLufsReadout}" FontWeight="SemiBold" FontSize="13" />
+                                    <TextBlock
+                                        Text="{Binding IntegratedLufsHint}"
+                                        Classes="export-muted"
+                                        FontSize="8"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Classes="export-metric">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="True Peak" Classes="export-muted" FontSize="8" />
+                                    <TextBlock Text="{Binding TruePeakReadout}" FontWeight="SemiBold" FontSize="13" />
+                                    <TextBlock
+                                        Text="{Binding TruePeakHint}"
+                                        Classes="export-muted"
+                                        FontSize="8"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="1" Classes="export-metric">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Clipping" Classes="export-muted" FontSize="8" />
+                                    <TextBlock Text="{Binding ClippingReadout}" FontWeight="SemiBold" FontSize="13" />
+                                    <TextBlock
+                                        Text="{Binding ClippingHint}"
+                                        Classes="export-muted"
+                                        FontSize="8"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="1" Classes="export-metric">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Limiter-Gain-Reduction" Classes="export-muted" FontSize="8" />
+                                    <TextBlock Text="{Binding LimiterReductionReadout}" FontWeight="SemiBold" FontSize="13" />
+                                    <TextBlock
+                                        Text="{Binding LimiterReductionHint}"
+                                        Classes="export-muted"
+                                        FontSize="8"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock
+                            Text="{Binding ExportCheckHintsText}"
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="export-card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Hinweise" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap"
+                            Text="24-Bit PCM ist der empfohlene Standard für einen fertigen hochwertigen Mix. 16-Bit eignet sich für maximale Kompatibilität. 32-Bit Float ist ideal, wenn die Datei später weiterbearbeitet wird und kann Pegel über 0 dBFS verlustfrei erhalten." />
+                        <TextBlock
+                            Classes="export-muted"
+                            FontSize="9"
+                            TextWrapping="Wrap"
+                            Text="Ein temporärer Mastering-A/B-Preview wird nicht exportiert. Erst angewendete Projektwerte landen im Mixdown." />
+                    </StackPanel>
+                </Border>
+
+                <ProgressBar
+                    Minimum="0"
+                    Maximum="100"
+                    Value="{Binding ProgressPercent}"
+                    Height="7" />
+
+                <TextBlock
+                    Text="{Binding StatusMessage}"
+                    FontSize="10"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock
+                Text="{Binding ExportedFilePath}"
+                Classes="export-muted"
+                FontSize="8"
+                TextTrimming="CharacterEllipsis"
+                VerticalAlignment="Center" />
+            <Button
+                Grid.Column="1"
+                Classes="export-button"
+                Content="{Binding CancelButtonLabel}"
+                Command="{Binding CancelOrCloseCommand}" />
+            <Button
+                Grid.Column="2"
+                Classes="export-primary"
+                Content="WAV exportieren"
+                Command="{Binding ExportCommand}" />
+        </Grid>
+    </Grid>
+</Window>

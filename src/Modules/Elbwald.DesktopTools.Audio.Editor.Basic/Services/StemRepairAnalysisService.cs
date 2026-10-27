@@ -50,7 +50,7 @@ public sealed class StemRepairAnalysisService
         }
 
         var windows = BuildAnalysisWindows(duration);
-        var rendered = new List<float>();
+        var renderedWindows = new List<RenderedAnalysisWindow>(windows.Count);
         var processedWindows = 0;
 
         foreach (var window in windows)
@@ -65,20 +65,21 @@ public sealed class StemRepairAnalysisService
 
             if (samples.Length > 0)
             {
-                rendered.AddRange(samples);
+                renderedWindows.Add(new RenderedAnalysisWindow(window.StartSeconds, samples));
             }
 
             processedWindows++;
-            progress?.Report(processedWindows / (double)Math.Max(1, windows.Count) * 0.45d);
+            progress?.Report(processedWindows / (double)Math.Max(1, windows.Count) * 0.35d);
         }
 
-        var allSamples = rendered.ToArray();
-        if (allSamples.Length < FftSize)
+        if (renderedWindows.Count == 0 || renderedWindows.Sum(item => item.Samples.Length) < FftSize)
         {
             throw new InvalidOperationException("Für eine belastbare Stem-Analyse ist nicht genug Audiomaterial vorhanden.");
         }
 
-        var rmsBlocks = CalculateRmsBlocks(allSamples, TargetSampleRate);
+        var rmsBlocks = renderedWindows
+            .SelectMany(window => CalculateRmsBlocks(window.Samples, TargetSampleRate))
+            .ToArray();
         var validLevels = rmsBlocks.Where(value => value > -100d).OrderBy(value => value).ToArray();
         if (validLevels.Length == 0)
         {
@@ -91,43 +92,52 @@ public sealed class StemRepairAnalysisService
 
         var averagePower = new double[FftSize / 2 + 1];
         var spectralFrames = 0;
-        var sibilanceRatios = new List<double>();
+        var sibilanceFrames = new List<TimedValue>();
+        var hum50Frames = new List<TimedHumEvidence>();
+        var hum60Frames = new List<TimedHumEvidence>();
 
-        for (var offset = 0; offset + FftSize <= allSamples.Length; offset += HopSize)
+        foreach (var window in renderedWindows)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var frame = new float[FftSize];
-            Array.Copy(allSamples, offset, frame, 0, FftSize);
-
-            var frameRms = RmsDb(frame);
-            if (frameRms <= -85d)
+            for (var offset = 0; offset + FftSize <= window.Samples.Length; offset += HopSize)
             {
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var spectrum = SpectrumAnalyzer.Analyze(frame, TargetSampleRate, FftSize, -120);
-            if (!spectrum.HasData)
-            {
-                continue;
-            }
+                var frame = new float[FftSize];
+                Array.Copy(window.Samples, offset, frame, 0, FftSize);
+                var frameRms = RmsDb(frame);
+                if (frameRms <= Math.Max(-85d, noiseFloor + 4d))
+                {
+                    continue;
+                }
 
-            for (var bin = 0; bin < averagePower.Length && bin < spectrum.MagnitudesDb.Length; bin++)
-            {
-                averagePower[bin] += Math.Pow(10d, spectrum.MagnitudesDb[bin] / 10d);
-            }
+                var spectrum = SpectrumAnalyzer.Analyze(frame, TargetSampleRate, FftSize, -120);
+                if (!spectrum.HasData)
+                {
+                    continue;
+                }
 
-            var mid = BandPower(spectrum, 1_000, 4_000);
-            var high = BandPower(spectrum, 5_000, 10_000);
-            if (mid > 1e-12 && high > 1e-12)
-            {
-                sibilanceRatios.Add(10d * Math.Log10(high / mid));
-            }
+                for (var bin = 0; bin < averagePower.Length && bin < spectrum.MagnitudesDb.Length; bin++)
+                {
+                    averagePower[bin] += Math.Pow(10d, spectrum.MagnitudesDb[bin] / 10d);
+                }
 
-            spectralFrames++;
+                var absoluteTime = window.StartSeconds + (offset + FftSize / 2d) / TargetSampleRate;
+                var mid = BandPower(spectrum, 1_000, 4_000);
+                var high = BandPower(spectrum, 5_000, 10_000);
+                if (mid > 1e-12 && high > 1e-12)
+                {
+                    sibilanceFrames.Add(new TimedValue(
+                        absoluteTime,
+                        10d * Math.Log10(high / mid)));
+                }
+
+                hum50Frames.Add(EvaluateHumFrame(spectrum.MagnitudesDb, 50d, absoluteTime));
+                hum60Frames.Add(EvaluateHumFrame(spectrum.MagnitudesDb, 60d, absoluteTime));
+                spectralFrames++;
+            }
         }
 
-        progress?.Report(0.75d);
+        progress?.Report(0.68d);
 
         if (spectralFrames == 0)
         {
@@ -140,9 +150,9 @@ public sealed class StemRepairAnalysisService
 
         var findings = new List<StemRepairFinding>();
         AddNoiseFinding(findings, noiseFloor, activeLevel);
-        AddHumFinding(findings, averageSpectrumDb);
-        AddNarrowbandFinding(findings, averageSpectrumDb);
-        AddSibilanceFinding(findings, track.Name, sibilanceRatios);
+        AddHumFinding(findings, hum50Frames, hum60Frames);
+        AddNarrowbandFinding(findings, averageSpectrumDb, renderedWindows, noiseFloor, cancellationToken);
+        AddSibilanceFinding(findings, track.Name, sibilanceFrames);
 
         progress?.Report(1d);
 
@@ -195,63 +205,205 @@ public sealed class StemRepairAnalysisService
 
     private static void AddHumFinding(
         ICollection<StemRepairFinding> findings,
-        IReadOnlyList<double> spectrumDb)
+        IReadOnlyList<TimedHumEvidence> fiftyFrames,
+        IReadOnlyList<TimedHumEvidence> sixtyFrames)
     {
-        var fifty = HumScore(spectrumDb, 50d, out var fiftyHarmonics);
-        var sixty = HumScore(spectrumDb, 60d, out var sixtyHarmonics);
-        var bestFrequency = fifty >= sixty ? 50d : 60d;
-        var bestScore = Math.Max(fifty, sixty);
-        var harmonics = fifty >= sixty ? fiftyHarmonics : sixtyHarmonics;
+        var fifty = SummarizeHumPersistence(fiftyFrames);
+        var sixty = SummarizeHumPersistence(sixtyFrames);
+        var bestFrequency = fifty.Score >= sixty.Score ? 50d : 60d;
+        var best = fifty.Score >= sixty.Score ? fifty : sixty;
 
-        if (bestScore < 4.5d || harmonics < 2)
+        // A true mains hum should recur across time and carry at least two harmonics.
+        // This is deliberately stricter than the original average-spectrum test.
+        if (best.Persistence < 0.24d || best.Score < 5d || best.Harmonics < 2)
         {
             return;
         }
 
-        var confidence = Math.Clamp((bestScore - 2d) / 12d, 0.5d, 0.98d);
-        var severity = bestScore switch
+        var confidence = Math.Clamp(
+            0.28d + best.Persistence * 0.72d + Math.Clamp((best.Score - 5d) / 20d, 0d, 0.18d),
+            0.45d,
+            0.98d);
+        var severity = best.Score switch
         {
-            >= 11d => StemRepairFindingSeverity.High,
+            >= 12d when best.Persistence >= 0.55d => StemRepairFindingSeverity.High,
             >= 7d => StemRepairFindingSeverity.Medium,
             _ => StemRepairFindingSeverity.Low
         };
-        var reduction = Math.Clamp(10d + bestScore * 0.8d, 12d, 24d);
+        var reduction = Math.Clamp(10d + best.Score * 0.75d, 12d, 24d);
 
         findings.Add(new StemRepairFinding(
             StemRepairFindingType.Hum,
             severity,
             confidence,
             $"{bestFrequency:0} Hz Netzbrummen wahrscheinlich",
-            $"Grundfrequenz und {harmonics} passende Oberwellen liegen im Mittel etwa {bestScore:0.0} dB über ihrer lokalen Umgebung.",
-            $"Brummfilter auf {bestFrequency:0} Hz mit {harmonics} Oberwellen und etwa {reduction:0} dB Stärke.",
+            $"Das Muster erscheint in {best.Persistence * 100d:0}% der aktiven Analysefenster; dabei sind typischerweise {best.Harmonics} passende Oberwellen etwa {best.Score:0.0} dB über ihrer lokalen Umgebung.",
+            $"Brummfilter auf {bestFrequency:0} Hz mit {best.Harmonics} Oberwellen und etwa {reduction:0} dB Stärke. Vorher das entfernte Signal anhören.",
             FrequencyHz: bestFrequency,
             SuggestedStrength: reduction,
-            SuggestedHarmonics: harmonics));
+            SuggestedHarmonics: best.Harmonics,
+            Persistence: best.Persistence,
+            SuggestedAuditionTimeSeconds: best.StrongestTimeSeconds));
     }
 
     private static void AddNarrowbandFinding(
         ICollection<StemRepairFinding> findings,
-        IReadOnlyList<double> spectrumDb)
+        IReadOnlyList<double> spectrumDb,
+        IReadOnlyList<RenderedAnalysisWindow> renderedWindows,
+        double noiseFloorDbfs,
+        CancellationToken cancellationToken)
     {
         var binWidth = TargetSampleRate / (double)FftSize;
         var startBin = Math.Max(2, (int)Math.Ceiling(700d / binWidth));
         var endBin = Math.Min(spectrumDb.Count - 3, (int)Math.Floor(11_500d / binWidth));
-
         var bestBin = -1;
         var bestExcess = double.MinValue;
 
         for (var bin = startBin; bin <= endBin; bin++)
         {
             var frequency = bin * binWidth;
-
-            // Avoid flagging the normal mains-hum harmonic family here.
             if (IsNearHarmonic(frequency, 50d, 8d) || IsNearHarmonic(frequency, 60d, 8d))
             {
                 continue;
             }
 
+            var excess = LocalPeakExcess(spectrumDb, bin, 12, 2);
+            if (excess > bestExcess)
+            {
+                bestExcess = excess;
+                bestBin = bin;
+            }
+        }
+
+        if (bestBin < 0 || bestExcess < 12d)
+        {
+            return;
+        }
+
+        var frequencyHz = bestBin * binWidth;
+        var evidence = MeasureNarrowbandPersistence(
+            renderedWindows,
+            bestBin,
+            noiseFloorDbfs,
+            cancellationToken);
+
+        // 700–2000 Hz is packed with vocal formants and instrument fundamentals.
+        // Do not recommend a notch there unless the line is unusually sharp AND
+        // persists at the exact same FFT bin for a large share of active frames.
+        var sensitiveMidrange = frequencyHz is >= 700d and <= 2_000d;
+        var minimumAverageExcess = sensitiveMidrange ? 18d : 12d;
+        var minimumPersistence = sensitiveMidrange ? 0.55d : 0.30d;
+        var minimumFrameExcess = sensitiveMidrange ? 14d : 10d;
+
+        if (bestExcess < minimumAverageExcess ||
+            evidence.Persistence < minimumPersistence ||
+            evidence.MeanExcessDb < minimumFrameExcess)
+        {
+            return;
+        }
+
+        var confidence = Math.Clamp(
+            0.32d + evidence.Persistence * 0.65d + Math.Clamp((bestExcess - minimumAverageExcess) / 30d, 0d, 0.12d),
+            0.48d,
+            0.96d);
+        var severity = bestExcess >= 20d && evidence.Persistence >= 0.55d
+            ? StemRepairFindingSeverity.Medium
+            : StemRepairFindingSeverity.Low;
+        var width = Math.Clamp(18d - (bestExcess - 12d) * 0.8d, 6d, 20d);
+
+        findings.Add(new StemRepairFinding(
+            StemRepairFindingType.NarrowbandInterference,
+            severity,
+            confidence,
+            $"Stabile schmalbandige Spitze bei ca. {FormatFrequency(frequencyHz)}",
+            $"Die Linie bleibt in {evidence.Persistence * 100d:0}% der aktiven Fenster am selben Frequenzpunkt und liegt dort im Mittel {evidence.MeanExcessDb:0.0} dB über der direkten Umgebung.{(sensitiveMidrange ? " Der musikalisch sensible Mittenbereich wurde extra streng bewertet." : string.Empty)}",
+            $"Notch zunächst schmal bei {FormatFrequency(frequencyHz)} setzen. Vor dem Anwenden unbedingt „Störung vorhören“.",
+            FrequencyHz: frequencyHz,
+            SuggestedWidthPercent: width,
+            Persistence: evidence.Persistence,
+            SuggestedAuditionTimeSeconds: evidence.StrongestTimeSeconds));
+    }
+
+    private static void AddSibilanceFinding(
+        ICollection<StemRepairFinding> findings,
+        string trackName,
+        IReadOnlyList<TimedValue> frames)
+    {
+        if (frames.Count < 6)
+        {
+            return;
+        }
+
+        var values = frames.Select(item => item.Value).OrderBy(value => value).ToArray();
+        var highPercentile = Percentile(values, 0.88);
+        var vocalHint =
+            trackName.Contains("vocal", StringComparison.OrdinalIgnoreCase) ||
+            trackName.Contains("vox", StringComparison.OrdinalIgnoreCase) ||
+            trackName.Contains("stimme", StringComparison.OrdinalIgnoreCase) ||
+            trackName.Contains("voice", StringComparison.OrdinalIgnoreCase);
+
+        var threshold = vocalHint ? -3.5d : -1.5d;
+        var active = frames.Where(item => item.Value >= threshold).ToArray();
+        var persistence = active.Length / (double)frames.Count;
+        if (highPercentile < threshold || persistence < (vocalHint ? 0.08d : 0.14d))
+        {
+            return;
+        }
+
+        var confidenceBase = vocalHint ? 0.62d : 0.42d;
+        var confidence = Math.Clamp(
+            confidenceBase + persistence * 0.55d + (highPercentile - threshold) / 20d,
+            confidenceBase,
+            0.94d);
+        var severity = highPercentile > 3d && persistence >= 0.15d
+            ? StemRepairFindingSeverity.Medium
+            : StemRepairFindingSeverity.Low;
+        var strength = Math.Clamp(25d + (highPercentile - threshold) * 4.5d, 25d, 58d);
+        var strongest = frames.OrderByDescending(item => item.Value).First();
+
+        findings.Add(new StemRepairFinding(
+            StemRepairFindingType.Sibilance,
+            severity,
+            confidence,
+            "Wiederkehrende Energie im Zischlautbereich",
+            $"Auffällige 5–10-kHz-Momente treten in {persistence * 100d:0}% der aktiven Analysefenster auf{(vocalHint ? "; der Spurname deutet zusätzlich auf Gesang hin" : string.Empty)}.",
+            $"De-Esser um ca. 7,0 kHz mit zunächst {strength:0}% Stärke ausprobieren und den entfernten Anteil vorhören.",
+            FrequencyHz: 7_000d,
+            SuggestedStrength: strength,
+            Persistence: persistence,
+            SuggestedAuditionTimeSeconds: strongest.TimeSeconds));
+    }
+
+    private static TimedHumEvidence EvaluateHumFrame(
+        IReadOnlyList<double> spectrumDb,
+        double fundamental,
+        double timeSeconds)
+    {
+        var binWidth = TargetSampleRate / (double)FftSize;
+        var excesses = new List<double>();
+        var harmonics = 0;
+
+        for (var harmonic = 1; harmonic <= 8; harmonic++)
+        {
+            var frequency = fundamental * harmonic;
+            if (frequency >= 700d)
+            {
+                break;
+            }
+
+            var bin = (int)Math.Round(frequency / binWidth);
+            if (bin < 0 || bin >= spectrumDb.Count)
+            {
+                continue;
+            }
+
+            var target = Enumerable.Range(Math.Max(0, bin - 1), Math.Min(spectrumDb.Count - Math.Max(0, bin - 1), 3))
+                .Select(index => spectrumDb[index])
+                .DefaultIfEmpty(-120d)
+                .Max();
+
             var neighborhood = new List<double>();
-            for (var offset = -12; offset <= 12; offset++)
+            for (var offset = -10; offset <= 10; offset++)
             {
                 if (Math.Abs(offset) <= 2)
                 {
@@ -270,129 +422,125 @@ public sealed class StemRepairAnalysisService
                 continue;
             }
 
-            var excess = spectrumDb[bin] - Median(neighborhood.ToArray());
-            if (excess > bestExcess)
-            {
-                bestExcess = excess;
-                bestBin = bin;
-            }
-        }
-
-        if (bestBin < 0 || bestExcess < 12d)
-        {
-            return;
-        }
-
-        var bestFrequency = bestBin * binWidth;
-        var confidence = Math.Clamp((bestExcess - 8d) / 14d, 0.48d, 0.94d);
-        var severity = bestExcess >= 18d
-            ? StemRepairFindingSeverity.Medium
-            : StemRepairFindingSeverity.Low;
-        var width = Math.Clamp(18d - (bestExcess - 12d) * 0.8d, 6d, 20d);
-
-        findings.Add(new StemRepairFinding(
-            StemRepairFindingType.NarrowbandInterference,
-            severity,
-            confidence,
-            $"Schmalbandige Spitze bei ca. {FormatFrequency(bestFrequency)}",
-            $"Eine sehr schmale Spektralspitze liegt ungefähr {bestExcess:0.0} dB über benachbarten Frequenzen. Bei tonalem Material kann das auch musikalischer Inhalt sein.",
-            $"Notch zunächst schmal bei {FormatFrequency(bestFrequency)} setzen und per A/B prüfen.",
-            FrequencyHz: bestFrequency,
-            SuggestedWidthPercent: width));
-    }
-
-    private static void AddSibilanceFinding(
-        ICollection<StemRepairFinding> findings,
-        string trackName,
-        IReadOnlyList<double> ratios)
-    {
-        if (ratios.Count < 6)
-        {
-            return;
-        }
-
-        var ordered = ratios.OrderBy(value => value).ToArray();
-        var highPercentile = Percentile(ordered, 0.88);
-        var vocalHint =
-            trackName.Contains("vocal", StringComparison.OrdinalIgnoreCase) ||
-            trackName.Contains("vox", StringComparison.OrdinalIgnoreCase) ||
-            trackName.Contains("stimme", StringComparison.OrdinalIgnoreCase) ||
-            trackName.Contains("voice", StringComparison.OrdinalIgnoreCase);
-
-        var threshold = vocalHint ? -3.5d : -1.5d;
-        if (highPercentile < threshold)
-        {
-            return;
-        }
-
-        var confidenceBase = vocalHint ? 0.66d : 0.45d;
-        var confidence = Math.Clamp(confidenceBase + (highPercentile - threshold) / 14d, confidenceBase, 0.92d);
-        var severity = highPercentile > 3d
-            ? StemRepairFindingSeverity.Medium
-            : StemRepairFindingSeverity.Low;
-        var strength = Math.Clamp(25d + (highPercentile - threshold) * 4.5d, 25d, 58d);
-
-        findings.Add(new StemRepairFinding(
-            StemRepairFindingType.Sibilance,
-            severity,
-            confidence,
-            "Auffällige Energie im Zischlautbereich",
-            $"In lauten Hochtonmomenten ist 5–10 kHz relativ zum Präsenzband deutlich angehoben{(vocalHint ? "; der Spurname deutet zusätzlich auf Gesang hin" : "")}.",
-            $"De-Esser um ca. 7,0 kHz mit zunächst {strength:0}% Stärke ausprobieren.",
-            FrequencyHz: 7_000d,
-            SuggestedStrength: strength));
-    }
-
-    private static double HumScore(
-        IReadOnlyList<double> spectrumDb,
-        double fundamental,
-        out int detectedHarmonics)
-    {
-        var binWidth = TargetSampleRate / (double)FftSize;
-        var excesses = new List<double>();
-        detectedHarmonics = 0;
-
-        for (var harmonic = 1; harmonic <= 8; harmonic++)
-        {
-            var frequency = fundamental * harmonic;
-            if (frequency >= 700d)
-            {
-                break;
-            }
-
-            var bin = (int)Math.Round(frequency / binWidth);
-            if (bin < 3 || bin >= spectrumDb.Count - 4)
-            {
-                continue;
-            }
-
-            var target = new[]
-            {
-                spectrumDb[bin - 1],
-                spectrumDb[bin],
-                spectrumDb[bin + 1]
-            }.Max();
-
-            var neighborhood = new List<double>();
-            for (var offset = -10; offset <= 10; offset++)
-            {
-                if (Math.Abs(offset) <= 2)
-                {
-                    continue;
-                }
-
-                neighborhood.Add(spectrumDb[bin + offset]);
-            }
-
             var excess = target - Median(neighborhood.ToArray());
-            if (excess >= 3.5d)
+            if (excess >= 4d)
             {
-                detectedHarmonics++;
+                harmonics++;
                 excesses.Add(excess);
             }
         }
 
-        return excesses.Count == 0 ? 0d : excesses.Average();
+        return new TimedHumEvidence(
+            timeSeconds,
+            harmonics,
+            excesses.Count == 0 ? 0d : excesses.Average());
+    }
+
+    private static HumPersistenceSummary SummarizeHumPersistence(
+        IReadOnlyList<TimedHumEvidence> frames)
+    {
+        if (frames.Count == 0)
+        {
+            return HumPersistenceSummary.Empty;
+        }
+
+        var positive = frames.Where(item => item.Harmonics >= 2 && item.ScoreDb >= 4d).ToArray();
+        if (positive.Length == 0)
+        {
+            return HumPersistenceSummary.Empty;
+        }
+
+        var persistence = positive.Length / (double)frames.Count;
+        var score = positive.Average(item => item.ScoreDb);
+        var harmonics = (int)Math.Round(positive.Average(item => item.Harmonics));
+        var strongest = positive.OrderByDescending(item => item.ScoreDb).First();
+        return new HumPersistenceSummary(
+            score,
+            persistence,
+            Math.Clamp(harmonics, 2, 8),
+            strongest.TimeSeconds);
+    }
+
+    private static NarrowbandPersistenceSummary MeasureNarrowbandPersistence(
+        IReadOnlyList<RenderedAnalysisWindow> windows,
+        int targetBin,
+        double noiseFloorDbfs,
+        CancellationToken cancellationToken)
+    {
+        var activeFrames = 0;
+        var matchingFrames = 0;
+        var matchingExcesses = new List<double>();
+        var strongestTime = 0d;
+        var strongestExcess = double.MinValue;
+
+        foreach (var window in windows)
+        {
+            for (var offset = 0; offset + FftSize <= window.Samples.Length; offset += HopSize)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var frame = new float[FftSize];
+                Array.Copy(window.Samples, offset, frame, 0, FftSize);
+                if (RmsDb(frame) <= Math.Max(-85d, noiseFloorDbfs + 4d))
+                {
+                    continue;
+                }
+
+                var spectrum = SpectrumAnalyzer.Analyze(frame, TargetSampleRate, FftSize, -120);
+                if (!spectrum.HasData || targetBin >= spectrum.MagnitudesDb.Length)
+                {
+                    continue;
+                }
+
+                activeFrames++;
+                var excess = LocalPeakExcess(spectrum.MagnitudesDb, targetBin, 10, 2);
+                if (excess >= 10d)
+                {
+                    matchingFrames++;
+                    matchingExcesses.Add(excess);
+                    if (excess > strongestExcess)
+                    {
+                        strongestExcess = excess;
+                        strongestTime = window.StartSeconds + (offset + FftSize / 2d) / TargetSampleRate;
+                    }
+                }
+            }
+        }
+
+        return new NarrowbandPersistenceSummary(
+            activeFrames == 0 ? 0d : matchingFrames / (double)activeFrames,
+            matchingExcesses.Count == 0 ? 0d : matchingExcesses.Average(),
+            strongestTime);
+    }
+
+    private static double LocalPeakExcess(
+        IReadOnlyList<double> spectrumDb,
+        int bin,
+        int radius,
+        int excludedRadius)
+    {
+        if (bin < 0 || bin >= spectrumDb.Count)
+        {
+            return double.MinValue;
+        }
+
+        var neighborhood = new List<double>();
+        for (var offset = -radius; offset <= radius; offset++)
+        {
+            if (Math.Abs(offset) <= excludedRadius)
+            {
+                continue;
+            }
+
+            var candidate = bin + offset;
+            if (candidate >= 0 && candidate < spectrumDb.Count)
+            {
+                neighborhood.Add(spectrumDb[candidate]);
+            }
+        }
+
+        return neighborhood.Count == 0
+            ? double.MinValue
+            : spectrumDb[bin] - Median(neighborhood.ToArray());
     }
 
     private static bool IsNearHarmonic(double frequency, double fundamental, double toleranceHz)
@@ -630,6 +778,29 @@ public sealed class StemRepairAnalysisService
 
         return gain;
     }
+
+    private sealed record RenderedAnalysisWindow(double StartSeconds, float[] Samples);
+
+    private readonly record struct TimedValue(double TimeSeconds, double Value);
+
+    private readonly record struct TimedHumEvidence(
+        double TimeSeconds,
+        int Harmonics,
+        double ScoreDb);
+
+    private readonly record struct HumPersistenceSummary(
+        double Score,
+        double Persistence,
+        int Harmonics,
+        double StrongestTimeSeconds)
+    {
+        public static HumPersistenceSummary Empty { get; } = new(0d, 0d, 0, 0d);
+    }
+
+    private readonly record struct NarrowbandPersistenceSummary(
+        double Persistence,
+        double MeanExcessDb,
+        double StrongestTimeSeconds);
 
     private static double DbToLinear(double db) =>
         db <= -60 ? 0 : Math.Pow(10d, db / 20d);

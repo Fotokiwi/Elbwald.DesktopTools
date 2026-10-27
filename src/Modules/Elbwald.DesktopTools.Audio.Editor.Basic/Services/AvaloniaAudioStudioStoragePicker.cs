@@ -123,6 +123,41 @@ public sealed class AvaloniaAudioStudioStoragePicker : IAudioStudioStoragePicker
         return path;
     }
 
+    public async Task<string?> PickWavToSaveAsync(
+        string suggestedFileName,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var storageProvider = GetStorageProvider();
+        if (storageProvider is null || !storageProvider.CanSave)
+        {
+            return null;
+        }
+
+        var startLocation = await ResolveStartLocationAsync(storageProvider, cancellationToken);
+        var fileName = string.IsNullOrWhiteSpace(suggestedFileName)
+            ? "Mixdown.wav"
+            : $"{Path.GetFileNameWithoutExtension(suggestedFileName.Trim())}.wav";
+
+        var file = await storageProvider.SaveFilePickerAsync(
+            new FilePickerSaveOptions
+            {
+                Title = "WAV-Mixdown exportieren",
+                SuggestedFileName = fileName,
+                DefaultExtension = "wav",
+                FileTypeChoices = [WavFileType],
+                ShowOverwritePrompt = true,
+                SuggestedStartLocation = startLocation
+            });
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var path = file?.TryGetLocalPath();
+        _pickerStateStore.SaveDirectoryFromPath(path);
+        return path;
+    }
+
     private async Task<IStorageFolder?> ResolveStartLocationAsync(
         IStorageProvider storageProvider,
         CancellationToken cancellationToken)

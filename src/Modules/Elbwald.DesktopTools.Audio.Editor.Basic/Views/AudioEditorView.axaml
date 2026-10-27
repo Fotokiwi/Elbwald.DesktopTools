@@ -105,6 +105,7 @@
                 <Button Classes="audio-button" Content="Öffnen" Command="{Binding OpenProjectCommand}" />
                 <Button Classes="audio-button" Content="Speichern" Command="{Binding SaveProjectCommand}" />
                 <Button Classes="audio-button" Content="Speichern unter" Command="{Binding SaveProjectAsCommand}" />
+                <Button Classes="audio-button" Content="WAV exportieren" Command="{Binding ExportWavCommand}" />
                 <Button Classes="audio-primary" Content="WAV importieren" Command="{Binding ImportWavCommand}" />
             </StackPanel>
         </Grid>
@@ -479,6 +480,7 @@
                                                 <CheckBox Content="Low-Pass" IsChecked="{Binding SelectedTrack.LowPassEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
                                                 <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.LowPassFrequencyLabel}" Classes="audio-muted" FontSize="9" VerticalAlignment="Center" />
                                             </Grid>
+                                            <Button Content="EQ / Filter zurücksetzen" Command="{Binding ResetTrackEffectCommand}" CommandParameter="eq" FontSize="8" Padding="7,3" HorizontalAlignment="Right" />
                                         </StackPanel>
                                     </Border>
 
@@ -538,9 +540,10 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                                                 <CheckBox Content="Rauschreduzierung" IsEnabled="{Binding SelectedTrack.HasNoiseProfile}" IsChecked="{Binding SelectedTrack.NoiseReductionEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
                                                 <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.NoiseReductionStrengthLabel}" Classes="audio-muted" FontSize="9" />
+                                                <Button Grid.Column="2" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="noise" FontSize="8" Padding="7,3" />
                                             </Grid>
                                             <Slider IsEnabled="{Binding SelectedTrack.NoiseReductionEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.NoiseReductionStrength, Mode=TwoWay}" />
                                             <TextBlock Text="{Binding SelectedTrack.NoiseProfileSummaryLabel}" Classes="audio-muted" FontSize="8" />
@@ -550,7 +553,10 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <CheckBox Content="Expander / Noise Gate" IsChecked="{Binding SelectedTrack.ExpanderEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="Expander / Noise Gate" IsChecked="{Binding SelectedTrack.ExpanderEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <Button Grid.Column="1" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="expander" FontSize="8" Padding="7,3" />
+                                            </Grid>
                                             <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
                                                 <TextBlock Text="Schwelle" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
                                                 <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ExpanderEnabled}" Minimum="-80" Maximum="-10" Value="{Binding SelectedTrack.ExpanderThresholdDb, Mode=TwoWay}" />
@@ -567,7 +573,10 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <CheckBox Content="Notch · einzelne Störfrequenz" IsChecked="{Binding SelectedTrack.NotchEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="Notch · einzelne Störfrequenz" IsChecked="{Binding SelectedTrack.NotchEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <Button Grid.Column="1" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="notch" FontSize="8" Padding="7,3" />
+                                            </Grid>
                                             <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
                                                 <TextBlock Text="Frequenz" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
                                                 <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.NotchEnabled}" Minimum="20" Maximum="20000" Value="{Binding SelectedTrack.NotchFrequencyHz, Mode=TwoWay}" />
@@ -584,7 +593,10 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <CheckBox Content="Brummen entfernen" IsChecked="{Binding SelectedTrack.HumRemovalEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="Brummen entfernen" IsChecked="{Binding SelectedTrack.HumRemovalEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <Button Grid.Column="1" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="hum" FontSize="8" Padding="7,3" />
+                                            </Grid>
                                             <Grid ColumnDefinitions="68,Auto,Auto,*" ColumnSpacing="8">
                                                 <TextBlock Text="Netzfrequenz" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
                                                 <RadioButton Grid.Column="1" Content="50 Hz" GroupName="HumFrequency" IsChecked="{Binding SelectedTrack.IsHum50Hz, Mode=TwoWay}" FontSize="8" />
@@ -606,7 +618,10 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <CheckBox Content="De-Esser · Zischlaute" IsChecked="{Binding SelectedTrack.DeEsserEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                <CheckBox Content="De-Esser · Zischlaute" IsChecked="{Binding SelectedTrack.DeEsserEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
+                                                <Button Grid.Column="1" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="deesser" FontSize="8" Padding="7,3" />
+                                            </Grid>
                                             <Grid ColumnDefinitions="68,*,58" ColumnSpacing="6">
                                                 <TextBlock Text="Bereich" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
                                                 <Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.DeEsserEnabled}" Minimum="3000" Maximum="12000" Value="{Binding SelectedTrack.DeEsserFrequencyHz, Mode=TwoWay}" />
@@ -623,9 +638,10 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                                                 <CheckBox Content="Kompressor" IsChecked="{Binding SelectedTrack.CompressorEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
                                                 <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.CompressorStrengthLabel}" Classes="audio-muted" FontSize="9" />
+                                                <Button Grid.Column="2" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="compressor" FontSize="8" Padding="7,3" />
                                             </Grid>
                                             <Slider IsEnabled="{Binding SelectedTrack.CompressorEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.CompressorStrength, Mode=TwoWay}" />
                                             <TextBlock Text="Live · Stärke steuert Threshold, Ratio und Timing gemeinsam." Classes="audio-muted" FontSize="8" />
@@ -634,14 +650,152 @@
 
                                     <Border Classes="audio-soft">
                                         <StackPanel Spacing="5">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                                                 <CheckBox Content="Limiter" IsChecked="{Binding SelectedTrack.LimiterEnabled, Mode=TwoWay}" FontSize="10" FontWeight="SemiBold" />
                                                 <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.LimiterCeilingLabel}" Classes="audio-muted" FontSize="9" />
+                                                <Button Grid.Column="2" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="limiter" FontSize="8" Padding="7,3" />
                                             </Grid>
                                             <Slider IsEnabled="{Binding SelectedTrack.LimiterEnabled}" Minimum="-12" Maximum="0" Value="{Binding SelectedTrack.LimiterCeilingDb, Mode=TwoWay}" />
                                             <TextBlock Text="Live · Sample-Peak-Limiter. True-Peak/Oversampling folgt später." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
                                         </StackPanel>
                                     </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Effekte" FontSize="10" Padding="7,5" IsEnabled="{Binding HasSelectedTrack}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,8,2,2" Spacing="7">
+                                    <Border Classes="audio-soft" Padding="8">
+                                        <StackPanel Spacing="6">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="FX-Rack" FontSize="11" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SelectedTrackEffectsSummaryLabel}" Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="ⓘ Effekte erklärt" Command="{Binding OpenEffectsHelpCommand}" FontSize="8" Padding="8,4" />
+                                            </Grid>
+
+                                            <WrapPanel Orientation="Horizontal">
+                                                <Button Content="{Binding EffectsAbButtonLabel}" Command="{Binding ToggleTrackEffectsBypassCommand}" FontSize="9" Padding="9,5" Margin="0,0,5,5" ToolTip.Tip="A/B-Monitoring: komplette Effektkette der ausgewählten Spur trocken oder mit FX hören. Projektwerte werden nicht verändert." />
+                                                <Button Content="FX kopieren" Command="{Binding CopyTrackEffectsCommand}" FontSize="9" Padding="9,5" Margin="0,0,5,5" />
+                                                <Button Content="FX einfügen" Command="{Binding PasteTrackEffectsCommand}" FontSize="9" Padding="9,5" Margin="0,0,5,5" />
+                                                <Button Content="Alle zurücksetzen" Command="{Binding ResetAllTrackEffectsCommand}" FontSize="9" Padding="9,5" Margin="0,0,5,5" ToolTip.Tip="Setzt die komplette Spur-FX-Kette neutral. Ein gelerntes Rauschprofil bleibt erhalten." />
+                                            </WrapPanel>
+                                            <TextBlock Text="{Binding EffectsAbStatusLabel}" Classes="audio-muted" FontSize="8" />
+                                            <TextBlock Text="{Binding EffectsClipboardLabel}" Classes="audio-muted" FontSize="8" />
+                                            <TextBlock Text="A/B ist nur Monitoring. Kopieren/Einfügen umfasst dagegen die komplette Spur-FX-Konfiguration inklusive EQ, Dynamik, Reparatur- und Kreativeffekten." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="Kreativ- und Kanal-FX · zum Bearbeiten aufklappen" Classes="audio-muted" FontSize="8" Margin="2,2,0,0" />
+
+                                    <Expander Header="Channel Tools" IsExpanded="False">
+                                        <Border Classes="audio-soft" Padding="8" Margin="0,3,0,0">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBlock Text="Kanal &amp; Phase" FontSize="9" FontWeight="SemiBold" />
+                                                    <Button Grid.Column="1" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="channel" FontSize="8" Padding="7,3" />
+                                                </Grid>
+                                                <ComboBox SelectedIndex="{Binding SelectedTrack.ChannelModeIndex, Mode=TwoWay}" FontSize="9">
+                                                    <ComboBoxItem Content="Normal" />
+                                                    <ComboBoxItem Content="Mono-Summe" />
+                                                    <ComboBoxItem Content="L/R tauschen" />
+                                                    <ComboBoxItem Content="Nur links → beide" />
+                                                    <ComboBoxItem Content="Nur rechts → beide" />
+                                                </ComboBox>
+                                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                                    <CheckBox Content="Phase L invertieren" IsChecked="{Binding SelectedTrack.PhaseInvertLeft, Mode=TwoWay}" FontSize="9" />
+                                                    <CheckBox Content="Phase R invertieren" IsChecked="{Binding SelectedTrack.PhaseInvertRight, Mode=TwoWay}" FontSize="9" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+
+                                    <Expander Header="Saturation / Wärme" IsExpanded="False">
+                                        <Border Classes="audio-soft" Padding="8" Margin="0,3,0,0">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+                                                    <CheckBox Content="Aktiv" IsChecked="{Binding SelectedTrack.SaturationEnabled, Mode=TwoWay}" FontSize="9" />
+                                                    <ComboBox Grid.Column="2" Width="112" SelectedIndex="{Binding SelectedTrack.SaturationPresetIndex, Mode=TwoWay}" IsEnabled="{Binding SelectedTrack.SaturationEnabled}" FontSize="8">
+                                                        <ComboBoxItem Content="Sehr leicht" /><ComboBoxItem Content="Warm" /><ComboBoxItem Content="Dicht" /><ComboBoxItem Content="Drive" /><ComboBoxItem Content="Benutzerdef." />
+                                                    </ComboBox>
+                                                    <Button Grid.Column="3" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="saturation" FontSize="8" Padding="7,3" />
+                                                </Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Drive" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.SaturationEnabled}" Minimum="0" Maximum="18" Value="{Binding SelectedTrack.SaturationDriveDb, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.SaturationDriveLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Mix" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.SaturationEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.SaturationMixPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.SaturationMixLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+
+                                    <Expander Header="Chorus" IsExpanded="False">
+                                        <Border Classes="audio-soft" Padding="8" Margin="0,3,0,0">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+                                                    <CheckBox Content="Aktiv" IsChecked="{Binding SelectedTrack.ChorusEnabled, Mode=TwoWay}" FontSize="9" />
+                                                    <ComboBox Grid.Column="2" Width="112" SelectedIndex="{Binding SelectedTrack.ChorusPresetIndex, Mode=TwoWay}" IsEnabled="{Binding SelectedTrack.ChorusEnabled}" FontSize="8">
+                                                        <ComboBoxItem Content="Leicht" /><ComboBoxItem Content="Vocal" /><ComboBoxItem Content="Breit" /><ComboBoxItem Content="Synth" /><ComboBoxItem Content="Benutzerdef." />
+                                                    </ComboBox>
+                                                    <Button Grid.Column="3" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="chorus" FontSize="8" Padding="7,3" />
+                                                </Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Rate" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ChorusEnabled}" Minimum="0.05" Maximum="3" Value="{Binding SelectedTrack.ChorusRateHz, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ChorusRateLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Tiefe" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ChorusEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.ChorusDepthPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ChorusDepthLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Mix" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ChorusEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.ChorusMixPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ChorusMixLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+
+                                    <Expander Header="Stereo Width" IsExpanded="False">
+                                        <Border Classes="audio-soft" Padding="8" Margin="0,3,0,0">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                                    <CheckBox Content="Aktiv" IsChecked="{Binding SelectedTrack.StereoWidthEnabled, Mode=TwoWay}" FontSize="9" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding SelectedTrack.StereoWidthLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="width" FontSize="8" Padding="7,3" />
+                                                </Grid>
+                                                <Slider IsEnabled="{Binding SelectedTrack.StereoWidthEnabled}" Minimum="0" Maximum="200" Value="{Binding SelectedTrack.StereoWidthPercent, Mode=TwoWay}" />
+                                                <TextBlock Text="0 % Mono · 100 % Original · über 100 % breiter. Mono-Kompatibilität anschließend prüfen." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+
+                                    <Expander Header="Delay / Echo" IsExpanded="False">
+                                        <Border Classes="audio-soft" Padding="8" Margin="0,3,0,0">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+                                                    <CheckBox Content="Aktiv" IsChecked="{Binding SelectedTrack.DelayEnabled, Mode=TwoWay}" FontSize="9" />
+                                                    <ComboBox Grid.Column="2" Width="112" SelectedIndex="{Binding SelectedTrack.DelayPresetIndex, Mode=TwoWay}" IsEnabled="{Binding SelectedTrack.DelayEnabled}" FontSize="8">
+                                                        <ComboBoxItem Content="Slapback" /><ComboBoxItem Content="Vocal" /><ComboBoxItem Content="Stereo Echo" /><ComboBoxItem Content="Space" /><ComboBoxItem Content="Benutzerdef." />
+                                                    </ComboBox>
+                                                    <Button Grid.Column="3" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="delay" FontSize="8" Padding="7,3" />
+                                                </Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Zeit" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.DelayEnabled}" Minimum="20" Maximum="1200" Value="{Binding SelectedTrack.DelayTimeMs, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.DelayTimeLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Feedback" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.DelayEnabled}" Minimum="0" Maximum="75" Value="{Binding SelectedTrack.DelayFeedbackPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.DelayFeedbackLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Mix" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.DelayEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.DelayMixPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.DelayMixLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <CheckBox Content="Ping-Pong" IsEnabled="{Binding SelectedTrack.DelayEnabled}" IsChecked="{Binding SelectedTrack.DelayPingPong, Mode=TwoWay}" FontSize="8" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+
+                                    <Expander Header="Reverb / Hall" IsExpanded="False">
+                                        <Border Classes="audio-soft" Padding="8" Margin="0,3,0,0">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
+                                                    <CheckBox Content="Aktiv" IsChecked="{Binding SelectedTrack.ReverbEnabled, Mode=TwoWay}" FontSize="9" />
+                                                    <ComboBox Grid.Column="2" Width="112" SelectedIndex="{Binding SelectedTrack.ReverbPresetIndex, Mode=TwoWay}" IsEnabled="{Binding SelectedTrack.ReverbEnabled}" FontSize="8">
+                                                        <ComboBoxItem Content="Kleiner Raum" /><ComboBoxItem Content="Studio" /><ComboBoxItem Content="Plate" /><ComboBoxItem Content="Hall" /><ComboBoxItem Content="Benutzerdef." />
+                                                    </ComboBox>
+                                                    <Button Grid.Column="3" Content="Reset" Command="{Binding ResetTrackEffectCommand}" CommandParameter="reverb" FontSize="8" Padding="7,3" />
+                                                </Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Mix" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ReverbEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.ReverbMixPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ReverbMixLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Decay" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ReverbEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.ReverbDecayPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ReverbDecayLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Dämpfung" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ReverbEnabled}" Minimum="0" Maximum="100" Value="{Binding SelectedTrack.ReverbDampingPercent, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ReverbDampingLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                                <Grid ColumnDefinitions="60,*,54" ColumnSpacing="6"><TextBlock Text="Pre-Delay" Classes="audio-muted" FontSize="8"/><Slider Grid.Column="1" IsEnabled="{Binding SelectedTrack.ReverbEnabled}" Minimum="0" Maximum="120" Value="{Binding SelectedTrack.ReverbPreDelayMs, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{Binding SelectedTrack.ReverbPreDelayLabel}" Classes="audio-muted" FontSize="8" HorizontalAlignment="Right"/></Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Expander>
+
+                                    <TextBlock Text="EQ, Restaurierung, De-Esser, Kompressor und Limiter bleiben in ihren spezialisierten Inspector-Tabs. A/B, Kopieren/Einfügen und Alle zurücksetzen oben beziehen sie trotzdem vollständig ein." Classes="audio-muted" FontSize="8" TextWrapping="Wrap" Margin="2,4,2,4" />
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>

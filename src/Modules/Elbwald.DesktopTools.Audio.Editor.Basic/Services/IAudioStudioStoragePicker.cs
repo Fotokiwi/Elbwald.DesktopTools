@@ -11,4 +11,8 @@ public interface IAudioStudioStoragePicker
     Task<string?> PickProjectToSaveAsync(
         string suggestedFileName,
         CancellationToken cancellationToken = default);
+
+    Task<string?> PickWavToSaveAsync(
+        string suggestedFileName,
+        CancellationToken cancellationToken = default);
 }

@@ -1,0 +1,242 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="Elbwald.DesktopTools.Audio.Editor.Basic.Views.EffectsHelpWindow"
+    Title="Elbwald Audio · Effekte erklärt"
+    Width="960"
+    Height="780"
+    MinWidth="760"
+    MinHeight="560"
+    ShowInTaskbar="False"
+    WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="Border.help-panel">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="Border.help-card">
+            <Setter Property="Background" Value="{DynamicResource ElbwaldSurfaceQuietBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ElbwaldBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="11" />
+        </Style>
+        <Style Selector="TextBlock.help-muted">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldMutedTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.help-accent">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.help-key">
+            <Setter Property="Foreground" Value="{DynamicResource ElbwaldAccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="9" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="14" RowDefinitions="Auto,*" RowSpacing="10">
+        <Border Classes="help-panel" Padding="14,11">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Effekte erklärt" FontSize="21" FontWeight="SemiBold" />
+                <TextBlock Text="Was macht welcher Effekt – und wann setzt man ihn wie ein?" Classes="help-accent" FontSize="11" />
+                <TextBlock Text="Faustregel: Erst das Problem hören, dann gezielt bearbeiten. Kleine Änderungen im Mix sind meist besser als ein spektakulärer Solo-Klang. Regler sind Startpunkte, keine festen Rezepte." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="10" Margin="0,0,5,4">
+                <Border Classes="help-card">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="FX-Rack · A/B, Kopieren und Reset" FontSize="15" FontWeight="SemiBold" />
+                        <TextBlock Text="A · MIT FX / B · TROCKEN umgeht beim Abhören temporär die komplette Spur-Effektkette. Die gespeicherten Werte bleiben unverändert – ideal, um zu prüfen, ob die Bearbeitung wirklich besser klingt." TextWrapping="Wrap" />
+                        <TextBlock Text="FX kopieren/einfügen übernimmt die komplette Effektkonfiguration auf eine andere Spur. Das ist besonders praktisch für ähnliche Backing-Vocals oder mehrere Aufnahmen desselben Instruments. Danach immer Pegel und Klang im Mix kontrollieren: dieselben Werte passen nicht automatisch zu jeder Aufnahme." TextWrapping="Wrap" />
+                        <TextBlock Text="Reset pro Effekt stellt nur diesen Effekt neutral. Alle zurücksetzen neutralisiert die gesamte Spur-FX-Kette; ein bereits gelerntes Rauschprofil bleibt erhalten." TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="AUFRÄUMEN &amp; REPARATUR" Classes="help-accent" FontSize="11" Margin="2,4,0,0" />
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Rauschreduzierung" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Senkt einen gelernten, möglichst gleichmäßigen Rauschanteil spektral ab." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Bei konstantem Lüfter-, Vorverstärker- oder Raumrauschen, wenn eine echte Rauschprobe vorhanden ist." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Eine möglichst reine Rauschstelle lernen lassen. Danach mit geringer Stärke beginnen und im Kontext des Songs erhöhen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Lieber etwa 20–40 % als sofort maximal. Mit »entferntes Signal« kontrollieren, ob Sprache, Becken oder Obertöne verschwinden." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Pumpen, metallische Artefakte und dumpfe Höhen bedeuten meist: zu stark." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Expander / Gate" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Macht leise Signalanteile noch leiser. Ein Expander arbeitet sanfter als ein hartes Gate." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Bei Mikrofonrauschen, Übersprechen oder Nebengeräuschen zwischen Gesangs-, Gitarren- oder Drum-Passagen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Threshold knapp oberhalb des störenden Grundpegels setzen. Reduction so niedrig wählen, dass Ausklänge und Atmer nicht unnatürlich abbrechen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Moderate Absenkung statt kompletter Stille; besonders bei Vocals lieber weich arbeiten." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Verschluckte Wortanfänge, abgeschnittene Hallfahnen oder »flatternde« Lautstärke = Threshold/Reduction zu aggressiv." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Hum Removal / Netzbrummen" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Dämpft 50 oder 60 Hz und ausgewählte Oberwellen sehr schmalbandig." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Nur wenn wirklich elektrisches Brummen hörbar ist – z. B. Kabel, Netzteil, Single-Coil, Ground Loop." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Erst 50/60 Hz testen, dann nur so viele Harmonische hinzufügen, wie tatsächlich stören. Immer vorhören." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Wenige Harmonische und moderate Reduktion. Bei Bass, Gitarre, Synth und tiefer Stimme besonders vorsichtig." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · 50/100/150/200 Hz können echter musikalischer Inhalt sein. Ein sichtbarer Peak ist noch kein Defekt." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Notch" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Schneidet einen sehr schmalen Frequenzbereich gezielt ab." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Für einen klar identifizierten Pfeifton, Feedback-Ton oder technische Resonanz – nicht pauschal für jeden Spektrum-Peak." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Frequenz suchen, möglichst schmal einstellen und nur so tief absenken wie nötig. Danach im Song-Kontext prüfen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Sehr schmal und moderat; nur bei eindeutigem Störton stärker werden." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Formanten, Instrumentenresonanzen und Synth-Obertöne wirken im Analyzer ebenfalls schmalbandig und können musikalisch wichtig sein." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="KLANGFORMUNG &amp; DYNAMIK" Classes="help-accent" FontSize="11" Margin="2,8,0,0" />
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="EQ · Bass / Mitten / Höhen" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Verändert die tonale Balance. Bass/Höhen breit, Mitten gezielt um eine gewählte Frequenz." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Wenn eine Spur zu dumpf, scharf, dünn, boxig oder dominant in einem Frequenzbereich wirkt." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Erst absenken, was stört; danach bei Bedarf anheben. Änderungen von ±1–3 dB reichen im Mix oft völlig." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Kleine Bewegungen. Für Mitten die Frequenz beim Hören suchen und danach Gain reduzieren/anheben." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Solo-EQ kann beeindruckend klingen und im Gesamtmix trotzdem falsch sein. Immer wieder mit allen Spuren hören." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="High-Pass / Low-Pass" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · High-Pass entfernt tiefe Frequenzen unterhalb der Grenzfrequenz; Low-Pass entfernt hohe darüber." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · High-Pass gegen Trittschall/Rumpeln oder unnötigen Tiefbass; Low-Pass gegen unnötiges Zischeln/Hochfrequenzanteile oder für Sounddesign." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Grenzfrequenz langsam verschieben, bis der Klang hörbar dünner/dumpfer wird, dann etwas zurück." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Vocals oft grob 60–120 Hz High-Pass, aber Stimme und Aufnahme entscheiden – keine feste Zahl." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Zu hoher High-Pass nimmt Körper; zu niedriger Low-Pass nimmt Luft und Definition." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="De-Esser" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Reduziert harte S-, Sch-, Zisch- und ähnliche Hochfrequenzspitzen dynamisch." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Vor allem auf Vocals/Sprachaufnahmen, wenn S-Laute deutlich hervorstechen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Bereich auf die tatsächliche Zischfrequenz ausrichten und Stärke nur so weit erhöhen, bis die S-Laute sich einfügen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Häufig liegt der relevante Bereich irgendwo zwischen etwa 4 und 9 kHz; jede Stimme ist anders." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Lispeln, matte Konsonanten oder dumpfe Vocals = zu viel De-Essing." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Kompressor" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Verringert Pegelunterschiede: laute Stellen werden kontrollierter, die Spur wirkt dichter und gleichmäßiger." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Für Vocals, Bass, Drums, Gitarren oder andere Spuren, deren Dynamik im Mix zu stark schwankt." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Threshold so setzen, dass nur relevante Peaks arbeiten. Ratio moderat halten; Attack/Release bestimmen, ob Transienten erhalten oder geglättet werden." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Für natürliche Kontrolle oft ungefähr 2:1 bis 4:1 und nur einige dB Gain Reduction auf lauten Stellen." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Pumpen, fehlender Punch und dauernd hörbare Verdichtung = zu viel oder falsche Zeitkonstanten." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Limiter" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Fängt Spitzen an einer festen Obergrenze ab. Er ist Sicherheitsnetz, kein Ersatz für einen ausgewogenen Mix." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Auf einzelnen Spuren für seltene Spitzen; auf dem Master als finale Peak-Sicherung." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Ceiling festlegen und beobachten, wie oft der Limiter tatsächlich eingreift. Nur einzelne Spitzen sollten deutlich reduziert werden." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Master etwa -1 dBTP; Track-Limiter nur bei Bedarf. Dauerhafte starke Gain Reduction besser vorher im Mix lösen." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Wenn der Limiter ständig mehrere dB wegdrückt, wird das Signal schnell flach oder verzerrt." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="KREATIVE &amp; STEREO-EFFEKTE" Classes="help-accent" FontSize="11" Margin="2,8,0,0" />
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Channel Tools" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Tauscht Kanäle, summiert auf Mono, kopiert L/R auf beide Seiten oder invertiert die Phase eines Kanals." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Bei falsch aufgenommenen Kanälen, einseitigem Material, Mono-Prüfung oder konkreten Phasenproblemen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Nur mit klarem Ziel. Mono-Summe ist außerdem ein guter Test, ob ein breiter Mix beim Zusammenklappen Bestand hat." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Normal lassen. Phaseninvertierung nicht als Klangregler verwenden, sondern zur Fehlerprüfung." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Falsche Phaseninvertierung kann Mittenanteile stark auslöschen oder Stereo unnatürlich machen." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Saturation / Wärme" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Erzeugt weiche harmonische Obertöne und leichte Verdichtung. Das Signal kann voller, dichter oder präsenter wirken." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Auf Vocals, Bass, Synth, Gitarre oder Drums, wenn sie etwas steril/dünn wirken oder sich besser durchsetzen sollen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Drive bestimmt die Färbung, Mix mischt Original und Sättigung. Lieber Drive hörbar einstellen und dann mit Mix zurücknehmen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Preset »Warm« oder wenige dB Drive mit etwa 10–30 % Mix." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Mehr Lautheit wird leicht mit »besser« verwechselt. Bei zu viel Drive werden Transienten stumpf und Höhen rau." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Chorus" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Erzeugt leicht zeitversetzte und modulierte Kopien. Dadurch wird der Klang breiter, bewegter und »mehrstimmiger«." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Gut für Synths, Gitarren, Pads und dezent auch Vocals/Backing Vocals." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Rate bestimmt die Bewegungsgeschwindigkeit, Tiefe die Ton-/Zeitmodulation, Mix die Effektmenge." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Langsame Rate, mittlere Tiefe und 10–25 % Mix für subtile Breite." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Zu hohe Rate/Tiefe klingt schnell eierig oder verstimmt und kann die Mono-Kompatibilität verschlechtern." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Stereo Width" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Verändert den Side-Anteil eines Stereo-Signals: 0 % wird Mono, 100 % bleibt unverändert, über 100 % wird breiter." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Für Pads, Synths, Gitarren oder Raumanteile, die mehr Platz in der Breite bekommen sollen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Langsam von 100 % aus erhöhen und regelmäßig in Mono kontrollieren. Für zentrale Lead-Vocals/Bass eher zurückhaltend." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · 110–130 % kann bereits deutlich wirken; nicht automatisch auf 200 % gehen." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Übermäßige Breite kann in Mono Teile des Signals verlieren oder ein instabiles Stereobild erzeugen." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Delay / Echo" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Wiederholt das Signal zeitversetzt. Feedback erzeugt weitere Wiederholungen; Ping-Pong verteilt sie zwischen links und rechts." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Für räumliche Tiefe, Vocal-Echos, Slapback auf Stimme/Gitarre oder kreative rhythmische Wiederholungen." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Erst Zeit einstellen, dann Feedback für Anzahl/Länge der Echos und zum Schluss Mix dosieren." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Slapback kurz mit wenig Feedback; Vocal-Delay moderater Mix. Ohne Tempo-Sync die Zeit nach Gehör zum Song einstellen." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Viel Feedback und Mix macht Arrangements schnell unverständlich und kann Peaks aufbauen." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-card">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Reverb / Hall" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="Wirkung · Simuliert Raumreflexionen und setzt eine Spur akustisch nach vorne oder hinten." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wann einsetzen · Für natürliche Räumlichkeit, Zusammenhalt oder bewusst große Atmosphären auf Vocals, Drums, Gitarren, Synths usw." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Wie einsetzen · Pre-Delay trennt Direktsignal und Hall, Decay bestimmt Raumlänge, Dämpfung macht die Hallfahne dunkler, Mix bestimmt die Menge." FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Startpunkt · Kurzer Room/Studio für Natürlichkeit; Plate oft gut für Vocals; Hall für große Räume. Mix zunächst niedrig halten." Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Achtung · Zu viel Hall schiebt Spuren nach hinten und verschmiert Text, Transienten und den gesamten Mix." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="help-panel" Padding="12" Margin="0,4,0,0">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Eine sinnvolle Standard-Reihenfolge" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Text="Aufräumen → EQ/De-Esser → Channel Tools/Saturation → Kompressor → Chorus/Stereo Width → Delay → Reverb → Limiter" Classes="help-accent" FontSize="9" TextWrapping="Wrap" />
+                        <TextBlock Text="Das ist keine starre Regel. Effektreihenfolge ist selbst ein Klangwerkzeug – aber diese Reihenfolge ist für viele typische Bearbeitungen ein guter Ausgangspunkt." Classes="help-muted" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

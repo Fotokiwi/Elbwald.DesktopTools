@@ -78,7 +78,7 @@
 
                     <Border Grid.Row="1" Classes="repair-soft" Padding="8" IsVisible="{Binding HasFindings}">
                         <TextBlock
-                            Text="Die Analyse ist konservativ: Sie empfiehlt nur technische Reparaturen. Tonale Spitzen können musikalischer Inhalt sein – deshalb Notch immer per Gehör prüfen."
+                            Text="Die Analyse bewertet jetzt auch zeitliche Stabilität. PRÜFEN &lt; 60 %, PLAUSIBEL 60–79 %, HOHE SICHERHEIT ≥ 80 %. Vor dem Anwenden möglichst immer „Störung vorhören“."
                             Classes="repair-muted"
                             FontSize="8"
                             TextWrapping="Wrap" />
@@ -97,14 +97,25 @@
                                                 </Border>
                                                 <TextBlock Grid.Column="2" Text="{Binding ConfidenceLabel}" Classes="repair-muted" FontSize="8" VerticalAlignment="Center" />
                                             </Grid>
+                                            <TextBlock Text="{Binding PersistenceLabel}" Classes="repair-muted" FontSize="8" />
                                             <TextBlock Text="{Binding Detail}" Classes="repair-muted" FontSize="9" TextWrapping="Wrap" />
                                             <TextBlock Text="{Binding Recommendation}" FontSize="9" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                            <Button
-                                                Classes="repair-primary"
-                                                Content="{Binding ApplyLabel}"
-                                                Command="{Binding ApplyCommand}"
-                                                HorizontalAlignment="Left"
-                                                MinWidth="150" />
+                                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="7">
+                                                <Button
+                                                    Grid.Column="0"
+                                                    Classes="repair-primary"
+                                                    Content="▶ Störung vorhören"
+                                                    Command="{Binding ListenRemovedCommand}"
+                                                    MinWidth="165"
+                                                    ToolTip.Tip="Spielt nur den Anteil ab, den der vorgeschlagene Reparaturfilter entfernen würde (Dry − Wet)." />
+                                                <Button
+                                                    Grid.Column="1"
+                                                    Classes="repair-primary"
+                                                    Content="{Binding ApplyLabel}"
+                                                    Command="{Binding ApplyCommand}"
+                                                    MinWidth="150" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding AuditionStatusLabel}" Classes="repair-muted" FontSize="8" TextWrapping="Wrap" />
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

@@ -5,7 +5,7 @@ namespace Elbwald.DesktopTools.Audio.Editor.Basic.Models;
 public sealed class AudioProjectDocument
 {
     public const string CurrentFormat = "ElbwaldAudioProject";
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 9;
 
     public string Format { get; set; } = CurrentFormat;
 
@@ -108,6 +108,52 @@ public sealed class AudioTrackEffectsDocument
     public double DeEsserFrequencyHz { get; set; } = 6_500;
 
     public double DeEsserStrength { get; set; } = 35;
+
+    /// <summary>0 = normal, 1 = mono sum, 2 = swap L/R, 3 = left to both, 4 = right to both.</summary>
+    public int ChannelMode { get; set; }
+
+    public bool PhaseInvertLeft { get; set; }
+
+    public bool PhaseInvertRight { get; set; }
+
+    public bool SaturationEnabled { get; set; }
+
+    public double SaturationDriveDb { get; set; } = 4;
+
+    public double SaturationMixPercent { get; set; } = 25;
+
+    public bool ChorusEnabled { get; set; }
+
+    public double ChorusRateHz { get; set; } = 0.35;
+
+    public double ChorusDepthPercent { get; set; } = 35;
+
+    public double ChorusMixPercent { get; set; } = 18;
+
+    public bool StereoWidthEnabled { get; set; }
+
+    /// <summary>0 = mono, 100 = unchanged stereo, 200 = wide.</summary>
+    public double StereoWidthPercent { get; set; } = 100;
+
+    public bool DelayEnabled { get; set; }
+
+    public double DelayTimeMs { get; set; } = 240;
+
+    public double DelayFeedbackPercent { get; set; } = 24;
+
+    public double DelayMixPercent { get; set; } = 12;
+
+    public bool DelayPingPong { get; set; }
+
+    public bool ReverbEnabled { get; set; }
+
+    public double ReverbMixPercent { get; set; } = 12;
+
+    public double ReverbDecayPercent { get; set; } = 35;
+
+    public double ReverbDampingPercent { get; set; } = 45;
+
+    public double ReverbPreDelayMs { get; set; } = 18;
 
     public bool EqualizerEnabled { get; set; }
 

@@ -148,7 +148,7 @@ public sealed class StemRepairWindowViewModel : ObservableObject, IDisposable
 
             foreach (var finding in result.Findings)
             {
-                Findings.Add(new StemRepairFindingViewModel(Track, finding));
+                Findings.Add(new StemRepairFindingViewModel(Track, finding, _editor));
             }
 
             OnPropertyChanged(nameof(HasFindings));
@@ -239,13 +239,21 @@ public sealed class StemRepairFindingViewModel : ObservableObject
 {
     private readonly AudioTrackViewModel _track;
     private readonly StemRepairFinding _finding;
+    private readonly AudioEditorViewModel _editor;
     private bool _wasApplied;
+    private bool _isAuditioning;
+    private string _auditionStatusLabel = string.Empty;
 
-    public StemRepairFindingViewModel(AudioTrackViewModel track, StemRepairFinding finding)
+    public StemRepairFindingViewModel(
+        AudioTrackViewModel track,
+        StemRepairFinding finding,
+        AudioEditorViewModel editor)
     {
         _track = track ?? throw new ArgumentNullException(nameof(track));
         _finding = finding ?? throw new ArgumentNullException(nameof(finding));
+        _editor = editor ?? throw new ArgumentNullException(nameof(editor));
         ApplyCommand = new RelayCommand(ApplyRecommendation);
+        ListenRemovedCommand = new AsyncRelayCommand(ListenRemovedAsync, () => !IsAuditioning);
     }
 
     public string Title => _finding.Title;
@@ -262,11 +270,90 @@ public sealed class StemRepairFindingViewModel : ObservableObject
         _ => "INFO"
     };
 
-    public string ConfidenceLabel => $"Sicherheit {_finding.Confidence * 100d:0}%";
+    public string ConfidenceLabel => $"{ConfidenceBandLabel} · {_finding.Confidence * 100d:0}%";
+
+    public string ConfidenceBandLabel => _finding.Confidence switch
+    {
+        >= 0.80d => "HOHE SICHERHEIT",
+        >= 0.60d => "PLAUSIBEL",
+        _ => "PRÜFEN"
+    };
+
+    public string PersistenceLabel => _finding.Persistence is double persistence
+        ? $"zeitlich {persistence * 100d:0}%"
+        : string.Empty;
 
     public string ApplyLabel => _wasApplied ? "Angewendet" : "Empfehlung anwenden";
 
+    public bool IsAuditioning
+    {
+        get => _isAuditioning;
+        private set
+        {
+            if (!SetProperty(ref _isAuditioning, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(ListenRemovedLabel));
+            ListenRemovedCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    public string ListenRemovedLabel => IsAuditioning ? "Höre entferntes Signal …" : "Störung vorhören";
+
+    public string AuditionStatusLabel
+    {
+        get => _auditionStatusLabel;
+        private set => SetProperty(ref _auditionStatusLabel, value);
+    }
+
     public IRelayCommand ApplyCommand { get; }
+
+    public IAsyncRelayCommand ListenRemovedCommand { get; }
+
+    private async Task ListenRemovedAsync()
+    {
+        if (IsAuditioning)
+        {
+            return;
+        }
+
+        IsAuditioning = true;
+        AuditionStatusLabel = "Rendere Dry − Wet …";
+        try
+        {
+            var clip = await _editor.AuditionStemRepairAsync(_track, _finding);
+            AuditionStatusLabel = clip.MonitorGainDb > 0.05d
+                ? $"Nur entfernter Anteil · Monitor +{clip.MonitorGainDb:0.#} dB · ab {FormatTime(clip.ProjectStartSeconds)}"
+                : $"Nur entfernter Anteil · ab {FormatTime(clip.ProjectStartSeconds)}";
+        }
+        catch (OperationCanceledException)
+        {
+            AuditionStatusLabel = "Abhörung beendet.";
+        }
+        catch (Exception exception) when (
+            exception is IOException or
+            InvalidDataException or
+            InvalidOperationException or
+            NotSupportedException or
+            DllNotFoundException)
+        {
+            AuditionStatusLabel = $"Vorhören nicht möglich: {exception.Message}";
+        }
+        finally
+        {
+            IsAuditioning = false;
+        }
+    }
+
+    private static string FormatTime(double seconds)
+    {
+        var span = TimeSpan.FromSeconds(Math.Max(0d, seconds));
+        return span.TotalHours >= 1d
+            ? $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}"
+            : $"{span.Minutes:00}:{span.Seconds:00}";
+    }
 
     private void ApplyRecommendation()
     {

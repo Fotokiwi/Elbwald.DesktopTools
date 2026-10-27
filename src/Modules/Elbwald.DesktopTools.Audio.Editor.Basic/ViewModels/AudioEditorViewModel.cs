@@ -21,6 +21,9 @@ public sealed class AudioEditorViewModel : ObservableObject
     private readonly AudioPlaybackService _playbackService;
     private readonly EqAnalysisWindowService _eqAnalysisWindowService;
     private readonly StemRepairWindowService _stemRepairWindowService;
+    private readonly EffectsHelpWindowService _effectsHelpWindowService;
+    private readonly AudioExportWindowService _audioExportWindowService;
+    private readonly StemRepairAuditionService _stemRepairAuditionService;
     private readonly DispatcherTimer _playbackTimer;
 
     private AudioTrackViewModel? _selectedTrack;
@@ -67,6 +70,13 @@ public sealed class AudioEditorViewModel : ObservableObject
     private bool _isMasteringPreviewActive;
     private MasteringAssistantUndoState? _masteringAssistantUndoState;
     private double? _peakAuditionEndSeconds;
+    private bool _isRepairAuditionActive;
+    private double _repairAuditionRestoreCursorSeconds;
+    private CancellationTokenSource? _repairAuditionCts;
+    private readonly SemaphoreSlim _repairAuditionGate = new(1, 1);
+    private StemRepairAuditionClip? _activeRepairAuditionClip;
+    private AudioTrackEffectsDocument? _effectsClipboard;
+    private bool _selectedTrackEffectsBypassed;
 
     public AudioEditorViewModel(
         IAudioStudioStoragePicker storagePicker,
@@ -76,7 +86,10 @@ public sealed class AudioEditorViewModel : ObservableObject
         WaveformCache waveformCache,
         AudioPlaybackService playbackService,
         EqAnalysisWindowService eqAnalysisWindowService,
-        StemRepairWindowService stemRepairWindowService)
+        StemRepairWindowService stemRepairWindowService,
+        StemRepairAuditionService stemRepairAuditionService,
+        EffectsHelpWindowService effectsHelpWindowService,
+        AudioExportWindowService audioExportWindowService)
     {
         ArgumentNullException.ThrowIfNull(storagePicker);
         ArgumentNullException.ThrowIfNull(wavMetadataReader);
@@ -86,6 +99,9 @@ public sealed class AudioEditorViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(playbackService);
         ArgumentNullException.ThrowIfNull(eqAnalysisWindowService);
         ArgumentNullException.ThrowIfNull(stemRepairWindowService);
+        ArgumentNullException.ThrowIfNull(stemRepairAuditionService);
+        ArgumentNullException.ThrowIfNull(effectsHelpWindowService);
+        ArgumentNullException.ThrowIfNull(audioExportWindowService);
 
         _storagePicker = storagePicker;
         _wavMetadataReader = wavMetadataReader;
@@ -95,6 +111,9 @@ public sealed class AudioEditorViewModel : ObservableObject
         _playbackService = playbackService;
         _eqAnalysisWindowService = eqAnalysisWindowService;
         _stemRepairWindowService = stemRepairWindowService;
+        _stemRepairAuditionService = stemRepairAuditionService;
+        _effectsHelpWindowService = effectsHelpWindowService;
+        _audioExportWindowService = audioExportWindowService;
 
         AddMonoTrackCommand = new RelayCommand(
             () => AddTrack(AudioChannelLayout.Mono),
@@ -107,6 +126,7 @@ public sealed class AudioEditorViewModel : ObservableObject
         OpenProjectCommand = new AsyncRelayCommand(OpenProjectAsync, () => !IsBusy);
         SaveProjectCommand = new AsyncRelayCommand(SaveProjectAsync, () => !IsBusy);
         SaveProjectAsCommand = new AsyncRelayCommand(SaveProjectAsAsync, () => !IsBusy);
+        ExportWavCommand = new AsyncRelayCommand(ExportWavAsync, () => HasPlayableAudio && !IsBusy);
         PlayCommand = new AsyncRelayCommand(PlayAsync, CanPlay);
         PauseCommand = new RelayCommand(PausePlayback, () => PlaybackState == AudioPlaybackState.Playing);
         StopCommand = new AsyncRelayCommand(StopPlaybackAsync, () => PlaybackState is AudioPlaybackState.Playing or AudioPlaybackState.Paused or AudioPlaybackState.Buffering or AudioPlaybackState.Faulted);
@@ -114,6 +134,12 @@ public sealed class AudioEditorViewModel : ObservableObject
         OpenEqAnalysisCommand = new RelayCommand(
             () => _eqAnalysisWindowService.Show(this),
             () => HasSelectedTrack || IsMasterInspectorSelected);
+        OpenEffectsHelpCommand = new RelayCommand(() => _effectsHelpWindowService.Show());
+        ToggleTrackEffectsBypassCommand = new RelayCommand(ToggleTrackEffectsBypass, () => HasSelectedTrack);
+        CopyTrackEffectsCommand = new RelayCommand(CopyTrackEffects, () => HasSelectedTrack);
+        PasteTrackEffectsCommand = new RelayCommand(PasteTrackEffects, () => HasSelectedTrack && _effectsClipboard is not null);
+        ResetAllTrackEffectsCommand = new RelayCommand(ResetAllTrackEffects, () => HasSelectedTrack);
+        ResetTrackEffectCommand = new RelayCommand<string?>(ResetTrackEffect, key => HasSelectedTrack && !string.IsNullOrWhiteSpace(key));
         AnalyzeMasterCommand = new AsyncRelayCommand(AnalyzeMasterAsync, () => HasPlayableAudio && !IsBusy);
         ApplyLoudnessTargetCommand = new RelayCommand(ApplyLoudnessTarget, CanApplyLoudnessTarget);
         ToggleMasteringPreviewCommand = new RelayCommand(ToggleMasteringPreview, CanToggleMasteringPreview);
@@ -179,6 +205,8 @@ public sealed class AudioEditorViewModel : ObservableObject
 
     public IAsyncRelayCommand SaveProjectAsCommand { get; }
 
+    public IAsyncRelayCommand ExportWavCommand { get; }
+
     public IAsyncRelayCommand PlayCommand { get; }
 
     public IRelayCommand PauseCommand { get; }
@@ -188,6 +216,18 @@ public sealed class AudioEditorViewModel : ObservableObject
     public IAsyncRelayCommand SeekToCursorCommand { get; }
 
     public IRelayCommand OpenEqAnalysisCommand { get; }
+
+    public IRelayCommand OpenEffectsHelpCommand { get; }
+
+    public IRelayCommand ToggleTrackEffectsBypassCommand { get; }
+
+    public IRelayCommand CopyTrackEffectsCommand { get; }
+
+    public IRelayCommand PasteTrackEffectsCommand { get; }
+
+    public IRelayCommand ResetAllTrackEffectsCommand { get; }
+
+    public IRelayCommand<string?> ResetTrackEffectCommand { get; }
 
     public IAsyncRelayCommand AnalyzeMasterCommand { get; }
 
@@ -241,9 +281,19 @@ public sealed class AudioEditorViewModel : ObservableObject
         get => _selectedTrack;
         set
         {
+            var previousTrack = _selectedTrack;
             if (!SetProperty(ref _selectedTrack, value))
             {
                 return;
+            }
+
+            if (_selectedTrackEffectsBypassed && previousTrack is not null)
+            {
+                _playbackService.UpdateTrackEffects(previousTrack.Id, previousTrack.CreateEffectsDocument());
+                _selectedTrackEffectsBypassed = false;
+                OnPropertyChanged(nameof(IsSelectedTrackEffectsBypassed));
+                OnPropertyChanged(nameof(EffectsAbButtonLabel));
+                OnPropertyChanged(nameof(EffectsAbStatusLabel));
             }
 
             if (value is not null && IsMasterInspectorSelected)
@@ -257,8 +307,56 @@ public sealed class AudioEditorViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedTrackClipSummary));
             OnPropertyChanged(nameof(InspectorContextTitle));
             OnPropertyChanged(nameof(InspectorContextSubtitle));
+            OnPropertyChanged(nameof(SelectedTrackEffectsSummaryLabel));
             OpenEqAnalysisCommand.NotifyCanExecuteChanged();
+            RefreshFxRackCommandState();
             SelectedClip = value?.Clips.FirstOrDefault();
+        }
+    }
+
+    public bool IsSelectedTrackEffectsBypassed => _selectedTrackEffectsBypassed;
+
+    public string EffectsAbButtonLabel => IsSelectedTrackEffectsBypassed
+        ? "B · TROCKEN"
+        : "A · MIT FX";
+
+    public string EffectsAbStatusLabel => IsSelectedTrackEffectsBypassed
+        ? "Monitor: komplette Spur-FX-Kette umgangen · Projektwerte bleiben erhalten"
+        : "Monitor: Effektkette aktiv";
+
+    public string EffectsClipboardLabel => _effectsClipboard is null
+        ? "Noch keine FX kopiert"
+        : "FX-Zwischenablage bereit";
+
+    public string SelectedTrackEffectsSummaryLabel
+    {
+        get
+        {
+            if (SelectedTrack is null)
+            {
+                return "Keine Spur ausgewählt";
+            }
+
+            var track = SelectedTrack;
+            var active = new List<string>(12);
+            if (track.NoiseReductionEnabled) active.Add("Rauschreduzierung");
+            if (track.ExpanderEnabled) active.Add("Expander");
+            if (track.HumRemovalEnabled) active.Add("Hum");
+            if (track.NotchEnabled) active.Add("Notch");
+            if (track.EqualizerEnabled || track.HighPassEnabled || track.LowPassEnabled) active.Add("EQ/Filter");
+            if (track.DeEsserEnabled) active.Add("De-Esser");
+            if (track.ChannelModeIndex != 0 || track.PhaseInvertLeft || track.PhaseInvertRight) active.Add("Channel Tools");
+            if (track.SaturationEnabled) active.Add("Saturation");
+            if (track.CompressorEnabled) active.Add("Kompressor");
+            if (track.ChorusEnabled) active.Add("Chorus");
+            if (track.StereoWidthEnabled) active.Add("Stereo Width");
+            if (track.DelayEnabled) active.Add("Delay");
+            if (track.ReverbEnabled) active.Add("Reverb");
+            if (track.LimiterEnabled) active.Add("Limiter");
+
+            return active.Count == 0
+                ? "Keine Spur-Effekte aktiv · Originalsignal"
+                : $"{active.Count} aktiv · {string.Join(" → ", active)}";
         }
     }
 
@@ -1606,7 +1704,10 @@ public sealed class AudioEditorViewModel : ObservableObject
             NotifyMasterAnalysisDisplayChanged();
             StatusMessage = "Audiopuffer wird vorbereitet …";
             await _playbackService.PlayAsync(CreatePlaybackDocument(), startSeconds);
-            StatusMessage = "Wiedergabe läuft · Live-LUFS und True Peak werden am Master mitgemessen.";
+            ApplySelectedTrackFxMonitorState();
+            StatusMessage = IsSelectedTrackEffectsBypassed
+                ? "Wiedergabe läuft · A/B steht auf B: ausgewählte Spur wird trocken abgehört."
+                : "Wiedergabe läuft · Live-LUFS und True Peak werden am Master mitgemessen.";
         }
         catch (Exception exception) when (
             exception is IOException or
@@ -1635,9 +1736,17 @@ public sealed class AudioEditorViewModel : ObservableObject
     private async Task StopPlaybackAsync()
     {
         _peakAuditionEndSeconds = null;
-        await _playbackService.StopAsync(resetPosition: true);
-        TimelineCursorSeconds = 0;
-        StatusMessage = "Wiedergabe gestoppt.";
+        var wasRepairAudition = _isRepairAuditionActive;
+        if (wasRepairAudition)
+        {
+            _repairAuditionCts?.Cancel();
+        }
+
+        await _playbackService.StopAsync(resetPosition: !wasRepairAudition);
+        TimelineCursorSeconds = wasRepairAudition
+            ? Math.Clamp(_repairAuditionRestoreCursorSeconds, 0d, TimelineMaximumSeconds)
+            : 0d;
+        StatusMessage = wasRepairAudition ? "Reparatur-Abhörung beendet." : "Wiedergabe gestoppt.";
         RefreshPlaybackState();
     }
 
@@ -1676,7 +1785,8 @@ public sealed class AudioEditorViewModel : ObservableObject
         RefreshMasterLoudness(currentState);
         RefreshMasterLimiterReduction(currentState);
 
-        if (!_isTimelineSeekInteraction &&
+        if (!_isRepairAuditionActive &&
+            !_isTimelineSeekInteraction &&
             currentState is AudioPlaybackState.Playing or AudioPlaybackState.Paused or AudioPlaybackState.Buffering)
         {
             var playbackPosition = _playbackService.PositionSeconds;
@@ -1932,6 +2042,36 @@ public sealed class AudioEditorViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private async Task ExportWavAsync()
+    {
+        if (!HasPlayableAudio || IsBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var document = CreateDocument();
+            var exportedPath = await _audioExportWindowService.ShowAsync(
+                document,
+                $"{ProjectName}-Mixdown");
+
+            if (!string.IsNullOrWhiteSpace(exportedPath))
+            {
+                StatusMessage = $"WAV exportiert: {Path.GetFileName(exportedPath)}";
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException or
+            UnauthorizedAccessException or
+            InvalidDataException or
+            InvalidOperationException or
+            NotSupportedException)
+        {
+            StatusMessage = $"Exportfenster konnte nicht abgeschlossen werden: {exception.Message}";
         }
     }
 
@@ -2201,6 +2341,124 @@ public sealed class AudioEditorViewModel : ObservableObject
         SelectedClip = null;
     }
 
+    public async Task<StemRepairAuditionClip> AuditionStemRepairAsync(
+        AudioTrackViewModel track,
+        StemRepairFinding finding)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(finding);
+
+        _repairAuditionCts?.Cancel();
+        await _repairAuditionGate.WaitAsync();
+
+        _repairAuditionCts?.Dispose();
+        _repairAuditionCts = new CancellationTokenSource();
+        var currentCts = _repairAuditionCts;
+        var token = currentCts.Token;
+        var restoreCursor = TimelineCursorSeconds;
+        _repairAuditionRestoreCursorSeconds = restoreCursor;
+        _isRepairAuditionActive = true;
+        _peakAuditionEndSeconds = null;
+
+        StemRepairAuditionClip? clip = null;
+        try
+        {
+            await _playbackService.StopAsync(resetPosition: false);
+            clip = await _stemRepairAuditionService.CreateRemovedSignalAsync(
+                track,
+                finding,
+                restoreCursor,
+                ProjectSampleRate,
+                token);
+            _activeRepairAuditionClip = clip;
+
+            var auditionDocument = CreateRepairAuditionDocument(track, clip);
+            StatusMessage = $"Entferntes Signal wird vorbereitet · {track.Name}.";
+            await _playbackService.PlayAsync(auditionDocument, 0d, token);
+            RefreshPlaybackState();
+
+            var boostLabel = clip.MonitorGainDb > 0.05d
+                ? $" · Abhörpegel +{clip.MonitorGainDb:0.#} dB"
+                : string.Empty;
+            StatusMessage = $"Störung vorhören · nur der vom vorgeschlagenen Filter entfernte Anteil{boostLabel}.";
+
+            await Task.Delay(TimeSpan.FromSeconds(clip.DurationSeconds), token);
+            return clip;
+        }
+        finally
+        {
+            try
+            {
+                await _playbackService.StopAsync(resetPosition: false);
+            }
+            catch
+            {
+                // Preserve the original audition exception/cancellation.
+            }
+
+            _isRepairAuditionActive = false;
+            _timelineCursorSeconds = Math.Clamp(_repairAuditionRestoreCursorSeconds, 0d, TimelineMaximumSeconds);
+            OnPropertyChanged(nameof(TimelineCursorSeconds));
+            OnPropertyChanged(nameof(TimelineCursorLabel));
+            OnPropertyChanged(nameof(SelectedClipCursorSourceSeconds));
+            RefreshPlaybackState();
+
+            var finishedClip = _activeRepairAuditionClip ?? clip;
+            _activeRepairAuditionClip = null;
+            _stemRepairAuditionService.TryDelete(finishedClip);
+
+            if (ReferenceEquals(_repairAuditionCts, currentCts))
+            {
+                _repairAuditionCts.Dispose();
+                _repairAuditionCts = null;
+            }
+
+            _repairAuditionGate.Release();
+        }
+    }
+
+    private AudioProjectDocument CreateRepairAuditionDocument(
+        AudioTrackViewModel sourceTrack,
+        StemRepairAuditionClip clip)
+    {
+        var document = new AudioProjectDocument
+        {
+            Name = $"Repair-Audition · {sourceTrack.Name}",
+            SampleRate = clip.SampleRate,
+            Master = new AudioMasterDocument
+            {
+                VolumeDb = 0d,
+                LimiterEnabled = false,
+                LimiterCeilingDb = 0d
+            }
+        };
+
+        var track = new AudioTrackDocument
+        {
+            Name = sourceTrack.Name,
+            ChannelLayout = AudioChannelLayout.Stereo,
+            VolumeDb = 0d,
+            Pan = 0d,
+            Effects = new AudioTrackEffectsDocument()
+        };
+        track.Clips.Add(new AudioClipDocument
+        {
+            Name = "Entferntes Signal",
+            SourcePath = clip.FilePath,
+            SourcePathIsRelative = false,
+            TimelineStartSeconds = 0d,
+            SourceStartSeconds = 0d,
+            DurationSeconds = clip.DurationSeconds,
+            GainDb = 0d,
+            SourceSampleRate = clip.SampleRate,
+            SourceChannels = 2,
+            SourceBitsPerSample = 16,
+            SourceEncoding = "PCM"
+        });
+        document.Tracks.Add(track);
+        return document;
+    }
+
     public void OpenStemRepairAnalysis(AudioTrackViewModel track)
     {
         ArgumentNullException.ThrowIfNull(track);
@@ -2258,6 +2516,28 @@ public sealed class AudioEditorViewModel : ObservableObject
                 nameof(AudioTrackViewModel.DeEsserEnabled) or
                 nameof(AudioTrackViewModel.DeEsserFrequencyHz) or
                 nameof(AudioTrackViewModel.DeEsserStrength) or
+                nameof(AudioTrackViewModel.ChannelModeIndex) or
+                nameof(AudioTrackViewModel.PhaseInvertLeft) or
+                nameof(AudioTrackViewModel.PhaseInvertRight) or
+                nameof(AudioTrackViewModel.SaturationEnabled) or
+                nameof(AudioTrackViewModel.SaturationDriveDb) or
+                nameof(AudioTrackViewModel.SaturationMixPercent) or
+                nameof(AudioTrackViewModel.ChorusEnabled) or
+                nameof(AudioTrackViewModel.ChorusRateHz) or
+                nameof(AudioTrackViewModel.ChorusDepthPercent) or
+                nameof(AudioTrackViewModel.ChorusMixPercent) or
+                nameof(AudioTrackViewModel.StereoWidthEnabled) or
+                nameof(AudioTrackViewModel.StereoWidthPercent) or
+                nameof(AudioTrackViewModel.DelayEnabled) or
+                nameof(AudioTrackViewModel.DelayTimeMs) or
+                nameof(AudioTrackViewModel.DelayFeedbackPercent) or
+                nameof(AudioTrackViewModel.DelayMixPercent) or
+                nameof(AudioTrackViewModel.DelayPingPong) or
+                nameof(AudioTrackViewModel.ReverbEnabled) or
+                nameof(AudioTrackViewModel.ReverbMixPercent) or
+                nameof(AudioTrackViewModel.ReverbDecayPercent) or
+                nameof(AudioTrackViewModel.ReverbDampingPercent) or
+                nameof(AudioTrackViewModel.ReverbPreDelayMs) or
                 nameof(AudioTrackViewModel.EqualizerEnabled) or
                 nameof(AudioTrackViewModel.BassDb) or
                 nameof(AudioTrackViewModel.MidDb) or
@@ -2274,7 +2554,13 @@ public sealed class AudioEditorViewModel : ObservableObject
         {
             _playbackService.UpdateTrackEffects(
                 effectsTrack.Id,
-                effectsTrack.CreateEffectsDocument());
+                effectsTrack == SelectedTrack && IsSelectedTrackEffectsBypassed
+                    ? CreateNeutralTrackEffectsDocument()
+                    : effectsTrack.CreateEffectsDocument());
+            if (effectsTrack == SelectedTrack)
+            {
+                OnPropertyChanged(nameof(SelectedTrackEffectsSummaryLabel));
+            }
             ResetLiveMasterAnalysis();
             InvalidateOfflineMasterAnalysis();
 
@@ -2307,6 +2593,252 @@ public sealed class AudioEditorViewModel : ObservableObject
         }
 
         MarkDirty();
+    }
+
+    private void ToggleTrackEffectsBypass()
+    {
+        if (SelectedTrack is null)
+        {
+            return;
+        }
+
+        _selectedTrackEffectsBypassed = !_selectedTrackEffectsBypassed;
+        ApplySelectedTrackFxMonitorState();
+        OnPropertyChanged(nameof(IsSelectedTrackEffectsBypassed));
+        OnPropertyChanged(nameof(EffectsAbButtonLabel));
+        OnPropertyChanged(nameof(EffectsAbStatusLabel));
+        ResetLiveMasterAnalysis();
+        StatusMessage = _selectedTrackEffectsBypassed
+            ? $"A/B: {SelectedTrack.Name} trocken · alle Spur-Effekte nur fürs Monitoring umgangen."
+            : $"A/B: {SelectedTrack.Name} mit Effektkette.";
+    }
+
+    private void CopyTrackEffects()
+    {
+        if (SelectedTrack is null)
+        {
+            return;
+        }
+
+        _effectsClipboard = CloneTrackEffects(SelectedTrack.CreateEffectsDocument());
+        _effectsClipboard.NoiseReductionListenRemoved = false;
+        OnPropertyChanged(nameof(EffectsClipboardLabel));
+        PasteTrackEffectsCommand.NotifyCanExecuteChanged();
+        StatusMessage = $"FX von {SelectedTrack.Name} kopiert · können jetzt auf eine andere Spur eingefügt werden.";
+    }
+
+    private void PasteTrackEffects()
+    {
+        if (SelectedTrack is null || _effectsClipboard is null)
+        {
+            return;
+        }
+
+        SelectedTrack.ApplyEffectsDocument(CloneTrackEffects(_effectsClipboard));
+        ApplySelectedTrackFxMonitorState();
+        OnPropertyChanged(nameof(SelectedTrackEffectsSummaryLabel));
+        ResetLiveMasterAnalysis();
+        InvalidateOfflineMasterAnalysis();
+        MarkDirty();
+        StatusMessage = $"FX-Zwischenablage auf {SelectedTrack.Name} angewendet.";
+    }
+
+    private void ResetAllTrackEffects()
+    {
+        if (SelectedTrack is null)
+        {
+            return;
+        }
+
+        // Keep a learned noise profile; reset means neutral processing, not deleting analysis data.
+        SelectedTrack.ApplyEffectsDocument(new AudioTrackEffectsDocument(), includeNoiseProfile: false);
+        ApplySelectedTrackFxMonitorState();
+        OnPropertyChanged(nameof(SelectedTrackEffectsSummaryLabel));
+        ResetLiveMasterAnalysis();
+        InvalidateOfflineMasterAnalysis();
+        MarkDirty();
+        StatusMessage = $"Alle Spur-Effekte von {SelectedTrack.Name} auf neutrale Werte zurückgesetzt.";
+    }
+
+    private void ResetTrackEffect(string? effectKey)
+    {
+        if (SelectedTrack is null || string.IsNullOrWhiteSpace(effectKey))
+        {
+            return;
+        }
+
+        var track = SelectedTrack;
+        switch (effectKey)
+        {
+            case "noise":
+                track.NoiseReductionEnabled = false;
+                track.NoiseReductionStrength = 30;
+                track.NoiseReductionListenRemoved = false;
+                break;
+            case "expander":
+                track.ExpanderEnabled = false;
+                track.ExpanderThresholdDb = -45;
+                track.ExpanderReductionDb = 18;
+                break;
+            case "notch":
+                track.NotchEnabled = false;
+                track.NotchFrequencyHz = 6_500;
+                track.NotchWidthPercent = 30;
+                break;
+            case "hum":
+                track.HumRemovalEnabled = false;
+                track.HumFrequencyHz = 50;
+                track.HumHarmonics = 4;
+                track.HumReductionDb = 18;
+                break;
+            case "deesser":
+                track.DeEsserEnabled = false;
+                track.DeEsserFrequencyHz = 6_500;
+                track.DeEsserStrength = 35;
+                break;
+            case "eq":
+                track.EqualizerEnabled = false;
+                track.BassDb = 0;
+                track.MidDb = 0;
+                track.TrebleDb = 0;
+                track.MidFrequencyHz = 1_000;
+                track.HighPassEnabled = false;
+                track.HighPassFrequencyHz = 80;
+                track.LowPassEnabled = false;
+                track.LowPassFrequencyHz = 18_000;
+                break;
+            case "compressor":
+                track.CompressorEnabled = false;
+                track.CompressorStrength = 35;
+                break;
+            case "limiter":
+                track.LimiterEnabled = false;
+                track.LimiterCeilingDb = -1;
+                break;
+            case "channel":
+                track.ChannelModeIndex = 0;
+                track.PhaseInvertLeft = false;
+                track.PhaseInvertRight = false;
+                break;
+            case "saturation":
+                track.SaturationEnabled = false;
+                track.SaturationDriveDb = 4;
+                track.SaturationMixPercent = 25;
+                break;
+            case "chorus":
+                track.ChorusEnabled = false;
+                track.ChorusRateHz = 0.35;
+                track.ChorusDepthPercent = 35;
+                track.ChorusMixPercent = 18;
+                break;
+            case "width":
+                track.StereoWidthEnabled = false;
+                track.StereoWidthPercent = 100;
+                break;
+            case "delay":
+                track.DelayEnabled = false;
+                track.DelayTimeMs = 240;
+                track.DelayFeedbackPercent = 24;
+                track.DelayMixPercent = 12;
+                track.DelayPingPong = false;
+                break;
+            case "reverb":
+                track.ReverbEnabled = false;
+                track.ReverbMixPercent = 12;
+                track.ReverbDecayPercent = 35;
+                track.ReverbDampingPercent = 45;
+                track.ReverbPreDelayMs = 18;
+                break;
+            default:
+                return;
+        }
+
+        ApplySelectedTrackFxMonitorState();
+        OnPropertyChanged(nameof(SelectedTrackEffectsSummaryLabel));
+        StatusMessage = $"{effectKey} auf Standardwerte zurückgesetzt.";
+    }
+
+    private void ApplySelectedTrackFxMonitorState()
+    {
+        if (SelectedTrack is null)
+        {
+            return;
+        }
+
+        _playbackService.UpdateTrackEffects(
+            SelectedTrack.Id,
+            IsSelectedTrackEffectsBypassed
+                ? CreateNeutralTrackEffectsDocument()
+                : SelectedTrack.CreateEffectsDocument());
+    }
+
+    private static AudioTrackEffectsDocument CreateNeutralTrackEffectsDocument() => new();
+
+    private static AudioTrackEffectsDocument CloneTrackEffects(AudioTrackEffectsDocument source) => new()
+    {
+        NoiseReductionEnabled = source.NoiseReductionEnabled,
+        NoiseReductionStrength = source.NoiseReductionStrength,
+        NoiseProfileSampleRate = source.NoiseProfileSampleRate,
+        NoiseProfileFftSize = source.NoiseProfileFftSize,
+        NoiseProfileDb = source.NoiseProfileDb?.ToArray() ?? [],
+        NoiseReductionListenRemoved = false,
+        ExpanderEnabled = source.ExpanderEnabled,
+        ExpanderThresholdDb = source.ExpanderThresholdDb,
+        ExpanderReductionDb = source.ExpanderReductionDb,
+        NotchEnabled = source.NotchEnabled,
+        NotchFrequencyHz = source.NotchFrequencyHz,
+        NotchWidthPercent = source.NotchWidthPercent,
+        HumRemovalEnabled = source.HumRemovalEnabled,
+        HumFrequencyHz = source.HumFrequencyHz,
+        HumHarmonics = source.HumHarmonics,
+        HumReductionDb = source.HumReductionDb,
+        DeEsserEnabled = source.DeEsserEnabled,
+        DeEsserFrequencyHz = source.DeEsserFrequencyHz,
+        DeEsserStrength = source.DeEsserStrength,
+        ChannelMode = source.ChannelMode,
+        PhaseInvertLeft = source.PhaseInvertLeft,
+        PhaseInvertRight = source.PhaseInvertRight,
+        SaturationEnabled = source.SaturationEnabled,
+        SaturationDriveDb = source.SaturationDriveDb,
+        SaturationMixPercent = source.SaturationMixPercent,
+        ChorusEnabled = source.ChorusEnabled,
+        ChorusRateHz = source.ChorusRateHz,
+        ChorusDepthPercent = source.ChorusDepthPercent,
+        ChorusMixPercent = source.ChorusMixPercent,
+        StereoWidthEnabled = source.StereoWidthEnabled,
+        StereoWidthPercent = source.StereoWidthPercent,
+        DelayEnabled = source.DelayEnabled,
+        DelayTimeMs = source.DelayTimeMs,
+        DelayFeedbackPercent = source.DelayFeedbackPercent,
+        DelayMixPercent = source.DelayMixPercent,
+        DelayPingPong = source.DelayPingPong,
+        ReverbEnabled = source.ReverbEnabled,
+        ReverbMixPercent = source.ReverbMixPercent,
+        ReverbDecayPercent = source.ReverbDecayPercent,
+        ReverbDampingPercent = source.ReverbDampingPercent,
+        ReverbPreDelayMs = source.ReverbPreDelayMs,
+        EqualizerEnabled = source.EqualizerEnabled,
+        BassDb = source.BassDb,
+        MidDb = source.MidDb,
+        TrebleDb = source.TrebleDb,
+        MidFrequencyHz = source.MidFrequencyHz,
+        HighPassEnabled = source.HighPassEnabled,
+        HighPassFrequencyHz = source.HighPassFrequencyHz,
+        LowPassEnabled = source.LowPassEnabled,
+        LowPassFrequencyHz = source.LowPassFrequencyHz,
+        CompressorEnabled = source.CompressorEnabled,
+        CompressorStrength = source.CompressorStrength,
+        LimiterEnabled = source.LimiterEnabled,
+        LimiterCeilingDb = source.LimiterCeilingDb
+    };
+
+    private void RefreshFxRackCommandState()
+    {
+        ToggleTrackEffectsBypassCommand.NotifyCanExecuteChanged();
+        CopyTrackEffectsCommand.NotifyCanExecuteChanged();
+        PasteTrackEffectsCommand.NotifyCanExecuteChanged();
+        ResetAllTrackEffectsCommand.NotifyCanExecuteChanged();
+        ResetTrackEffectCommand.NotifyCanExecuteChanged();
     }
 
     private async Task LoadProjectWaveformsAsync()
@@ -3172,6 +3704,7 @@ public sealed class AudioEditorViewModel : ObservableObject
         OpenProjectCommand.NotifyCanExecuteChanged();
         SaveProjectCommand.NotifyCanExecuteChanged();
         SaveProjectAsCommand.NotifyCanExecuteChanged();
+        ExportWavCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
         PauseCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
@@ -3184,6 +3717,7 @@ public sealed class AudioEditorViewModel : ObservableObject
         JumpToPeakEventCommand.NotifyCanExecuteChanged();
         ListenPeakEventCommand.NotifyCanExecuteChanged();
         OpenEqAnalysisCommand.NotifyCanExecuteChanged();
+        RefreshFxRackCommandState();
     }
 
     private void MarkDirty()

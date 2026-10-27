@@ -20,29 +20,26 @@ internal sealed class TrackDynamicsProcessor
 
     public void Process(float[] interleavedStereo, int sampleRate, TrackDynamicsSettings settings)
     {
+        ProcessCompressor(interleavedStereo, sampleRate, settings);
+        ProcessLimiter(interleavedStereo, settings);
+    }
+
+    public void ProcessCompressor(float[] interleavedStereo, int sampleRate, TrackDynamicsSettings settings)
+    {
         if (interleavedStereo.Length < 2 || sampleRate <= 0)
         {
             return;
         }
 
         var compressorEnabled = settings.CompressorEnabled;
-        var strength = Math.Clamp(settings.CompressorStrength, 0, 100) / 100d;
-        var limiterEnabled = settings.LimiterEnabled;
-        var limiterCeiling = (float)DbToLinear(Math.Clamp(settings.LimiterCeilingDb, -12, 0));
-
         if (!compressorEnabled)
         {
             _detectorEnvelope = 0;
             _smoothedGainDb = 0;
-        }
-
-        if (!compressorEnabled && !limiterEnabled)
-        {
             return;
         }
 
-        // Strength 0..100 maps from gentle levelling to clearly audible
-        // compression without exposing threshold/ratio/attack/release yet.
+        var strength = Math.Clamp(settings.CompressorStrength, 0, 100) / 100d;
         var thresholdDb = -8d - (28d * strength);
         var ratio = 1.5d + (6.5d * strength);
         var kneeDb = 6d;
@@ -58,38 +55,40 @@ internal sealed class TrackDynamicsProcessor
         {
             var left = interleavedStereo[index];
             var right = interleavedStereo[index + 1];
+            var detector = Math.Max(Math.Abs(left), Math.Abs(right));
+            var detectorCoefficient = detector > _detectorEnvelope
+                ? detectorAttack
+                : detectorRelease;
+            _detectorEnvelope = detectorCoefficient * _detectorEnvelope +
+                                (1d - detectorCoefficient) * detector;
 
-            if (compressorEnabled)
-            {
-                var detector = Math.Max(Math.Abs(left), Math.Abs(right));
-                var detectorCoefficient = detector > _detectorEnvelope
-                    ? detectorAttack
-                    : detectorRelease;
-                _detectorEnvelope = detectorCoefficient * _detectorEnvelope +
-                                    (1d - detectorCoefficient) * detector;
+            var levelDb = LinearToDb(_detectorEnvelope);
+            var gainReductionDb = CalculateCompressionGainDb(levelDb, thresholdDb, ratio, kneeDb);
+            var targetGainDb = gainReductionDb + makeupDb;
+            var gainCoefficient = targetGainDb < _smoothedGainDb
+                ? gainAttack
+                : gainRelease;
+            _smoothedGainDb = gainCoefficient * _smoothedGainDb +
+                              (1d - gainCoefficient) * targetGainDb;
 
-                var levelDb = LinearToDb(_detectorEnvelope);
-                var gainReductionDb = CalculateCompressionGainDb(levelDb, thresholdDb, ratio, kneeDb);
-                var targetGainDb = gainReductionDb + makeupDb;
-                var gainCoefficient = targetGainDb < _smoothedGainDb
-                    ? gainAttack
-                    : gainRelease;
-                _smoothedGainDb = gainCoefficient * _smoothedGainDb +
-                                  (1d - gainCoefficient) * targetGainDb;
+            var gain = DbToLinear(_smoothedGainDb);
+            interleavedStereo[index] = (float)(left * gain);
+            interleavedStereo[index + 1] = (float)(right * gain);
+        }
+    }
 
-                var gain = DbToLinear(_smoothedGainDb);
-                left = (float)(left * gain);
-                right = (float)(right * gain);
-            }
+    public void ProcessLimiter(float[] interleavedStereo, TrackDynamicsSettings settings)
+    {
+        if (!settings.LimiterEnabled || interleavedStereo.Length < 2)
+        {
+            return;
+        }
 
-            if (limiterEnabled)
-            {
-                left = Math.Clamp(left, -limiterCeiling, limiterCeiling);
-                right = Math.Clamp(right, -limiterCeiling, limiterCeiling);
-            }
-
-            interleavedStereo[index] = left;
-            interleavedStereo[index + 1] = right;
+        var limiterCeiling = (float)DbToLinear(Math.Clamp(settings.LimiterCeilingDb, -12, 0));
+        for (var index = 0; index + 1 < interleavedStereo.Length; index += 2)
+        {
+            interleavedStereo[index] = Math.Clamp(interleavedStereo[index], -limiterCeiling, limiterCeiling);
+            interleavedStereo[index + 1] = Math.Clamp(interleavedStereo[index + 1], -limiterCeiling, limiterCeiling);
         }
     }
 

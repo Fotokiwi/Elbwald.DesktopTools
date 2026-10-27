@@ -29,6 +29,7 @@ public sealed class AudioEditorBasicExtensionModule : IToolModule
         services.AddSingleton<WaveformCache>();
         services.AddSingleton<RestorationAnalysisService>();
         services.AddSingleton<StemRepairAnalysisService>();
+        services.AddSingleton<StemRepairAuditionService>();
         services.AddSingleton<AudioProjectSerializer>();
         services.AddSingleton<MasteringAnalysisService>();
         services.AddSingleton<AudioPlaybackService>();
@@ -36,6 +37,10 @@ public sealed class AudioEditorBasicExtensionModule : IToolModule
         services.AddSingleton<EqAnalysisWindowService>();
         services.AddSingleton<StemRepairWindowPlacementStore>();
         services.AddSingleton<StemRepairWindowService>();
+        services.AddSingleton<EffectsHelpWindowService>();
+        services.AddSingleton<AudioWavExportService>();
+        services.AddSingleton<AudioExportCheckService>();
+        services.AddSingleton<AudioExportWindowService>();
 
         services.AddNavigationContribution(
             new NavigationContribution(
