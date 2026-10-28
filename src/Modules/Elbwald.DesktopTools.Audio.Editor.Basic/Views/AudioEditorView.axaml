@@ -145,7 +145,7 @@
         </Border>
 
         <Grid Grid.Row="2" ColumnDefinitions="*,300" ColumnSpacing="8" MinHeight="500">
-            <Grid Grid.Column="0" RowDefinitions="*,188" RowSpacing="7">
+            <Grid Grid.Column="0" RowDefinitions="*,252" RowSpacing="7">
                 <Border Grid.Row="0" Classes="audio-panel" Padding="8">
                     <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
                         <Grid ColumnDefinitions="34,2.3*,70,62,1.55*,112,36,46" ColumnSpacing="8" Margin="5,0,5,0">
@@ -341,7 +341,7 @@
                 </Border>
 
                 <Border Grid.Row="1" Classes="audio-panel" Padding="8">
-                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="5">
                         <Grid ColumnDefinitions="Auto,*,Auto,110,54" ColumnSpacing="7">
                             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                 <Button Classes="audio-primary" Content="▶" Command="{Binding PlayCommand}" MinWidth="34" Padding="7,3" ToolTip.Tip="Abspielen / fortsetzen" />
@@ -373,7 +373,36 @@
                             </StackPanel>
                         </Grid>
 
-                        <ScrollViewer Grid.Row="2" IsEnabled="{Binding HasSelectedClip}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Button Classes="audio-button" Content="Split" Command="{Binding SplitClipCommand}" ToolTip.Tip="Clip an der Cursorposition teilen" />
+                                <Button Classes="audio-button" Content="Trim ←" Command="{Binding TrimClipStartCommand}" ToolTip.Tip="Clip-Anfang bis zum Cursor trimmen" />
+                                <Button Classes="audio-button" Content="Trim →" Command="{Binding TrimClipEndCommand}" ToolTip.Tip="Clip-Ende ab Cursor trimmen" />
+                                <Button Classes="audio-button" Content="Bereich stumm" Command="{Binding MuteClipSelectionCommand}" ToolTip.Tip="Markierten Bereich stummschalten; die Zeit bleibt erhalten" />
+                                <Button Classes="audio-button" Content="Bereich entfernen" Command="{Binding RemoveClipSelectionCommand}" ToolTip.Tip="Markierten Bereich aus dem Clip entfernen; der rechte Rest rückt heran" />
+                                <Button Classes="audio-button" Content="Auswahl lösen" Command="{Binding ClearClipSelectionCommand}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Button Classes="audio-button" Content="↶" Command="{Binding UndoClipEditCommand}" ToolTip.Tip="Letzte Clip-Bearbeitung rückgängig" MinWidth="30" />
+                                <Button Classes="audio-button" Content="↷" Command="{Binding RedoClipEditCommand}" ToolTip.Tip="Clip-Bearbeitung wiederholen" MinWidth="30" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Grid.Row="3" ColumnDefinitions="Auto,86,Auto,Auto,78,Auto,78,*" ColumnSpacing="5" IsEnabled="{Binding CanEditClip}">
+                            <TextBlock Text="Start" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="1" Minimum="0" Maximum="86400" Increment="0.1" FormatString="0.000" Value="{Binding SelectedClipTimelineStartSeconds, Mode=TwoWay}" FontSize="9" MinHeight="25" />
+                            <Button Grid.Column="2" Classes="audio-button" Content="= Cursor" Command="{Binding MoveClipToCursorCommand}" Padding="6,2" />
+                            <TextBlock Grid.Column="3" Text="Fade-In" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="4" Minimum="0" Maximum="{Binding SelectedClipFadeMaximumSeconds}" Increment="0.05" FormatString="0.00" Value="{Binding SelectedClipFadeInSeconds, Mode=TwoWay}" FontSize="9" MinHeight="25" />
+                            <TextBlock Grid.Column="5" Text="Fade-Out" Classes="audio-muted" FontSize="8" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="6" Minimum="0" Maximum="{Binding SelectedClipFadeMaximumSeconds}" Increment="0.05" FormatString="0.00" Value="{Binding SelectedClipFadeOutSeconds, Mode=TwoWay}" FontSize="9" MinHeight="25" />
+                            <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <TextBlock Text="{Binding ClipSelectionLabel}" Classes="audio-muted" FontSize="8" TextTrimming="CharacterEllipsis" MaxWidth="270" />
+                                <TextBlock Text="{Binding SelectedClipMutedRangesLabel}" Classes="audio-muted" FontSize="8" />
+                            </StackPanel>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="4" IsEnabled="{Binding HasSelectedClip}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                             <Border
                                 Width="{Binding SelectedClipWaveformWidth}"
                                 MinWidth="640"
@@ -388,11 +417,19 @@
                                     WindowStartSeconds="{Binding SelectedClip.SourceStartSeconds}"
                                     WindowDurationSeconds="{Binding SelectedClip.DurationSeconds}"
                                     CursorSeconds="{Binding SelectedClipCursorSourceSeconds}"
+                                    IsSelectionEnabled="{Binding CanEditClip}"
+                                    SelectionStartSeconds="{Binding ClipSelectionStartSourceSeconds, Mode=TwoWay}"
+                                    SelectionEndSeconds="{Binding ClipSelectionEndSourceSeconds, Mode=TwoWay}"
+                                    SelectionBrush="{DynamicResource ElbwaldAccentBrush}"
+                                    MutedRanges="{Binding SelectedClip.MutedRanges}"
+                                    MutedRangeOffsetSeconds="{Binding SelectedClip.SourceStartSeconds}"
+                                    FadeInSeconds="{Binding SelectedClip.FadeInSeconds}"
+                                    FadeOutSeconds="{Binding SelectedClip.FadeOutSeconds}"
                                     WaveformBrush="{DynamicResource ElbwaldAccentBrush}"
                                     GuideBrush="{DynamicResource ElbwaldBorderBrush}"
                                     CursorBrush="{DynamicResource ElbwaldTextBrush}"
                                     Cursor="Hand"
-                                    ToolTip.Tip="Clip-Wellenform · Klick setzt Wiedergabeposition"
+                                    ToolTip.Tip="Clip-Wellenform · Klick setzt den Cursor · Ziehen markiert einen Bereich · schraffiert = stummgeschaltet"
                                     PointerPressed="OnSelectedClipWaveformPointerPressed" />
                             </Border>
                         </ScrollViewer>
@@ -522,7 +559,9 @@
                                                         <TextBlock Grid.Column="1" Text="{Binding DurationLabel}" Classes="audio-muted" FontSize="9" />
                                                     </Grid>
                                                     <TextBlock Text="{Binding TechnicalLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding TimelineLabel}" Classes="audio-muted" FontSize="8" />
                                                     <TextBlock Text="{Binding SourceRangeLabel}" Classes="audio-muted" FontSize="8" />
+                                                    <TextBlock Text="{Binding MutedRangesLabel}" Classes="audio-muted" FontSize="8" IsVisible="{Binding HasMutedRanges}" />
                                                     <TextBlock Text="{Binding SourceStateLabel}" Classes="audio-muted" FontSize="8" TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Text="Quelldatei fehlt" Classes="audio-warning" FontSize="8" IsVisible="{Binding IsMissing}" />
                                                 </StackPanel>

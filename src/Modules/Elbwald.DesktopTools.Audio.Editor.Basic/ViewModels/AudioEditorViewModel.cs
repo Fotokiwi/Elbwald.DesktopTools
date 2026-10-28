@@ -77,6 +77,13 @@ public sealed class AudioEditorViewModel : ObservableObject
     private StemRepairAuditionClip? _activeRepairAuditionClip;
     private AudioTrackEffectsDocument? _effectsClipboard;
     private bool _selectedTrackEffectsBypassed;
+    private double _clipSelectionStartSourceSeconds = -1d;
+    private double _clipSelectionEndSourceSeconds = -1d;
+    private readonly Stack<ClipEditUndoEntry> _clipEditUndo = new();
+    private readonly Stack<ClipEditUndoEntry> _clipEditRedo = new();
+    private bool _isApplyingClipEditSnapshot;
+
+    private const double MinimumClipEditSeconds = 0.001d;
 
     public AudioEditorViewModel(
         IAudioStudioStoragePicker storagePicker,
@@ -131,6 +138,15 @@ public sealed class AudioEditorViewModel : ObservableObject
         PauseCommand = new RelayCommand(PausePlayback, () => PlaybackState == AudioPlaybackState.Playing);
         StopCommand = new AsyncRelayCommand(StopPlaybackAsync, () => PlaybackState is AudioPlaybackState.Playing or AudioPlaybackState.Paused or AudioPlaybackState.Buffering or AudioPlaybackState.Faulted);
         SeekToCursorCommand = new AsyncRelayCommand(SeekToCursorAsync, () => HasPlayableAudio && !IsBusy);
+        SplitClipCommand = new RelayCommand(SplitSelectedClip, CanSplitSelectedClip);
+        TrimClipStartCommand = new RelayCommand(TrimSelectedClipStart, CanTrimSelectedClipStart);
+        TrimClipEndCommand = new RelayCommand(TrimSelectedClipEnd, CanTrimSelectedClipEnd);
+        RemoveClipSelectionCommand = new RelayCommand(RemoveSelectedClipRange, CanEditClipSelection);
+        MuteClipSelectionCommand = new RelayCommand(MuteSelectedClipRange, CanEditClipSelection);
+        ClearClipSelectionCommand = new RelayCommand(ClearClipSelection, () => HasClipSelection);
+        MoveClipToCursorCommand = new RelayCommand(MoveSelectedClipToCursor, CanMoveSelectedClipToCursor);
+        UndoClipEditCommand = new RelayCommand(UndoClipEdit, () => _clipEditUndo.Count > 0 && CanUseClipEditHistory);
+        RedoClipEditCommand = new RelayCommand(RedoClipEdit, () => _clipEditRedo.Count > 0 && CanUseClipEditHistory);
         OpenEqAnalysisCommand = new RelayCommand(
             () => _eqAnalysisWindowService.Show(this),
             () => HasSelectedTrack || IsMasterInspectorSelected);
@@ -214,6 +230,24 @@ public sealed class AudioEditorViewModel : ObservableObject
     public IAsyncRelayCommand StopCommand { get; }
 
     public IAsyncRelayCommand SeekToCursorCommand { get; }
+
+    public IRelayCommand SplitClipCommand { get; }
+
+    public IRelayCommand TrimClipStartCommand { get; }
+
+    public IRelayCommand TrimClipEndCommand { get; }
+
+    public IRelayCommand RemoveClipSelectionCommand { get; }
+
+    public IRelayCommand MuteClipSelectionCommand { get; }
+
+    public IRelayCommand ClearClipSelectionCommand { get; }
+
+    public IRelayCommand MoveClipToCursorCommand { get; }
+
+    public IRelayCommand UndoClipEditCommand { get; }
+
+    public IRelayCommand RedoClipEditCommand { get; }
 
     public IRelayCommand OpenEqAnalysisCommand { get; }
 
@@ -370,12 +404,103 @@ public sealed class AudioEditorViewModel : ObservableObject
                 return;
             }
 
+            _clipSelectionStartSourceSeconds = -1d;
+            _clipSelectionEndSourceSeconds = -1d;
             OnPropertyChanged(nameof(HasSelectedClip));
+            OnPropertyChanged(nameof(CanEditClip));
             OnPropertyChanged(nameof(SelectedClipTitle));
             OnPropertyChanged(nameof(SelectedClipWaveformWidth));
             OnPropertyChanged(nameof(SelectedClipCursorSourceSeconds));
+            OnPropertyChanged(nameof(ClipSelectionStartSourceSeconds));
+            OnPropertyChanged(nameof(ClipSelectionEndSourceSeconds));
+            OnPropertyChanged(nameof(HasClipSelection));
+            OnPropertyChanged(nameof(ClipSelectionDurationSeconds));
+            OnPropertyChanged(nameof(ClipSelectionLabel));
+            OnPropertyChanged(nameof(SelectedClipTimelineStartSeconds));
+            OnPropertyChanged(nameof(SelectedClipFadeInSeconds));
+            OnPropertyChanged(nameof(SelectedClipFadeOutSeconds));
+            OnPropertyChanged(nameof(SelectedClipFadeMaximumSeconds));
+            OnPropertyChanged(nameof(SelectedClipMutedRangesLabel));
+            RefreshClipEditCommandState();
         }
     }
+
+    public bool CanUseClipEditHistory =>
+        !IsBusy &&
+        PlaybackState is AudioPlaybackState.Stopped or AudioPlaybackState.Faulted;
+
+    public bool CanEditClip => HasSelectedClip && CanUseClipEditHistory;
+
+    public double ClipSelectionStartSourceSeconds
+    {
+        get => _clipSelectionStartSourceSeconds;
+        set
+        {
+            var normalized = NormalizeClipSelectionSourceSecond(value);
+            if (!SetProperty(ref _clipSelectionStartSourceSeconds, normalized))
+            {
+                return;
+            }
+
+            NotifyClipSelectionChanged();
+        }
+    }
+
+    public double ClipSelectionEndSourceSeconds
+    {
+        get => _clipSelectionEndSourceSeconds;
+        set
+        {
+            var normalized = NormalizeClipSelectionSourceSecond(value);
+            if (!SetProperty(ref _clipSelectionEndSourceSeconds, normalized))
+            {
+                return;
+            }
+
+            if (SelectedClip is { } clip && normalized >= clip.SourceStartSeconds)
+            {
+                TimelineCursorSeconds = clip.TimelineStartSeconds +
+                    Math.Clamp(normalized - clip.SourceStartSeconds, 0, clip.DurationSeconds);
+            }
+
+            NotifyClipSelectionChanged();
+        }
+    }
+
+    public bool HasClipSelection =>
+        TryGetClipSelectionLocalRange(out var start, out var end) &&
+        end - start >= MinimumClipEditSeconds;
+
+    public double ClipSelectionDurationSeconds =>
+        TryGetClipSelectionLocalRange(out var start, out var end)
+            ? Math.Max(0, end - start)
+            : 0d;
+
+    public string ClipSelectionLabel => HasClipSelection
+        ? $"Auswahl {FormatTimelineTime(ClipSelectionDurationSeconds)} · Ziehen ändert den Bereich"
+        : "In der Clip-Wellenform ziehen, um einen Bereich zu markieren";
+
+    public decimal SelectedClipTimelineStartSeconds
+    {
+        get => (decimal)(SelectedClip?.TimelineStartSeconds ?? 0d);
+        set => SetSelectedClipTimelineStart((double)value);
+    }
+
+    public decimal SelectedClipFadeInSeconds
+    {
+        get => (decimal)(SelectedClip?.FadeInSeconds ?? 0d);
+        set => SetSelectedClipFadeIn((double)value);
+    }
+
+    public decimal SelectedClipFadeOutSeconds
+    {
+        get => (decimal)(SelectedClip?.FadeOutSeconds ?? 0d);
+        set => SetSelectedClipFadeOut((double)value);
+    }
+
+    public decimal SelectedClipFadeMaximumSeconds => (decimal)(SelectedClip?.DurationSeconds ?? 0d);
+
+    public string SelectedClipMutedRangesLabel => SelectedClip?.MutedRangesLabel ?? "Keine stummgeschalteten Bereiche";
 
     public bool HasSelectedTrack => SelectedTrack is not null;
 
@@ -554,6 +679,7 @@ public sealed class AudioEditorViewModel : ObservableObject
 
             OnPropertyChanged(nameof(TimelineCursorLabel));
             OnPropertyChanged(nameof(SelectedClipCursorSourceSeconds));
+            RefreshClipEditCommandState();
         }
     }
 
@@ -1862,6 +1988,690 @@ public sealed class AudioEditorViewModel : ObservableObject
         _playbackService.UpdateMasterEqualizer(CreateMasterEqualizerDocument());
     }
 
+    private bool CanSplitSelectedClip()
+    {
+        if (!CanEditClip || SelectedClip is not { } clip)
+        {
+            return false;
+        }
+
+        var localSeconds = TimelineCursorSeconds - clip.TimelineStartSeconds;
+        return localSeconds >= MinimumClipEditSeconds &&
+               localSeconds <= clip.DurationSeconds - MinimumClipEditSeconds;
+    }
+
+    private bool CanTrimSelectedClipStart()
+    {
+        if (!CanEditClip || SelectedClip is not { } clip)
+        {
+            return false;
+        }
+
+        var localSeconds = TimelineCursorSeconds - clip.TimelineStartSeconds;
+        return localSeconds >= MinimumClipEditSeconds &&
+               localSeconds <= clip.DurationSeconds - MinimumClipEditSeconds;
+    }
+
+    private bool CanTrimSelectedClipEnd() => CanTrimSelectedClipStart();
+
+    private bool CanEditClipSelection() => CanEditClip && HasClipSelection;
+
+    private bool CanMoveSelectedClipToCursor() =>
+        CanEditClip &&
+        SelectedClip is { } clip &&
+        Math.Abs(clip.TimelineStartSeconds - TimelineCursorSeconds) >= MinimumClipEditSeconds;
+
+    private void SplitSelectedClip()
+    {
+        if (!CanSplitSelectedClip() || SelectedClip is not { } clip)
+        {
+            return;
+        }
+
+        var track = FindTrackForClip(clip.Id);
+        if (track is null)
+        {
+            return;
+        }
+
+        var splitSeconds = Math.Clamp(
+            TimelineCursorSeconds - clip.TimelineStartSeconds,
+            MinimumClipEditSeconds,
+            clip.DurationSeconds - MinimumClipEditSeconds);
+        var before = CaptureClipSnapshot(track);
+        var after = CloneClipDocuments(before);
+        var index = after.FindIndex(item => item.Id == clip.Id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var source = after[index];
+        var left = CreateClipSegment(
+            source,
+            0d,
+            splitSeconds,
+            source.TimelineStartSeconds,
+            source.Id,
+            source.Name);
+        var right = CreateClipSegment(
+            source,
+            splitSeconds,
+            source.DurationSeconds,
+            source.TimelineStartSeconds + splitSeconds,
+            Guid.NewGuid(),
+            source.Name + " · Teil 2");
+
+        after[index] = left;
+        after.Insert(index + 1, right);
+        CommitClipEdit("Clip geteilt", track, before, after, left.Id);
+    }
+
+    private void TrimSelectedClipStart()
+    {
+        if (!CanTrimSelectedClipStart() || SelectedClip is not { } clip)
+        {
+            return;
+        }
+
+        var track = FindTrackForClip(clip.Id);
+        if (track is null)
+        {
+            return;
+        }
+
+        var trimSeconds = Math.Clamp(
+            TimelineCursorSeconds - clip.TimelineStartSeconds,
+            MinimumClipEditSeconds,
+            clip.DurationSeconds - MinimumClipEditSeconds);
+        var before = CaptureClipSnapshot(track);
+        var after = CloneClipDocuments(before);
+        var index = after.FindIndex(item => item.Id == clip.Id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var source = after[index];
+        after[index] = CreateClipSegment(
+            source,
+            trimSeconds,
+            source.DurationSeconds,
+            source.TimelineStartSeconds + trimSeconds,
+            source.Id,
+            source.Name);
+        CommitClipEdit("Clip-Anfang getrimmt", track, before, after, source.Id);
+    }
+
+    private void TrimSelectedClipEnd()
+    {
+        if (!CanTrimSelectedClipEnd() || SelectedClip is not { } clip)
+        {
+            return;
+        }
+
+        var track = FindTrackForClip(clip.Id);
+        if (track is null)
+        {
+            return;
+        }
+
+        var trimSeconds = Math.Clamp(
+            TimelineCursorSeconds - clip.TimelineStartSeconds,
+            MinimumClipEditSeconds,
+            clip.DurationSeconds - MinimumClipEditSeconds);
+        var before = CaptureClipSnapshot(track);
+        var after = CloneClipDocuments(before);
+        var index = after.FindIndex(item => item.Id == clip.Id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var source = after[index];
+        after[index] = CreateClipSegment(
+            source,
+            0d,
+            trimSeconds,
+            source.TimelineStartSeconds,
+            source.Id,
+            source.Name);
+        CommitClipEdit("Clip-Ende getrimmt", track, before, after, source.Id);
+    }
+
+    private void RemoveSelectedClipRange()
+    {
+        if (!CanEditClipSelection() ||
+            SelectedClip is not { } clip ||
+            !TryGetClipSelectionLocalRange(out var selectionStart, out var selectionEnd))
+        {
+            return;
+        }
+
+        var track = FindTrackForClip(clip.Id);
+        if (track is null)
+        {
+            return;
+        }
+
+        selectionStart = Math.Clamp(selectionStart, 0d, clip.DurationSeconds);
+        selectionEnd = Math.Clamp(selectionEnd, selectionStart, clip.DurationSeconds);
+        var before = CaptureClipSnapshot(track);
+        var after = CloneClipDocuments(before);
+        var index = after.FindIndex(item => item.Id == clip.Id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var source = after[index];
+        Guid? selectedAfterId;
+        if (selectionStart <= MinimumClipEditSeconds &&
+            selectionEnd >= source.DurationSeconds - MinimumClipEditSeconds)
+        {
+            after.RemoveAt(index);
+            selectedAfterId = after.Count == 0
+                ? null
+                : after[Math.Min(index, after.Count - 1)].Id;
+        }
+        else if (selectionStart <= MinimumClipEditSeconds)
+        {
+            var remainder = CreateClipSegment(
+                source,
+                selectionEnd,
+                source.DurationSeconds,
+                source.TimelineStartSeconds,
+                source.Id,
+                source.Name);
+            after[index] = remainder;
+            selectedAfterId = remainder.Id;
+        }
+        else if (selectionEnd >= source.DurationSeconds - MinimumClipEditSeconds)
+        {
+            var remainder = CreateClipSegment(
+                source,
+                0d,
+                selectionStart,
+                source.TimelineStartSeconds,
+                source.Id,
+                source.Name);
+            after[index] = remainder;
+            selectedAfterId = remainder.Id;
+        }
+        else
+        {
+            var left = CreateClipSegment(
+                source,
+                0d,
+                selectionStart,
+                source.TimelineStartSeconds,
+                source.Id,
+                source.Name);
+            var right = CreateClipSegment(
+                source,
+                selectionEnd,
+                source.DurationSeconds,
+                source.TimelineStartSeconds + selectionStart,
+                Guid.NewGuid(),
+                source.Name + " · Rest");
+            after[index] = left;
+            after.Insert(index + 1, right);
+            selectedAfterId = right.Id;
+        }
+
+        CommitClipEdit("Markierten Bereich entfernt", track, before, after, selectedAfterId);
+    }
+
+    private void MuteSelectedClipRange()
+    {
+        if (!CanEditClipSelection() ||
+            SelectedClip is not { } clip ||
+            !TryGetClipSelectionLocalRange(out var selectionStart, out var selectionEnd))
+        {
+            return;
+        }
+
+        var track = FindTrackForClip(clip.Id);
+        if (track is null)
+        {
+            return;
+        }
+
+        var before = CaptureClipSnapshot(track);
+        var after = CloneClipDocuments(before);
+        var target = after.FirstOrDefault(item => item.Id == clip.Id);
+        if (target is null)
+        {
+            return;
+        }
+
+        target.MutedRanges.Add(new AudioClipMuteRangeDocument
+        {
+            StartSeconds = selectionStart,
+            DurationSeconds = selectionEnd - selectionStart
+        });
+        target.MutedRanges = NormalizeMuteRanges(target.MutedRanges, target.DurationSeconds);
+        CommitClipEdit("Markierten Bereich stummgeschaltet", track, before, after, target.Id);
+    }
+
+    private void MoveSelectedClipToCursor()
+    {
+        if (SelectedClip is null)
+        {
+            return;
+        }
+
+        SetSelectedClipTimelineStart(TimelineCursorSeconds);
+    }
+
+    private void SetSelectedClipTimelineStart(double value)
+    {
+        if (!CanEditClip || SelectedClip is not { } clip)
+        {
+            return;
+        }
+
+        var normalized = Math.Max(0d, value);
+        if (Math.Abs(clip.TimelineStartSeconds - normalized) < 0.000_001)
+        {
+            return;
+        }
+
+        CommitSingleClipDocumentChange(
+            "Clip verschoben",
+            clip.Id,
+            document => document.TimelineStartSeconds = normalized);
+    }
+
+    private void SetSelectedClipFadeIn(double value)
+    {
+        if (!CanEditClip || SelectedClip is not { } clip)
+        {
+            return;
+        }
+
+        var normalized = Math.Clamp(value, 0d, clip.DurationSeconds);
+        if (Math.Abs(clip.FadeInSeconds - normalized) < 0.000_001)
+        {
+            return;
+        }
+
+        CommitSingleClipDocumentChange(
+            "Fade-In geändert",
+            clip.Id,
+            document => document.FadeInSeconds = normalized);
+    }
+
+    private void SetSelectedClipFadeOut(double value)
+    {
+        if (!CanEditClip || SelectedClip is not { } clip)
+        {
+            return;
+        }
+
+        var normalized = Math.Clamp(value, 0d, clip.DurationSeconds);
+        if (Math.Abs(clip.FadeOutSeconds - normalized) < 0.000_001)
+        {
+            return;
+        }
+
+        CommitSingleClipDocumentChange(
+            "Fade-Out geändert",
+            clip.Id,
+            document => document.FadeOutSeconds = normalized);
+    }
+
+    private void CommitSingleClipDocumentChange(
+        string description,
+        Guid clipId,
+        Action<AudioClipDocument> change)
+    {
+        var track = FindTrackForClip(clipId);
+        if (track is null)
+        {
+            return;
+        }
+
+        var before = CaptureClipSnapshot(track);
+        var after = CloneClipDocuments(before);
+        var target = after.FirstOrDefault(item => item.Id == clipId);
+        if (target is null)
+        {
+            return;
+        }
+
+        change(target);
+        CommitClipEdit(description, track, before, after, clipId);
+    }
+
+    private void CommitClipEdit(
+        string description,
+        AudioTrackViewModel track,
+        List<AudioClipDocument> before,
+        List<AudioClipDocument> after,
+        Guid? selectedAfterId)
+    {
+        var selectedBeforeId = SelectedClip?.Id;
+        ApplyClipSnapshot(track, after, selectedAfterId);
+        _clipEditUndo.Push(new ClipEditUndoEntry(
+            track.Id,
+            CloneClipDocuments(before),
+            CloneClipDocuments(after),
+            selectedBeforeId,
+            selectedAfterId,
+            description));
+        _clipEditRedo.Clear();
+        StatusMessage = description + ".";
+        RefreshClipEditCommandState();
+    }
+
+    private void UndoClipEdit()
+    {
+        if (_clipEditUndo.Count == 0 || !CanUseClipEditHistory)
+        {
+            return;
+        }
+
+        var entry = _clipEditUndo.Pop();
+        var track = Tracks.FirstOrDefault(item => item.Id == entry.TrackId);
+        if (track is null)
+        {
+            _clipEditUndo.Clear();
+            _clipEditRedo.Clear();
+            RefreshClipEditCommandState();
+            return;
+        }
+
+        ApplyClipSnapshot(track, entry.BeforeClips, entry.SelectedClipBeforeId);
+        _clipEditRedo.Push(entry);
+        StatusMessage = $"Rückgängig: {entry.Description}.";
+        RefreshClipEditCommandState();
+    }
+
+    private void RedoClipEdit()
+    {
+        if (_clipEditRedo.Count == 0 || !CanUseClipEditHistory)
+        {
+            return;
+        }
+
+        var entry = _clipEditRedo.Pop();
+        var track = Tracks.FirstOrDefault(item => item.Id == entry.TrackId);
+        if (track is null)
+        {
+            _clipEditUndo.Clear();
+            _clipEditRedo.Clear();
+            RefreshClipEditCommandState();
+            return;
+        }
+
+        ApplyClipSnapshot(track, entry.AfterClips, entry.SelectedClipAfterId);
+        _clipEditUndo.Push(entry);
+        StatusMessage = $"Wiederholt: {entry.Description}.";
+        RefreshClipEditCommandState();
+    }
+
+    private void ApplyClipSnapshot(
+        AudioTrackViewModel track,
+        IReadOnlyList<AudioClipDocument> documents,
+        Guid? selectedClipId)
+    {
+        var waveformBySource = track.Clips
+            .Where(clip => clip.Waveform is not null)
+            .GroupBy(clip => clip.SourcePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Waveform!, StringComparer.OrdinalIgnoreCase);
+
+        var clips = documents
+            .Select(document => AudioClipViewModel.FromDocument(CloneClipDocument(document)))
+            .ToList();
+        foreach (var clip in clips)
+        {
+            if (waveformBySource.TryGetValue(clip.SourcePath, out var waveform))
+            {
+                clip.SetWaveform(waveform);
+            }
+        }
+
+        _isApplyingClipEditSnapshot = true;
+        _suppressDirtyTracking = true;
+        try
+        {
+            track.ReplaceClips(clips);
+            SelectedTrack = track;
+            SelectedClip = selectedClipId is Guid id
+                ? clips.FirstOrDefault(clip => clip.Id == id) ?? clips.FirstOrDefault()
+                : clips.FirstOrDefault();
+        }
+        finally
+        {
+            _suppressDirtyTracking = false;
+            _isApplyingClipEditSnapshot = false;
+        }
+
+        ClearClipSelection();
+        ResetLiveMasterAnalysis();
+        InvalidateOfflineMasterAnalysis();
+        RefreshProjectState();
+        MarkDirty();
+
+        foreach (var clip in clips.Where(clip => !clip.HasWaveform && !clip.IsMissing))
+        {
+            _ = LoadWaveformAsync(clip);
+        }
+    }
+
+    private AudioTrackViewModel? FindTrackForClip(Guid clipId) =>
+        Tracks.FirstOrDefault(track => track.Clips.Any(clip => clip.Id == clipId));
+
+    private static List<AudioClipDocument> CaptureClipSnapshot(AudioTrackViewModel track) =>
+        track.Clips.Select(clip => CloneClipDocument(clip.ToDocument())).ToList();
+
+    private static List<AudioClipDocument> CloneClipDocuments(IEnumerable<AudioClipDocument> clips) =>
+        clips.Select(CloneClipDocument).ToList();
+
+    private static AudioClipDocument CloneClipDocument(AudioClipDocument clip) =>
+        new()
+        {
+            Id = clip.Id,
+            Name = clip.Name,
+            SourcePath = clip.SourcePath,
+            SourcePathIsRelative = clip.SourcePathIsRelative,
+            TimelineStartSeconds = clip.TimelineStartSeconds,
+            SourceStartSeconds = clip.SourceStartSeconds,
+            DurationSeconds = clip.DurationSeconds,
+            GainDb = clip.GainDb,
+            FadeInSeconds = clip.FadeInSeconds,
+            FadeOutSeconds = clip.FadeOutSeconds,
+            MutedRanges = clip.MutedRanges.Select(CloneMuteRange).ToList(),
+            SourceSampleRate = clip.SourceSampleRate,
+            SourceChannels = clip.SourceChannels,
+            SourceBitsPerSample = clip.SourceBitsPerSample,
+            SourceEncoding = clip.SourceEncoding
+        };
+
+    private static AudioClipDocument CreateClipSegment(
+        AudioClipDocument source,
+        double localStartSeconds,
+        double localEndSeconds,
+        double timelineStartSeconds,
+        Guid id,
+        string name)
+    {
+        var start = Math.Clamp(localStartSeconds, 0d, source.DurationSeconds);
+        var end = Math.Clamp(localEndSeconds, start, source.DurationSeconds);
+        var duration = Math.Max(0d, end - start);
+        return new AudioClipDocument
+        {
+            Id = id,
+            Name = name,
+            SourcePath = source.SourcePath,
+            SourcePathIsRelative = source.SourcePathIsRelative,
+            TimelineStartSeconds = Math.Max(0d, timelineStartSeconds),
+            SourceStartSeconds = source.SourceStartSeconds + start,
+            DurationSeconds = duration,
+            GainDb = source.GainDb,
+            FadeInSeconds = start <= MinimumClipEditSeconds
+                ? Math.Min(source.FadeInSeconds, duration)
+                : 0d,
+            FadeOutSeconds = end >= source.DurationSeconds - MinimumClipEditSeconds
+                ? Math.Min(source.FadeOutSeconds, duration)
+                : 0d,
+            MutedRanges = SliceMuteRanges(source.MutedRanges, start, end),
+            SourceSampleRate = source.SourceSampleRate,
+            SourceChannels = source.SourceChannels,
+            SourceBitsPerSample = source.SourceBitsPerSample,
+            SourceEncoding = source.SourceEncoding
+        };
+    }
+
+    private static List<AudioClipMuteRangeDocument> SliceMuteRanges(
+        IReadOnlyList<AudioClipMuteRangeDocument> ranges,
+        double segmentStartSeconds,
+        double segmentEndSeconds)
+    {
+        var result = new List<AudioClipMuteRangeDocument>();
+        foreach (var range in ranges)
+        {
+            var rangeStart = range.StartSeconds;
+            var rangeEnd = range.StartSeconds + range.DurationSeconds;
+            var overlapStart = Math.Max(rangeStart, segmentStartSeconds);
+            var overlapEnd = Math.Min(rangeEnd, segmentEndSeconds);
+            if (overlapEnd <= overlapStart)
+            {
+                continue;
+            }
+
+            result.Add(new AudioClipMuteRangeDocument
+            {
+                StartSeconds = overlapStart - segmentStartSeconds,
+                DurationSeconds = overlapEnd - overlapStart
+            });
+        }
+
+        return NormalizeMuteRanges(result, Math.Max(0d, segmentEndSeconds - segmentStartSeconds));
+    }
+
+    private static List<AudioClipMuteRangeDocument> NormalizeMuteRanges(
+        IEnumerable<AudioClipMuteRangeDocument> ranges,
+        double durationSeconds)
+    {
+        var ordered = ranges
+            .Select(range => new AudioClipMuteRangeDocument
+            {
+                StartSeconds = Math.Clamp(range.StartSeconds, 0d, durationSeconds),
+                DurationSeconds = Math.Max(0d, range.DurationSeconds)
+            })
+            .Select(range => new AudioClipMuteRangeDocument
+            {
+                StartSeconds = range.StartSeconds,
+                DurationSeconds = Math.Min(range.DurationSeconds, durationSeconds - range.StartSeconds)
+            })
+            .Where(range => range.DurationSeconds >= MinimumClipEditSeconds)
+            .OrderBy(range => range.StartSeconds)
+            .ToList();
+
+        var merged = new List<AudioClipMuteRangeDocument>(ordered.Count);
+        foreach (var range in ordered)
+        {
+            if (merged.Count == 0)
+            {
+                merged.Add(CloneMuteRange(range));
+                continue;
+            }
+
+            var previous = merged[^1];
+            var previousEnd = previous.StartSeconds + previous.DurationSeconds;
+            var currentEnd = range.StartSeconds + range.DurationSeconds;
+            if (range.StartSeconds <= previousEnd + MinimumClipEditSeconds)
+            {
+                previous.DurationSeconds = Math.Max(previousEnd, currentEnd) - previous.StartSeconds;
+            }
+            else
+            {
+                merged.Add(CloneMuteRange(range));
+            }
+        }
+
+        return merged;
+    }
+
+    private static AudioClipMuteRangeDocument CloneMuteRange(AudioClipMuteRangeDocument range) =>
+        new()
+        {
+            StartSeconds = range.StartSeconds,
+            DurationSeconds = range.DurationSeconds
+        };
+
+    private double NormalizeClipSelectionSourceSecond(double value)
+    {
+        if (SelectedClip is not { } clip || value < 0d)
+        {
+            return -1d;
+        }
+
+        return Math.Clamp(
+            value,
+            clip.SourceStartSeconds,
+            clip.SourceStartSeconds + clip.DurationSeconds);
+    }
+
+    private bool TryGetClipSelectionLocalRange(out double startSeconds, out double endSeconds)
+    {
+        startSeconds = 0d;
+        endSeconds = 0d;
+        if (SelectedClip is not { } clip ||
+            _clipSelectionStartSourceSeconds < 0d ||
+            _clipSelectionEndSourceSeconds < 0d)
+        {
+            return false;
+        }
+
+        var sourceStart = Math.Min(_clipSelectionStartSourceSeconds, _clipSelectionEndSourceSeconds);
+        var sourceEnd = Math.Max(_clipSelectionStartSourceSeconds, _clipSelectionEndSourceSeconds);
+        startSeconds = Math.Clamp(sourceStart - clip.SourceStartSeconds, 0d, clip.DurationSeconds);
+        endSeconds = Math.Clamp(sourceEnd - clip.SourceStartSeconds, startSeconds, clip.DurationSeconds);
+        return true;
+    }
+
+    private void ClearClipSelection()
+    {
+        var changed = _clipSelectionStartSourceSeconds >= 0d || _clipSelectionEndSourceSeconds >= 0d;
+        _clipSelectionStartSourceSeconds = -1d;
+        _clipSelectionEndSourceSeconds = -1d;
+        if (!changed)
+        {
+            RefreshClipEditCommandState();
+            return;
+        }
+
+        OnPropertyChanged(nameof(ClipSelectionStartSourceSeconds));
+        OnPropertyChanged(nameof(ClipSelectionEndSourceSeconds));
+        NotifyClipSelectionChanged();
+    }
+
+    private void NotifyClipSelectionChanged()
+    {
+        OnPropertyChanged(nameof(HasClipSelection));
+        OnPropertyChanged(nameof(ClipSelectionDurationSeconds));
+        OnPropertyChanged(nameof(ClipSelectionLabel));
+        RefreshClipEditCommandState();
+    }
+
+    private void RefreshClipEditCommandState()
+    {
+        OnPropertyChanged(nameof(CanUseClipEditHistory));
+        OnPropertyChanged(nameof(CanEditClip));
+        SplitClipCommand.NotifyCanExecuteChanged();
+        TrimClipStartCommand.NotifyCanExecuteChanged();
+        TrimClipEndCommand.NotifyCanExecuteChanged();
+        RemoveClipSelectionCommand.NotifyCanExecuteChanged();
+        MuteClipSelectionCommand.NotifyCanExecuteChanged();
+        ClearClipSelectionCommand.NotifyCanExecuteChanged();
+        MoveClipToCursorCommand.NotifyCanExecuteChanged();
+        UndoClipEditCommand.NotifyCanExecuteChanged();
+        RedoClipEditCommand.NotifyCanExecuteChanged();
+    }
+
     private void RefreshPlaybackState()
     {
         OnPropertyChanged(nameof(PlaybackState));
@@ -1871,7 +2681,9 @@ public sealed class AudioEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(PlaybackStateLabel));
         OnPropertyChanged(nameof(PlaybackBufferLabel));
         OnPropertyChanged(nameof(HasPlayableAudio));
+        OnPropertyChanged(nameof(CanEditClip));
         NotifyMasterAnalysisDisplayChanged();
+        RefreshClipEditCommandState();
         PlayCommand.NotifyCanExecuteChanged();
         PauseCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
@@ -2339,6 +3151,9 @@ public sealed class AudioEditorViewModel : ObservableObject
         Tracks.Clear();
         SelectedTrack = null;
         SelectedClip = null;
+        _clipEditUndo.Clear();
+        _clipEditRedo.Clear();
+        RefreshClipEditCommandState();
     }
 
     public async Task<StemRepairAuditionClip> AuditionStemRepairAsync(
@@ -2468,6 +3283,11 @@ public sealed class AudioEditorViewModel : ObservableObject
 
     private void OnTrackPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_isApplyingClipEditSnapshot)
+        {
+            return;
+        }
+
         if (e.PropertyName is nameof(AudioTrackViewModel.MeterLeftDb) or
             nameof(AudioTrackViewModel.MeterRightDb) or
             nameof(AudioTrackViewModel.MeterPeakLabel) or
@@ -2992,6 +3812,11 @@ public sealed class AudioEditorViewModel : ObservableObject
                 }
 
                 var centerSeconds = (localStart + localEnd) * 0.5;
+                if (clip.IsMutedAtLocalSeconds(centerSeconds))
+                {
+                    continue;
+                }
+
                 var gain = clipGain * CalculateClipFade(clip, centerSeconds);
                 leftMinimum[trackPeakIndex] += leftMin * gain;
                 leftMaximum[trackPeakIndex] += leftMax * gain;
@@ -3180,6 +4005,11 @@ public sealed class AudioEditorViewModel : ObservableObject
                     }
 
                     var centerSeconds = (localStart + localEnd) * 0.5;
+                    if (clip.IsMutedAtLocalSeconds(centerSeconds))
+                    {
+                        continue;
+                    }
+
                     var fadeGain = CalculateClipFade(clip, centerSeconds);
                     var commonGain = clipGain * fadeGain;
 
@@ -3717,6 +4547,7 @@ public sealed class AudioEditorViewModel : ObservableObject
         JumpToPeakEventCommand.NotifyCanExecuteChanged();
         ListenPeakEventCommand.NotifyCanExecuteChanged();
         OpenEqAnalysisCommand.NotifyCanExecuteChanged();
+        RefreshClipEditCommandState();
         RefreshFxRackCommandState();
     }
 
@@ -3730,6 +4561,14 @@ public sealed class AudioEditorViewModel : ObservableObject
         HasUnsavedChanges = true;
         OnPropertyChanged(nameof(ProjectTitle));
     }
+
+    private sealed record ClipEditUndoEntry(
+        Guid TrackId,
+        IReadOnlyList<AudioClipDocument> BeforeClips,
+        IReadOnlyList<AudioClipDocument> AfterClips,
+        Guid? SelectedClipBeforeId,
+        Guid? SelectedClipAfterId,
+        string Description);
 
     private sealed record MasteringAssistantUndoState(
         double MasterVolumeDb,

@@ -1136,6 +1136,25 @@ public sealed class AudioTrackViewModel : ObservableObject
         NotifyClipStateChanged();
     }
 
+    public void ReplaceClips(IEnumerable<AudioClipViewModel> clips)
+    {
+        ArgumentNullException.ThrowIfNull(clips);
+
+        foreach (var clip in Clips)
+        {
+            clip.PropertyChanged -= OnClipPropertyChanged;
+        }
+
+        Clips.Clear();
+        foreach (var clip in clips)
+        {
+            clip.PropertyChanged += OnClipPropertyChanged;
+            Clips.Add(clip);
+        }
+
+        NotifyClipStateChanged();
+    }
+
     public AudioTrackEffectsDocument CreateEffectsDocument() =>
         new()
         {

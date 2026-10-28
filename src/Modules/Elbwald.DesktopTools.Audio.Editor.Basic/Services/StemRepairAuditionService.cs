@@ -281,6 +281,11 @@ public sealed class StemRepairAuditionService
 
     private static double CalculateFadeGain(AudioClipViewModel clip, double clipLocalTime)
     {
+        if (clip.IsMutedAtLocalSeconds(clipLocalTime))
+        {
+            return 0d;
+        }
+
         var gain = 1d;
         if (clip.FadeInSeconds > 0 && clipLocalTime < clip.FadeInSeconds)
         {

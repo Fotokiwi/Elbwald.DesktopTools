@@ -13,6 +13,7 @@ public sealed class AudioClipViewModel : ObservableObject
     private double _gainDb;
     private double _fadeInSeconds;
     private double _fadeOutSeconds;
+    private List<AudioClipMuteRangeDocument> _mutedRanges = [];
     private WaveformEnvelope? _waveform;
     private bool _isWaveformLoading;
     private string _waveformStateLabel = "Wellenform noch nicht geladen";
@@ -30,7 +31,8 @@ public sealed class AudioClipViewModel : ObservableObject
         int sourceSampleRate,
         int sourceChannels,
         int sourceBitsPerSample,
-        string sourceEncoding)
+        string sourceEncoding,
+        IReadOnlyList<AudioClipMuteRangeDocument>? mutedRanges = null)
     {
         Id = id;
         _name = string.IsNullOrWhiteSpace(name) ? "Clip" : name.Trim();
@@ -45,6 +47,7 @@ public sealed class AudioClipViewModel : ObservableObject
         SourceChannels = sourceChannels;
         SourceBitsPerSample = sourceBitsPerSample;
         SourceEncoding = sourceEncoding;
+        _mutedRanges = NormalizeMutedRanges(mutedRanges, _durationSeconds);
     }
 
     public Guid Id { get; }
@@ -113,6 +116,15 @@ public sealed class AudioClipViewModel : ObservableObject
                 FadeOutSeconds = normalized;
             }
 
+            var normalizedMutedRanges = NormalizeMutedRanges(_mutedRanges, normalized);
+            if (!MuteRangesEqual(_mutedRanges, normalizedMutedRanges))
+            {
+                _mutedRanges = normalizedMutedRanges;
+                OnPropertyChanged(nameof(MutedRanges));
+                OnPropertyChanged(nameof(HasMutedRanges));
+                OnPropertyChanged(nameof(MutedRangesLabel));
+            }
+
             OnPropertyChanged(nameof(DurationLabel));
             OnPropertyChanged(nameof(TimelineLabel));
             OnPropertyChanged(nameof(TimelineEndSeconds));
@@ -138,6 +150,38 @@ public sealed class AudioClipViewModel : ObservableObject
     {
         get => _fadeOutSeconds;
         set => SetProperty(ref _fadeOutSeconds, Math.Clamp(value, 0, DurationSeconds));
+    }
+
+
+    public IReadOnlyList<AudioClipMuteRangeDocument> MutedRanges => _mutedRanges;
+
+    public bool HasMutedRanges => _mutedRanges.Count > 0;
+
+    public string MutedRangesLabel => _mutedRanges.Count switch
+    {
+        0 => "Keine stummgeschalteten Bereiche",
+        1 => "1 Bereich stummgeschaltet",
+        _ => $"{_mutedRanges.Count} Bereiche stummgeschaltet"
+    };
+
+    public void ReplaceMutedRanges(IReadOnlyList<AudioClipMuteRangeDocument>? ranges)
+    {
+        _mutedRanges = NormalizeMutedRanges(ranges, DurationSeconds);
+        OnPropertyChanged(nameof(MutedRanges));
+        OnPropertyChanged(nameof(HasMutedRanges));
+        OnPropertyChanged(nameof(MutedRangesLabel));
+    }
+
+    public bool IsMutedAtLocalSeconds(double localSeconds)
+    {
+        if (localSeconds < 0 || localSeconds > DurationSeconds)
+        {
+            return false;
+        }
+
+        return _mutedRanges.Any(range =>
+            localSeconds >= range.StartSeconds &&
+            localSeconds < range.StartSeconds + range.DurationSeconds);
     }
 
     public int SourceSampleRate { get; }
@@ -222,6 +266,7 @@ public sealed class AudioClipViewModel : ObservableObject
             GainDb = GainDb,
             FadeInSeconds = FadeInSeconds,
             FadeOutSeconds = FadeOutSeconds,
+            MutedRanges = _mutedRanges.Select(CloneMuteRange).ToList(),
             SourceSampleRate = SourceSampleRate,
             SourceChannels = SourceChannels,
             SourceBitsPerSample = SourceBitsPerSample,
@@ -245,7 +290,8 @@ public sealed class AudioClipViewModel : ObservableObject
             document.SourceSampleRate,
             document.SourceChannels,
             document.SourceBitsPerSample,
-            document.SourceEncoding);
+            document.SourceEncoding,
+            document.MutedRanges);
     }
 
     public static AudioClipViewModel FromWav(
@@ -269,6 +315,88 @@ public sealed class AudioClipViewModel : ObservableObject
             info.BitsPerSample,
             info.Encoding);
     }
+
+    private static List<AudioClipMuteRangeDocument> NormalizeMutedRanges(
+        IReadOnlyList<AudioClipMuteRangeDocument>? ranges,
+        double durationSeconds)
+    {
+        if (ranges is null || ranges.Count == 0 || durationSeconds <= 0)
+        {
+            return [];
+        }
+
+        var normalized = ranges
+            .Select(range => new AudioClipMuteRangeDocument
+            {
+                StartSeconds = Math.Clamp(range.StartSeconds, 0, durationSeconds),
+                DurationSeconds = Math.Max(0, range.DurationSeconds)
+            })
+            .Select(range => new AudioClipMuteRangeDocument
+            {
+                StartSeconds = range.StartSeconds,
+                DurationSeconds = Math.Min(range.DurationSeconds, durationSeconds - range.StartSeconds)
+            })
+            .Where(range => range.DurationSeconds > 0.000_001)
+            .OrderBy(range => range.StartSeconds)
+            .ToList();
+
+        if (normalized.Count <= 1)
+        {
+            return normalized;
+        }
+
+        var merged = new List<AudioClipMuteRangeDocument>(normalized.Count);
+        foreach (var range in normalized)
+        {
+            if (merged.Count == 0)
+            {
+                merged.Add(CloneMuteRange(range));
+                continue;
+            }
+
+            var previous = merged[^1];
+            var previousEnd = previous.StartSeconds + previous.DurationSeconds;
+            var currentEnd = range.StartSeconds + range.DurationSeconds;
+            if (range.StartSeconds <= previousEnd + 0.000_001)
+            {
+                previous.DurationSeconds = Math.Max(previousEnd, currentEnd) - previous.StartSeconds;
+            }
+            else
+            {
+                merged.Add(CloneMuteRange(range));
+            }
+        }
+
+        return merged;
+    }
+
+    private static bool MuteRangesEqual(
+        IReadOnlyList<AudioClipMuteRangeDocument> left,
+        IReadOnlyList<AudioClipMuteRangeDocument> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (Math.Abs(left[index].StartSeconds - right[index].StartSeconds) > 0.000_001 ||
+                Math.Abs(left[index].DurationSeconds - right[index].DurationSeconds) > 0.000_001)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static AudioClipMuteRangeDocument CloneMuteRange(AudioClipMuteRangeDocument range) =>
+        new()
+        {
+            StartSeconds = range.StartSeconds,
+            DurationSeconds = range.DurationSeconds
+        };
 
     private static string FormatDuration(double seconds)
     {

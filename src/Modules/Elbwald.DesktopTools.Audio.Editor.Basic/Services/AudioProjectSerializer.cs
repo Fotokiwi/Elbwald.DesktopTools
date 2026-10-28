@@ -196,6 +196,18 @@ public sealed class AudioProjectSerializer
                 track.Effects.ChorusEnabled = false;
             }
 
+            document.Version = 9;
+        }
+
+        if (document.Version == 9)
+        {
+            // V10 introduces non-destructive muted regions inside clips. Empty lists
+            // are acoustically neutral, therefore existing projects remain unchanged.
+            foreach (var clip in document.Tracks.SelectMany(track => track.Clips))
+            {
+                clip.MutedRanges ??= [];
+            }
+
             document.Version = AudioProjectDocument.CurrentVersion;
         }
     }
@@ -251,6 +263,17 @@ public sealed class AudioProjectSerializer
                     clip.DurationSeconds < 0)
                 {
                     throw new InvalidDataException("Ein Audio-Clip enthält negative Zeitwerte.");
+                }
+
+                clip.MutedRanges ??= [];
+                foreach (var range in clip.MutedRanges)
+                {
+                    if (range.StartSeconds < 0 ||
+                        range.DurationSeconds < 0 ||
+                        range.StartSeconds + range.DurationSeconds > clip.DurationSeconds + 0.001)
+                    {
+                        throw new InvalidDataException("Ein Audio-Clip enthält einen ungültigen stummgeschalteten Bereich.");
+                    }
                 }
             }
         }
@@ -374,6 +397,13 @@ public sealed class AudioProjectSerializer
                         GainDb = clip.GainDb,
                         FadeInSeconds = clip.FadeInSeconds,
                         FadeOutSeconds = clip.FadeOutSeconds,
+                        MutedRanges = clip.MutedRanges
+                            .Select(range => new AudioClipMuteRangeDocument
+                            {
+                                StartSeconds = range.StartSeconds,
+                                DurationSeconds = range.DurationSeconds
+                            })
+                            .ToList(),
                         SourceSampleRate = clip.SourceSampleRate,
                         SourceChannels = clip.SourceChannels,
                         SourceBitsPerSample = clip.SourceBitsPerSample,

@@ -5,7 +5,7 @@ namespace Elbwald.DesktopTools.Audio.Editor.Basic.Models;
 public sealed class AudioProjectDocument
 {
     public const string CurrentFormat = "ElbwaldAudioProject";
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     public string Format { get; set; } = CurrentFormat;
 
@@ -208,6 +208,12 @@ public sealed class AudioClipDocument
 
     public double FadeOutSeconds { get; set; }
 
+    /// <summary>
+    /// Non-destructive muted regions, measured in seconds relative to the clip start.
+    /// They preserve timeline duration while suppressing only the selected audio.
+    /// </summary>
+    public List<AudioClipMuteRangeDocument> MutedRanges { get; set; } = [];
+
     public int SourceSampleRate { get; set; }
 
     public int SourceChannels { get; set; }
@@ -215,4 +221,14 @@ public sealed class AudioClipDocument
     public int SourceBitsPerSample { get; set; }
 
     public string SourceEncoding { get; set; } = string.Empty;
+}
+
+
+public sealed class AudioClipMuteRangeDocument
+{
+    public double StartSeconds { get; set; }
+
+    public double DurationSeconds { get; set; }
+
+    public double EndSeconds => StartSeconds + DurationSeconds;
 }

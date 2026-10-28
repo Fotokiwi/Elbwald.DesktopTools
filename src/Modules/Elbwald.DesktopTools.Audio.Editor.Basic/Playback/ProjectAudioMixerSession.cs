@@ -125,6 +125,13 @@ internal sealed class ProjectAudioMixerSession : IDisposable
                         clip.GainDb,
                         clip.FadeInSeconds,
                         clip.FadeOutSeconds,
+                        clip.MutedRanges
+                            .Select(range => new AudioClipMuteRangeDocument
+                            {
+                                StartSeconds = range.StartSeconds,
+                                DurationSeconds = range.DurationSeconds
+                            })
+                            .ToArray(),
                         source));
                 }
 
@@ -609,6 +616,11 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             var absoluteProjectFrame = overlapStart + frame;
             var clipProjectFrame = absoluteProjectFrame - clipStartFrame;
             var clipSeconds = clipProjectFrame / (double)SampleRate;
+            if (IsClipMuted(clip, clipSeconds))
+            {
+                continue;
+            }
+
             var sourcePosition = clip.SourceStartSeconds * source.Info.SampleRate +
                                  clipProjectFrame * (source.Info.SampleRate / (double)SampleRate);
             var relativeSource = sourcePosition - sourceFrameStart;
@@ -651,6 +663,21 @@ internal sealed class ProjectAudioMixerSession : IDisposable
             output[outputIndex] += left;
             output[outputIndex + 1] += right;
         }
+    }
+
+
+    private static bool IsClipMuted(PlaybackClip clip, double localSeconds)
+    {
+        foreach (var range in clip.MutedRanges)
+        {
+            if (localSeconds >= range.StartSeconds &&
+                localSeconds < range.StartSeconds + range.DurationSeconds)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static float CalculateFade(PlaybackClip clip, double localSeconds)
@@ -777,6 +804,7 @@ internal sealed class ProjectAudioMixerSession : IDisposable
         double GainDb,
         double FadeInSeconds,
         double FadeOutSeconds,
+        IReadOnlyList<AudioClipMuteRangeDocument> MutedRanges,
         PlaybackSource? Source);
 
     private readonly record struct TrackMixerSnapshot(

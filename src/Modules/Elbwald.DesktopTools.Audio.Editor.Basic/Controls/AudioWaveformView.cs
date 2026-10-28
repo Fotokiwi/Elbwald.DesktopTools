@@ -82,6 +82,18 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
     public static readonly StyledProperty<IBrush?> SelectionBrushProperty =
         AvaloniaProperty.Register<AudioWaveformView, IBrush?>(nameof(SelectionBrush));
 
+    public static readonly StyledProperty<IReadOnlyList<AudioClipMuteRangeDocument>?> MutedRangesProperty =
+        AvaloniaProperty.Register<AudioWaveformView, IReadOnlyList<AudioClipMuteRangeDocument>?>(nameof(MutedRanges));
+
+    public static readonly StyledProperty<double> MutedRangeOffsetSecondsProperty =
+        AvaloniaProperty.Register<AudioWaveformView, double>(nameof(MutedRangeOffsetSeconds));
+
+    public static readonly StyledProperty<double> FadeInSecondsProperty =
+        AvaloniaProperty.Register<AudioWaveformView, double>(nameof(FadeInSeconds));
+
+    public static readonly StyledProperty<double> FadeOutSecondsProperty =
+        AvaloniaProperty.Register<AudioWaveformView, double>(nameof(FadeOutSeconds));
+
     private bool _isSelecting;
     private double _selectionAnchorSeconds;
 
@@ -109,7 +121,11 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
             IsSelectionEnabledProperty,
             SelectionStartSecondsProperty,
             SelectionEndSecondsProperty,
-            SelectionBrushProperty);
+            SelectionBrushProperty,
+            MutedRangesProperty,
+            MutedRangeOffsetSecondsProperty,
+            FadeInSecondsProperty,
+            FadeOutSecondsProperty);
     }
 
     public WaveformEnvelope? Envelope
@@ -262,6 +278,30 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
         set => SetValue(SelectionBrushProperty, value);
     }
 
+    public IReadOnlyList<AudioClipMuteRangeDocument>? MutedRanges
+    {
+        get => GetValue(MutedRangesProperty);
+        set => SetValue(MutedRangesProperty, value);
+    }
+
+    public double MutedRangeOffsetSeconds
+    {
+        get => GetValue(MutedRangeOffsetSecondsProperty);
+        set => SetValue(MutedRangeOffsetSecondsProperty, value);
+    }
+
+    public double FadeInSeconds
+    {
+        get => GetValue(FadeInSecondsProperty);
+        set => SetValue(FadeInSecondsProperty, value);
+    }
+
+    public double FadeOutSeconds
+    {
+        get => GetValue(FadeOutSecondsProperty);
+        set => SetValue(FadeOutSecondsProperty, value);
+    }
+
     bool ICustomHitTest.HitTest(Point point)
     {
         // Custom-drawn controls are otherwise hit-tested against rendered pixels only.
@@ -287,6 +327,7 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
         var warningPen = new Pen(warningBrush, 1.2);
         var criticalPen = new Pen(criticalBrush, 1.4);
 
+        DrawMutedRanges(context, envelope);
         DrawSelection(context, envelope);
         var displayReferencePeak = ResolveDisplayReferencePeak(envelope);
 
@@ -328,6 +369,7 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
                 displayReferencePeak);
         }
 
+        DrawFadeGuides(context, envelope);
         DrawWarningMarkers(context, envelope, warningBrush, criticalBrush);
         DrawCursor(context, envelope, cursorPen);
     }
@@ -411,6 +453,51 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
         }
 
         return db >= WarningThresholdDb ? warningPen : normalPen;
+    }
+
+    private void DrawFadeGuides(DrawingContext context, WaveformEnvelope envelope)
+    {
+        if ((FadeInSeconds <= 0d && FadeOutSeconds <= 0d) || Bounds.Width <= 0 || Bounds.Height <= 0)
+        {
+            return;
+        }
+
+        var sourceDuration = Math.Max(envelope.DurationSeconds, double.Epsilon);
+        var visibleStart = Math.Clamp(WindowStartSeconds, 0, sourceDuration);
+        var visibleDuration = WindowDurationSeconds <= 0
+            ? sourceDuration - visibleStart
+            : Math.Min(WindowDurationSeconds, sourceDuration - visibleStart);
+        if (visibleDuration <= 0d)
+        {
+            return;
+        }
+
+        var pen = new Pen(SelectionBrush ?? CursorBrush ?? Brushes.CornflowerBlue, 1.4);
+        var clipStart = MutedRangeOffsetSeconds;
+        var clipDuration = WindowDurationSeconds > 0d ? WindowDurationSeconds : visibleDuration;
+        var clipEnd = clipStart + clipDuration;
+
+        if (FadeInSeconds > 0d)
+        {
+            var fadeEnd = Math.Min(clipEnd, clipStart + FadeInSeconds);
+            var x1 = Math.Clamp((clipStart - visibleStart) / visibleDuration, 0d, 1d) * Bounds.Width;
+            var x2 = Math.Clamp((fadeEnd - visibleStart) / visibleDuration, 0d, 1d) * Bounds.Width;
+            if (x2 > x1)
+            {
+                context.DrawLine(pen, new Point(x1, Bounds.Height - 2), new Point(x2, 2));
+            }
+        }
+
+        if (FadeOutSeconds > 0d)
+        {
+            var fadeStart = Math.Max(clipStart, clipEnd - FadeOutSeconds);
+            var x1 = Math.Clamp((fadeStart - visibleStart) / visibleDuration, 0d, 1d) * Bounds.Width;
+            var x2 = Math.Clamp((clipEnd - visibleStart) / visibleDuration, 0d, 1d) * Bounds.Width;
+            if (x2 > x1)
+            {
+                context.DrawLine(pen, new Point(x1, 2), new Point(x2, Bounds.Height - 2));
+            }
+        }
     }
 
     private void DrawWarningMarkers(
@@ -587,6 +674,56 @@ public sealed class AudioWaveformView : Control, ICustomHitTest
             : Math.Min(WindowDurationSeconds, sourceDuration - startSeconds);
         var normalized = Math.Clamp(x / Bounds.Width, 0, 1);
         return Math.Clamp(startSeconds + normalized * duration, 0, sourceDuration);
+    }
+
+    private void DrawMutedRanges(DrawingContext context, WaveformEnvelope envelope)
+    {
+        if (MutedRanges is not { Count: > 0 } || Bounds.Width <= 0 || Bounds.Height <= 0)
+        {
+            return;
+        }
+
+        var sourceDuration = Math.Max(envelope.DurationSeconds, double.Epsilon);
+        var visibleStart = Math.Clamp(WindowStartSeconds, 0, sourceDuration);
+        var visibleDuration = WindowDurationSeconds <= 0
+            ? sourceDuration - visibleStart
+            : Math.Min(WindowDurationSeconds, sourceDuration - visibleStart);
+        if (visibleDuration <= 0)
+        {
+            return;
+        }
+
+        var fill = new SolidColorBrush(Color.FromArgb(62, 80, 80, 80));
+        var edge = new Pen(new SolidColorBrush(Color.FromArgb(150, 120, 120, 120)), 1);
+        var hatch = new Pen(new SolidColorBrush(Color.FromArgb(92, 150, 150, 150)), 1);
+
+        foreach (var range in MutedRanges)
+        {
+            var rangeStart = MutedRangeOffsetSeconds + range.StartSeconds;
+            var rangeEnd = rangeStart + Math.Max(0, range.DurationSeconds);
+            var drawStart = Math.Max(rangeStart, visibleStart);
+            var drawEnd = Math.Min(rangeEnd, visibleStart + visibleDuration);
+            if (drawEnd <= drawStart)
+            {
+                continue;
+            }
+
+            var left = (drawStart - visibleStart) / visibleDuration * Bounds.Width;
+            var right = (drawEnd - visibleStart) / visibleDuration * Bounds.Width;
+            var rect = new Rect(left, 0, Math.Max(1, right - left), Bounds.Height);
+            context.DrawRectangle(fill, null, rect);
+            context.DrawLine(edge, new Point(left, 0), new Point(left, Bounds.Height));
+            context.DrawLine(edge, new Point(right, 0), new Point(right, Bounds.Height));
+
+            for (var x = left - Bounds.Height; x < right; x += 12)
+            {
+                var x1 = Math.Max(left, x);
+                var y1 = x1 == x ? Bounds.Height : Bounds.Height - (x1 - x);
+                var x2 = Math.Min(right, x + Bounds.Height);
+                var y2 = Math.Max(0, Bounds.Height - (x2 - x));
+                context.DrawLine(hatch, new Point(x1, y1), new Point(x2, y2));
+            }
+        }
     }
 
     private void DrawSelection(DrawingContext context, WaveformEnvelope envelope)
